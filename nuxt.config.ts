@@ -5,4 +5,8 @@ export default defineNuxtConfig({
   tres: {
     devtools: true,
   },
+  routeRules: {
+    // Forzamos a que el index sea solo del cliente (SPA) 🚀
+    "/": { ssr: false },
+  },
 });
