@@ -24,41 +24,17 @@
     </div>
   </div>
 
-  <!-- Dado 2D Overlay -->
-  <div class="dado-overlay" v-if="store.isDiceVisible">
-    <div class="dado-3d" :class="{ rolling: store.isDiceRolling }">
-      <div class="face face-1" :class="{ active: store.diceValue === 1 }">
-        <span class="dot" style="grid-area: 2 / 2"></span>
-      </div>
-      <div class="face face-2" :class="{ active: store.diceValue === 2 }">
-        <span class="dot" style="grid-area: 1 / 1"></span>
-        <span class="dot" style="grid-area: 3 / 3"></span>
-      </div>
-      <div class="face face-3" :class="{ active: store.diceValue === 3 }">
-        <span class="dot" style="grid-area: 1 / 1"></span>
-        <span class="dot" style="grid-area: 2 / 2"></span>
-        <span class="dot" style="grid-area: 3 / 3"></span>
-      </div>
-      <div class="face face-4" :class="{ active: store.diceValue === 4 }">
-        <span class="dot" style="grid-area: 1 / 1"></span>
-        <span class="dot" style="grid-area: 1 / 3"></span>
-        <span class="dot" style="grid-area: 3 / 1"></span>
-        <span class="dot" style="grid-area: 3 / 3"></span>
-      </div>
-      <div class="face face-5" :class="{ active: store.diceValue === 5 }">
-        <span class="dot" style="grid-area: 1 / 1"></span>
-        <span class="dot" style="grid-area: 1 / 3"></span>
-        <span class="dot" style="grid-area: 2 / 2"></span>
-        <span class="dot" style="grid-area: 3 / 1"></span>
-        <span class="dot" style="grid-area: 3 / 3"></span>
-      </div>
-      <div class="face face-6" :class="{ active: store.diceValue === 6 }">
-        <span class="dot" style="grid-area: 1 / 1"></span>
-        <span class="dot" style="grid-area: 1 / 3"></span>
-        <span class="dot" style="grid-area: 2 / 1"></span>
-        <span class="dot" style="grid-area: 2 / 3"></span>
-        <span class="dot" style="grid-area: 3 / 1"></span>
-        <span class="dot" style="grid-area: 3 / 3"></span>
+  <!-- Dados 2D -->
+  <div class="dado-wrapper" v-if="store.isDiceVisible" :class="{ sliding: isSliding }">
+    <div class="dado-titulo">Total: {{ store.diceTotal }} · Casilla: {{ currentPosition }}</div>
+    <div class="dados-row">
+      <div class="dado-pequeño" v-for="(value, idx) in store.diceValues" :key="idx">
+        <span
+          v-for="(pos, i) in facePositions[value]"
+          :key="i"
+          class="circulo"
+          :style="pos"
+        ></span>
       </div>
     </div>
   </div>
@@ -66,6 +42,7 @@
 
 <script setup lang="ts">
 import { useGameStore } from '~/stores/gameStore';
+import { ref } from 'vue';
 
 const store = useGameStore();
 
@@ -81,83 +58,104 @@ const emit = defineEmits<{
   (e: 'toggle-camera'): void;
 }>();
 
+const isSliding = ref(false);
+
+const facePositions: Record<number, Record<string, string>[]> = {
+  1: [{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }],
+  2: [{ top: '15%', right: '15%' }, { bottom: '15%', left: '15%' }],
+  3: [{ top: '15%', right: '15%' }, { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }, { bottom: '15%', left: '15%' }],
+  4: [{ top: '15%', left: '15%' }, { top: '15%', right: '15%' }, { bottom: '15%', left: '15%' }, { bottom: '15%', right: '15%' }],
+  5: [{ top: '15%', left: '15%' }, { top: '15%', right: '15%' }, { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }, { bottom: '15%', left: '15%' }, { bottom: '15%', right: '15%' }],
+  6: [{ top: '15%', left: '15%' }, { top: '50%', left: '15%', transform: 'translateY(-50%)' }, { bottom: '15%', left: '15%' }, { top: '15%', right: '15%' }, { top: '50%', right: '15%', transform: 'translateY(-50%)' }, { bottom: '15%', right: '15%' }],
+};
+
 async function onRollClick() {
   store.showDice();
+  isSliding.value = false;
+  
   await new Promise((resolve) => {
     setTimeout(() => {
-      store.finishDiceRoll();
+      // Empezar animación de caída
+      isSliding.value = true;
+      
       setTimeout(() => {
-        const result = store.diceValue;
-        store.hideDice();
-        emit('roll', result);
-      }, 600);
-    }, 1500);
+        store.finishDiceRoll();
+        setTimeout(() => {
+          const result = store.diceTotal;
+          store.hideDice();
+          isSliding.value = false;
+          emit('roll', result);
+        }, 500); // tiempo para ver el resultado
+      }, 500); // duración de la animación slideDown
+    }, 1500); // tiempo de "rodar"
   });
 }
 </script>
 
 <style scoped>
-.dado-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.6);
+.dado-wrapper {
+  background: rgba(0, 0, 0, 0.8);
+  border-radius: 20px;
+  color: #4ade80;
+  font-family: monospace;
+  font-size: 12px;
+  border: 1px solid rgba(74, 222, 128, 0.2);
+  padding: 10px 20px;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  z-index: 200;
+  gap: 8px;
+  z-index: 150;
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
   pointer-events: auto;
 }
 
-.dado-3d {
-  width: 100px;
-  height: 100px;
-  position: relative;
-  transform-style: preserve-3d;
+.dados-row {
+  display: flex;
+  flex-direction: row;
+  gap: 10px;
+  align-items: center;
+  justify-content: center;
 }
 
-.dado-3d.rolling {
-  animation: roll 0.1s linear infinite;
+.dado-titulo {
+  font-size: 11px;
+  opacity: 0.9;
 }
 
-@keyframes roll {
-  0%   { transform: rotateX(0deg) rotateY(0deg); }
-  25%  { transform: rotateX(90deg) rotateY(180deg); }
-  50%  { transform: rotateX(180deg) rotateY(360deg); }
-  75%  { transform: rotateX(270deg) rotateY(540deg); }
-  100% { transform: rotateX(360deg) rotateY(720deg); }
-}
-
-.face {
-  position: absolute;
-  width: 100px;
-  height: 100px;
+.dado-pequeño {
+  width: 40px;
+  height: 40px;
   background: white;
-  border: 2px solid #333;
-  border-radius: 10px;
-  display: none;
-  grid-template-columns: repeat(3, 1fr);
-  grid-template-rows: repeat(3, 1fr);
-  padding: 10px;
+  border: 1px solid #333;
+  border-radius: 6px;
+  position: relative;
 }
 
-.face.active {
-  display: grid;
-}
-
-.face-1 { transform: translateZ(50px); }
-.face-2 { transform: rotateY(90deg) translateZ(50px); }
-.face-3 { transform: rotateY(180deg) translateZ(50px); }
-.face-4 { transform: rotateY(-90deg) translateZ(50px); }
-.face-5 { transform: rotateX(90deg) translateZ(50px); }
-.face-6 { transform: rotateX(-90deg) translateZ(50px); }
-
-.dot {
-  width: 16px;
-  height: 16px;
+.circulo {
+  width: 8px;
+  height: 8px;
   background: #333;
   border-radius: 50%;
-  justify-self: center;
-  align-self: center;
+  position: absolute;
+}
+
+.sliding {
+  animation: slideDown 0.5s ease-in forwards;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(100px);
+  }
 }
 
 .overlay-container {

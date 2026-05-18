@@ -8,7 +8,7 @@ export interface GameState {
   
   // NUEVO: Estado UI
   isDiceVisible: boolean;
-  diceValue: number;
+  diceValues: [number, number];
   isDiceRolling: boolean;
   statusMessage: string;
   isCamFollowActive: boolean;
@@ -23,11 +23,15 @@ export const useGameStore = defineStore("game", {
     
     // NUEVO
     isDiceVisible: false,
-    diceValue: 1,
+    diceValues: [1, 1],
     isDiceRolling: false,
     statusMessage: "Cargando entorno...",
     isCamFollowActive: false,
   }),
+
+  getters: {
+    diceTotal: (state) => state.diceValues[0] + state.diceValues[1],
+  },
 
   actions: {
     async movePlayer(steps: number) {
@@ -46,7 +50,7 @@ export const useGameStore = defineStore("game", {
     showDice() {
       this.isDiceVisible = true;
       this.isDiceRolling = true;
-      this.diceValue = Math.floor(Math.random() * 6) + 1;
+      this.diceValues = [Math.floor(Math.random() * 6) + 1, Math.floor(Math.random() * 6) + 1];
     },
 
     hideDice() {
