@@ -6,6 +6,13 @@ export interface GameState {
   isRolling: boolean;
   lastDiceRoll: number | null;
   
+  player2Position: number;
+  isPlayer2Moving: boolean;
+
+  isTurnComplete: boolean;
+
+  activePlayer: 1 | 2;
+
   // NUEVO: Estado UI
   isDiceVisible: boolean;
   diceValues: [number, number];
@@ -20,6 +27,12 @@ export const useGameStore = defineStore("game", {
     isMoving: false,
     isRolling: false,
     lastDiceRoll: null,
+
+    player2Position: 0,
+    isPlayer2Moving: false,
+
+    isTurnComplete: false,
+    activePlayer: 1 as 1 | 2,
     
     // NUEVO
     isDiceVisible: false,
@@ -38,13 +51,26 @@ export const useGameStore = defineStore("game", {
       this.isMoving = true;
       const target = this.currentPosition + steps;
 
-      // Anima casilla por casilla con delay
       for (let i = this.currentPosition + 1; i <= target; i++) {
         this.currentPosition = i;
         await new Promise((r) => setTimeout(r, 300));
       }
 
       this.isMoving = false;
+      this.isTurnComplete = true;
+    },
+
+    async movePlayer2(steps: number) {
+      this.isPlayer2Moving = true;
+      const target = this.player2Position + steps;
+
+      for (let i = this.player2Position + 1; i <= target; i++) {
+        this.player2Position = i;
+        await new Promise((r) => setTimeout(r, 300));
+      }
+
+      this.isPlayer2Moving = false;
+      this.isTurnComplete = true;
     },
 
     showDice() {
@@ -67,6 +93,12 @@ export const useGameStore = defineStore("game", {
 
     setStatusMessage(msg: string) {
       this.statusMessage = msg;
+    },
+
+    finishTurn() {
+      this.isTurnComplete = false;
+      this.activePlayer = this.activePlayer === 1 ? 2 : 1;
+      this.statusMessage = this.activePlayer === 1 ? "¡Turno del Sombrero!" : "¡Turno del Dedal!";
     },
   },
 });

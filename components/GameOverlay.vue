@@ -1,15 +1,23 @@
 <template>
   <div class="overlay-container">
     <div class="status-badge">
-      Casilla Actual: {{ currentPosition }} | Estado: {{ store.statusMessage }}
+      {{ store.activePlayer === 1 ? '🎩 Jugador 1 (Sombrero)' : '🧵 Jugador 2 (Dedal)' }} | Casilla: {{ currentPosition }} | {{ store.statusMessage }}
     </div>
+
+    <button
+      v-if="store.isTurnComplete"
+      @click="onNextTurnClick"
+      class="action-btn next-btn"
+    >
+      Siguiente ↪
+    </button>
 
     <div class="action-buttons">
       <button
         @click="onRollClick"
-        :disabled="isMoving || store.isDiceRolling"
+        :disabled="isMoving || store.isDiceRolling || store.isTurnComplete"
         class="action-btn roll-btn"
-        :class="{ 'disabled-btn': isMoving || store.isDiceRolling }"
+        :class="{ 'disabled-btn': isMoving || store.isDiceRolling || store.isTurnComplete }"
       >
         {{
           store.isDiceRolling
@@ -72,6 +80,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   (e: "roll", value: number): void;
   (e: "toggle-camera"): void;
+  (e: "next-turn"): void;
 }>();
 
 const isSliding = ref(false);
@@ -109,6 +118,10 @@ const facePositions: Record<number, Record<string, string>[]> = {
     { bottom: "15%", right: "15%" },
   ],
 };
+
+function onNextTurnClick() {
+  emit("next-turn");
+}
 
 async function onRollClick() {
   store.showDice();
@@ -249,6 +262,17 @@ async function onRollClick() {
 
 .roll-btn:hover:not(.disabled-btn) {
   background: #059669;
+  transform: translateY(-2px);
+}
+
+.next-btn {
+  background: #3b82f6;
+  pointer-events: auto;
+  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4);
+}
+
+.next-btn:hover {
+  background: #2563eb;
   transform: translateY(-2px);
 }
 
