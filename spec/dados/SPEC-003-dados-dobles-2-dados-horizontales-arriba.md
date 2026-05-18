@@ -84,7 +84,7 @@ Actualmente (SPEC-001, SPEC-002) el juego usa un solo dado (`store.diceValue`, r
 - [x] Cada dado muestra correctamente los puntos (1-6) usando facePositions
 - [x] El resultado del movimiento es la suma de ambos dados (2-12)
 - [x] El contenedor muestra "Total: X · Casilla: Y"
-- [x] La animación slideDown funciona desde la posición superior
+- [x] La animación slideUp funciona desde la posición superior (desaparece hacia arriba)
 - [x] El botón "Tirar Dados" se deshabilita correctamente durante la animación
 - [x] `gameStore.ts` usa `diceValues` array de 2 elementos (no `diceValue` único)
 - [x] La integración con `movePlayer()` funciona sin cambios adicionales

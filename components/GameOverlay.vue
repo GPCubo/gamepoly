@@ -11,7 +11,13 @@
         class="action-btn roll-btn"
         :class="{ 'disabled-btn': isMoving || store.isDiceRolling }"
       >
-        {{ store.isDiceRolling ? "Rodando..." : isMoving ? "Moviendo..." : "🎲 Tirar Dados" }}
+        {{
+          store.isDiceRolling
+            ? "Rodando..."
+            : isMoving
+              ? "Moviendo..."
+              : "🎲 Tirar Dados"
+        }}
       </button>
 
       <button
@@ -25,10 +31,20 @@
   </div>
 
   <!-- Dados 2D -->
-  <div class="dado-wrapper" v-if="store.isDiceVisible" :class="{ sliding: isSliding }">
-    <div class="dado-titulo">Total: {{ store.diceTotal }} · Casilla: {{ currentPosition }}</div>
+  <div
+    class="dado-wrapper"
+    v-if="store.isDiceVisible"
+    :class="{ sliding: isSliding }"
+  >
+    <div class="dado-titulo">
+      Total: {{ store.diceTotal }} · Casilla: {{ currentPosition }}
+    </div>
     <div class="dados-row">
-      <div class="dado-pequeño" v-for="(value, idx) in store.diceValues" :key="idx">
+      <div
+        class="dado-pequeño"
+        v-for="(value, idx) in store.diceValues"
+        :key="idx"
+      >
         <span
           v-for="(pos, i) in facePositions[value]"
           :key="i"
@@ -41,8 +57,8 @@
 </template>
 
 <script setup lang="ts">
-import { useGameStore } from '~/stores/gameStore';
-import { ref } from 'vue';
+import { useGameStore } from "~/stores/gameStore";
+import { ref } from "vue";
 
 const store = useGameStore();
 
@@ -54,37 +70,62 @@ const props = defineProps<{
 
 // Avisamos al index.vue cuándo se ejecutan los clicks
 const emit = defineEmits<{
-  (e: 'roll', value: number): void;
-  (e: 'toggle-camera'): void;
+  (e: "roll", value: number): void;
+  (e: "toggle-camera"): void;
 }>();
 
 const isSliding = ref(false);
 
 const facePositions: Record<number, Record<string, string>[]> = {
-  1: [{ top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }],
-  2: [{ top: '15%', right: '15%' }, { bottom: '15%', left: '15%' }],
-  3: [{ top: '15%', right: '15%' }, { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }, { bottom: '15%', left: '15%' }],
-  4: [{ top: '15%', left: '15%' }, { top: '15%', right: '15%' }, { bottom: '15%', left: '15%' }, { bottom: '15%', right: '15%' }],
-  5: [{ top: '15%', left: '15%' }, { top: '15%', right: '15%' }, { top: '50%', left: '50%', transform: 'translate(-50%, -50%)' }, { bottom: '15%', left: '15%' }, { bottom: '15%', right: '15%' }],
-  6: [{ top: '15%', left: '15%' }, { top: '50%', left: '15%', transform: 'translateY(-50%)' }, { bottom: '15%', left: '15%' }, { top: '15%', right: '15%' }, { top: '50%', right: '15%', transform: 'translateY(-50%)' }, { bottom: '15%', right: '15%' }],
+  1: [{ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }],
+  2: [
+    { top: "15%", right: "15%" },
+    { bottom: "15%", left: "15%" },
+  ],
+  3: [
+    { top: "15%", right: "15%" },
+    { top: "50%", left: "50%", transform: "translate(-50%, -50%)" },
+    { bottom: "15%", left: "15%" },
+  ],
+  4: [
+    { top: "15%", left: "15%" },
+    { top: "15%", right: "15%" },
+    { bottom: "15%", left: "15%" },
+    { bottom: "15%", right: "15%" },
+  ],
+  5: [
+    { top: "15%", left: "15%" },
+    { top: "15%", right: "15%" },
+    { top: "50%", left: "50%", transform: "translate(-50%, -50%)" },
+    { bottom: "15%", left: "15%" },
+    { bottom: "15%", right: "15%" },
+  ],
+  6: [
+    { top: "15%", left: "15%" },
+    { top: "50%", left: "15%", transform: "translateY(-50%)" },
+    { bottom: "15%", left: "15%" },
+    { top: "15%", right: "15%" },
+    { top: "50%", right: "15%", transform: "translateY(-50%)" },
+    { bottom: "15%", right: "15%" },
+  ],
 };
 
 async function onRollClick() {
   store.showDice();
   isSliding.value = false;
-  
+
   await new Promise((resolve) => {
     setTimeout(() => {
       // Empezar animación de caída
       isSliding.value = true;
-      
+
       setTimeout(() => {
         store.finishDiceRoll();
         setTimeout(() => {
           const result = store.diceTotal;
           store.hideDice();
           isSliding.value = false;
-          emit('roll', result);
+          emit("roll", result);
         }, 500); // tiempo para ver el resultado
       }, 500); // duración de la animación slideDown
     }, 1500); // tiempo de "rodar"
@@ -144,17 +185,17 @@ async function onRollClick() {
 }
 
 .sliding {
-  animation: slideDown 0.5s ease-in forwards;
+  animation: slideUp 0.5s ease-in forwards;
 }
 
-@keyframes slideDown {
+@keyframes slideUp {
   from {
     opacity: 1;
     transform: translateX(-50%) translateY(0);
   }
   to {
     opacity: 0;
-    transform: translateX(-50%) translateY(100px);
+    transform: translateX(-50%) translateY(-100px);
   }
 }
 
