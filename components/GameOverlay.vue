@@ -1,7 +1,7 @@
 <template>
   <div class="overlay-container">
     <div class="status-badge">
-      {{ store.activePlayer === 1 ? '🎩 Jugador 1 (Sombrero)' : '🧵 Jugador 2 (Dedal)' }} | Casilla: {{ currentPosition }} | {{ store.statusMessage }}
+      {{ store.activePlayer === 1 ? '🎩 Jugador 1 (Sombrero)' : '🧵 Jugador 2 (Dedal)' }} | Casilla: {{ currentPosition }}/40 | {{ store.statusMessage }}
     </div>
 
     <button
@@ -45,7 +45,7 @@
     :class="{ sliding: isSliding }"
   >
     <div class="dado-titulo">
-      Total: {{ store.diceTotal }} · Casilla: {{ currentPosition }}
+      Total: {{ store.diceTotal }} · Casilla: {{ currentPosition }}/40
     </div>
     <div class="dados-row">
       <div

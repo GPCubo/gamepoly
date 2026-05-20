@@ -44,6 +44,8 @@ export const useGameStore = defineStore("game", {
 
   getters: {
     diceTotal: (state) => state.diceValues[0] + state.diceValues[1],
+    casillaActual: (state) => (state.currentPosition % 40) + 1,
+    casilla2Actual: (state) => (state.player2Position % 40) + 1,
   },
 
   actions: {
