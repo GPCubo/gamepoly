@@ -1,17 +1,14 @@
 export const Y_SUELO = 0.82;
 
+import { GAME_CONFIG } from "~/config/gameConfig";
+
 export function useBoardGeometry() {
   const ySuelo = Y_SUELO;
   const inicioX = 0.1;
   const inicioZ = -0.1;
   const pasoCasilla = 0.4;
 
-  const PLAYER_OFFSETS: Record<1 | 2, { x: number; z: number }> = {
-    1: { x: -2.15, z: 2.15 },
-    2: { x: -2.15, z: 2.15 },
-  };
-
-  const getCasillaCoordinates = (casillaIndex: number, playerIndex?: 1 | 2) => {
+  const getCasillaCoordinates = (casillaIndex: number) => {
     const indexNormalizado = casillaIndex % 40;
 
     let coords: { x: number; y: number; z: number };
@@ -48,10 +45,8 @@ export function useBoardGeometry() {
       };
     }
 
-    if (playerIndex !== undefined) {
-      coords.x += PLAYER_OFFSETS[playerIndex].x;
-      coords.z += PLAYER_OFFSETS[playerIndex].z;
-    }
+    coords.x += GAME_CONFIG.PIECE_ORIGIN_OFFSET.x;
+    coords.z += GAME_CONFIG.PIECE_ORIGIN_OFFSET.z;
 
     return coords;
   };

@@ -49,14 +49,14 @@
           v-if="playerScene"
           :object="playerScene"
           :position="[playerPosition.x, playerPosition.y, playerPosition.z]"
-          :scale="1"
+          :scale="playerScale"
         />
 
         <primitive
           v-if="dedalScene"
           :object="dedalScene"
           :position="[player2Position.x, player2Position.y, player2Position.z]"
-          :scale="1"
+          :scale="player2Scale"
         />
 
         <TresGridHelper :args="[30, 30, '#ff0055', '#444444']" />
@@ -76,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, shallowRef, reactive, watch } from "vue";
+import { onMounted, shallowRef, reactive, watch, computed } from "vue";
 import { TresCanvas } from "@tresjs/core";
 import { OrbitControls } from "@tresjs/cientos";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -84,6 +84,7 @@ import { useGameStore } from "~/stores/gameStore";
 import { useBoardGeometry } from "~/composables/useBoardGeometry";
 import { usePieceAnimation } from "~/composables/usePieceAnimation";
 import { useCameraOrbit, CAM_LERP } from "~/composables/useCameraOrbit";
+import { GAME_CONFIG } from "~/config/gameConfig";
 import GameOverlay from "~/components/GameOverlay.vue";
 import type { Group } from "three";
 
@@ -98,6 +99,20 @@ const controlsRef = shallowRef();
 const playerPosition = reactive({ x: 0, y: 0, z: 0 });
 const player2Position = reactive({ x: 0, y: 0, z: 0 });
 const { getCasillaCoordinates } = useBoardGeometry();
+
+const isSharedTile = computed(() => {
+  const pos1 = store.currentPosition % 40;
+  const pos2 = store.player2Position % 40;
+  return pos1 === pos2;
+});
+
+const playerScale = computed(() =>
+  isSharedTile.value ? GAME_CONFIG.SHARED_TILE_SCALE : GAME_CONFIG.DEFAULT_SCALE,
+);
+
+const player2Scale = computed(() =>
+  isSharedTile.value ? GAME_CONFIG.SHARED_TILE_SCALE : GAME_CONFIG.DEFAULT_SCALE,
+);
 
 const {
   startHop,
@@ -123,6 +138,14 @@ function onRenderTick({ delta }: { delta: number }) {
   player2Position.x = pos2.x;
   player2Position.y = pos2.y;
   player2Position.z = pos2.z;
+
+  if (isSharedTile.value) {
+    const halfSpacing = GAME_CONFIG.SAME_TILE_SPACING / 2;
+    playerPosition.x -= halfSpacing;
+    playerPosition.z -= halfSpacing;
+    player2Position.x += halfSpacing;
+    player2Position.z += halfSpacing;
+  }
 
   if (!cameraRef.value || !controlsRef.value) return;
   const camera = cameraRef.value;
@@ -167,7 +190,7 @@ onMounted(async () => {
     playerScene.value = gltfFicha.scene as Group;
     dedalScene.value = gltfDedal.scene as Group;
 
-    const coords = getCasillaCoordinates(store.currentPosition || 0, 1);
+    const coords = getCasillaCoordinates(store.currentPosition || 0);
 
     setPosition(1, coords);
     playerPosition.x = coords.x;
@@ -176,7 +199,7 @@ onMounted(async () => {
     console.log(
       `[DEBUG] Coordenadas iniciales de la ficha establecidas: (${playerPosition.x}, ${playerPosition.y}, ${playerPosition.z})`,
     );
-    const coords2 = getCasillaCoordinates(store.player2Position || 0, 2);
+    const coords2 = getCasillaCoordinates(store.player2Position || 0);
     setPosition(2, coords2);
     player2Position.x = coords2.x;
     player2Position.y = coords2.y;
@@ -198,7 +221,7 @@ watch(
   (newCasilla) => {
     store.setStatusMessage(`🏃 Moviendo a casilla ${newCasilla}...`);
     const from = { ...getCurrentPosition(1) };
-    const to = getCasillaCoordinates(newCasilla, 1);
+    const to = getCasillaCoordinates(newCasilla);
     startHop(1, from, to);
   },
 );
@@ -207,7 +230,7 @@ watch(
   () => store.player2Position,
   (newCasilla) => {
     const from = { ...getCurrentPosition(2) };
-    const to = getCasillaCoordinates(newCasilla, 2);
+    const to = getCasillaCoordinates(newCasilla);
     startHop(2, from, to);
   },
 );
