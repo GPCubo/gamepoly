@@ -76,7 +76,7 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, shallowRef, reactive, watch, computed } from "vue";
+import { onMounted, shallowRef, reactive, watch, computed, ref } from "vue";
 import { TresCanvas } from "@tresjs/core";
 import { OrbitControls } from "@tresjs/cientos";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -106,28 +106,35 @@ const isSharedTile = computed(() => {
   return pos1 === pos2;
 });
 
-const playerScale = computed(() =>
-  isSharedTile.value ? GAME_CONFIG.SHARED_TILE_SCALE : GAME_CONFIG.DEFAULT_SCALE,
-);
-
-const player2Scale = computed(() =>
-  isSharedTile.value ? GAME_CONFIG.SHARED_TILE_SCALE : GAME_CONFIG.DEFAULT_SCALE,
-);
+const playerScale = ref(GAME_CONFIG.DEFAULT_SCALE);
+const player2Scale = ref(GAME_CONFIG.DEFAULT_SCALE);
 
 const {
   startHop,
+  startGrow,
+  cancelGrow,
   tick,
   getCurrentPosition,
+  getCurrentScale,
   isAnimating,
   setPosition,
 } = usePieceAnimation();
 
 const { getCameraPosition } = useCameraOrbit();
 
+let prevAnimating1 = false;
+let prevAnimating2 = false;
+
 function onRenderTick({ delta }: { delta: number }) {
   const deltaMs = delta * 1000;
 
   tick(deltaMs);
+
+  const justFinished1 = prevAnimating1 && !isAnimating(1);
+  const justFinished2 = prevAnimating2 && !isAnimating(2);
+
+  prevAnimating1 = isAnimating(1);
+  prevAnimating2 = isAnimating(2);
 
   const pos1 = getCurrentPosition(1);
   playerPosition.x = pos1.x;
@@ -139,12 +146,29 @@ function onRenderTick({ delta }: { delta: number }) {
   player2Position.y = pos2.y;
   player2Position.z = pos2.z;
 
+  if (justFinished1) {
+    const shared1 = (store.currentPosition % 40) === (store.player2Position % 40);
+    if (!shared1) startGrow(1);
+    else cancelGrow(1);
+  }
+
+  if (justFinished2) {
+    const shared2 = (store.currentPosition % 40) === (store.player2Position % 40);
+    if (!shared2) startGrow(2);
+    else cancelGrow(2);
+  }
+
+  playerScale.value = getCurrentScale(1);
+  player2Scale.value = getCurrentScale(2);
+
   if (isSharedTile.value) {
     const halfSpacing = GAME_CONFIG.SAME_TILE_SPACING / 2;
     playerPosition.x -= halfSpacing;
     playerPosition.z -= halfSpacing;
     player2Position.x += halfSpacing;
     player2Position.z += halfSpacing;
+    playerScale.value = GAME_CONFIG.SHARED_TILE_SCALE;
+    player2Scale.value = GAME_CONFIG.SHARED_TILE_SCALE;
   }
 
   if (!cameraRef.value || !controlsRef.value) return;
@@ -234,6 +258,16 @@ watch(
     startHop(2, from, to);
   },
 );
+
+watch(isSharedTile, (shared, wasShared) => {
+  if (shared) {
+    cancelGrow(1);
+    cancelGrow(2);
+  } else if (wasShared) {
+    if (!isAnimating(1)) startGrow(1);
+    if (!isAnimating(2)) startGrow(2);
+  }
+}, { immediate: true });
 
 function onDiceRoll(value: number) {
   store.lastDiceRoll = value;

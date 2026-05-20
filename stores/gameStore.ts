@@ -5,7 +5,7 @@ export interface GameState {
   isMoving: boolean;
   isRolling: boolean;
   lastDiceRoll: number | null;
-  
+
   player2Position: number;
   isPlayer2Moving: boolean;
 
@@ -33,13 +33,13 @@ export const useGameStore = defineStore("game", {
 
     isTurnComplete: false,
     activePlayer: 1 as 1 | 2,
-    
+
     // NUEVO
     isDiceVisible: false,
     diceValues: [1, 1],
     isDiceRolling: false,
     statusMessage: "Cargando entorno...",
-    isCamFollowActive: false,
+    isCamFollowActive: true,
   }),
 
   getters: {
@@ -78,7 +78,10 @@ export const useGameStore = defineStore("game", {
     showDice() {
       this.isDiceVisible = true;
       this.isDiceRolling = true;
-      this.diceValues = [Math.floor(Math.random() * 6) + 1, Math.floor(Math.random() * 6) + 1];
+      this.diceValues = [
+        Math.floor(Math.random() * 6) + 1,
+        Math.floor(Math.random() * 6) + 1,
+      ];
     },
 
     hideDice() {
@@ -100,7 +103,8 @@ export const useGameStore = defineStore("game", {
     finishTurn() {
       this.isTurnComplete = false;
       this.activePlayer = this.activePlayer === 1 ? 2 : 1;
-      this.statusMessage = this.activePlayer === 1 ? "¡Turno del Sombrero!" : "¡Turno del Dedal!";
+      this.statusMessage =
+        this.activePlayer === 1 ? "¡Turno del Sombrero!" : "¡Turno del Dedal!";
     },
   },
 });
