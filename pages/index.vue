@@ -83,6 +83,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { useGameStore } from "~/stores/gameStore";
 import { useBoardGeometry } from "~/composables/useBoardGeometry";
 import { usePieceAnimation } from "~/composables/usePieceAnimation";
+import { useCameraOrbit, CAM_LERP } from "~/composables/useCameraOrbit";
 import GameOverlay from "~/components/GameOverlay.vue";
 import type { Group } from "three";
 
@@ -105,6 +106,8 @@ const {
   isAnimating,
   setPosition,
 } = usePieceAnimation();
+
+const { getCameraPosition } = useCameraOrbit();
 
 function onRenderTick({ delta }: { delta: number }) {
   const deltaMs = delta * 1000;
@@ -132,19 +135,21 @@ function onRenderTick({ delta }: { delta: number }) {
 
   const activePosition =
     store.activePlayer === 1 ? playerPosition : player2Position;
+  const activeCasilla =
+    store.activePlayer === 1 ? store.currentPosition : store.player2Position;
 
   controls.target.x = activePosition.x;
   controls.target.y = activePosition.y;
   controls.target.z = activePosition.z;
 
-  const targetCamX = activePosition.x;
-  const targetCamY = activePosition.y + 1.61;
-  const targetCamZ = activePosition.z + 3.66;
+  const camTarget = getCameraPosition(
+    activeCasilla || 0,
+    activePosition,
+  );
 
-  const lerpFactor = 0.05;
-  camera.position.x += (targetCamX - camera.position.x) * lerpFactor;
-  camera.position.y += (targetCamY - camera.position.y) * lerpFactor;
-  camera.position.z += (targetCamZ - camera.position.z) * lerpFactor;
+  camera.position.x += (camTarget.x - camera.position.x) * CAM_LERP;
+  camera.position.y += (camTarget.y - camera.position.y) * CAM_LERP;
+  camera.position.z += (camTarget.z - camera.position.z) * CAM_LERP;
 }
 
 onMounted(async () => {
