@@ -1,5 +1,7 @@
+export const Y_SUELO = 0.82;
+
 export function useBoardGeometry() {
-  const ySuelo = 0.82;
+  const ySuelo = Y_SUELO;
   const inicioX = 0.1;
   const inicioZ = -0.1;
   const pasoCasilla = 0.4;

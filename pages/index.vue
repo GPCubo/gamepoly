@@ -82,6 +82,7 @@ import { OrbitControls } from "@tresjs/cientos";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { useGameStore } from "~/stores/gameStore";
 import { useBoardGeometry } from "~/composables/useBoardGeometry";
+import { usePieceAnimation } from "~/composables/usePieceAnimation";
 import GameOverlay from "~/components/GameOverlay.vue";
 import type { Group } from "three";
 
@@ -93,12 +94,33 @@ const store = useGameStore();
 const cameraRef = shallowRef();
 const controlsRef = shallowRef();
 
-// Coordenadas reactivas de la ficha en el espacio 3D
-const playerPosition = reactive({ x: 4.5, y: 0.2, z: 4.5 });
-const player2Position = reactive({ x: 4.5, y: 0.2, z: 4.5 });
+const playerPosition = reactive({ x: 0, y: 0, z: 0 });
+const player2Position = reactive({ x: 0, y: 0, z: 0 });
 const { getCasillaCoordinates } = useBoardGeometry();
 
-function onRenderTick() {
+const {
+  startHop,
+  tick,
+  getCurrentPosition,
+  isAnimating,
+  setPosition,
+} = usePieceAnimation();
+
+function onRenderTick({ delta }: { delta: number }) {
+  const deltaMs = delta * 1000;
+
+  tick(deltaMs);
+
+  const pos1 = getCurrentPosition(1);
+  playerPosition.x = pos1.x;
+  playerPosition.y = pos1.y;
+  playerPosition.z = pos1.z;
+
+  const pos2 = getCurrentPosition(2);
+  player2Position.x = pos2.x;
+  player2Position.y = pos2.y;
+  player2Position.z = pos2.z;
+
   if (!cameraRef.value || !controlsRef.value) return;
   const camera = cameraRef.value;
   const controls = controlsRef.value?.instance;
@@ -110,23 +132,14 @@ function onRenderTick() {
 
   const activePosition =
     store.activePlayer === 1 ? playerPosition : player2Position;
-  const activeCasilla =
-    store.activePlayer === 1 ? store.currentPosition : store.player2Position;
 
   controls.target.x = activePosition.x;
   controls.target.y = activePosition.y;
   controls.target.z = activePosition.z;
 
-  let targetCamX = 0;
-  let targetCamY = 0;
-  let targetCamZ = 0;
-
-  let casilla = activeCasilla || 0;
-  if (casilla >= 40) casilla -= 40;
-
-  targetCamX = activePosition.x;
-  targetCamY = activePosition.y + 1.61;
-  targetCamZ = activePosition.z + 3.66;
+  const targetCamX = activePosition.x;
+  const targetCamY = activePosition.y + 1.61;
+  const targetCamZ = activePosition.z + 3.66;
 
   const lerpFactor = 0.05;
   camera.position.x += (targetCamX - camera.position.x) * lerpFactor;
@@ -141,8 +154,8 @@ onMounted(async () => {
 
     const [gltfTablero, gltfFicha, gltfDedal] = await Promise.all([
       loader.loadAsync("/models/tablero.glb"),
-      loader.loadAsync("/models/sombrero.glb"),
-      loader.loadAsync("/models/dedal.glb"),
+      loader.loadAsync("/models/users/sombrero.glb"),
+      loader.loadAsync("/models/users/dedal.glb"),
     ]);
 
     tableroScene.value = gltfTablero.scene as Group;
@@ -151,6 +164,7 @@ onMounted(async () => {
 
     const coords = getCasillaCoordinates(store.currentPosition || 0, 1);
 
+    setPosition(1, coords);
     playerPosition.x = coords.x;
     playerPosition.y = coords.y;
     playerPosition.z = coords.z;
@@ -158,6 +172,7 @@ onMounted(async () => {
       `[DEBUG] Coordenadas iniciales de la ficha establecidas: (${playerPosition.x}, ${playerPosition.y}, ${playerPosition.z})`,
     );
     const coords2 = getCasillaCoordinates(store.player2Position || 0, 2);
+    setPosition(2, coords2);
     player2Position.x = coords2.x;
     player2Position.y = coords2.y;
     player2Position.z = coords2.z;
@@ -177,20 +192,18 @@ watch(
   () => store.currentPosition,
   (newCasilla) => {
     store.setStatusMessage(`🏃 Moviendo a casilla ${newCasilla}...`);
-    const targetCoords = getCasillaCoordinates(newCasilla, 1);
-    playerPosition.x = targetCoords.x;
-    playerPosition.y = targetCoords.y;
-    playerPosition.z = targetCoords.z;
+    const from = { ...getCurrentPosition(1) };
+    const to = getCasillaCoordinates(newCasilla, 1);
+    startHop(1, from, to);
   },
 );
 
 watch(
   () => store.player2Position,
   (newCasilla) => {
-    const targetCoords = getCasillaCoordinates(newCasilla, 2);
-    player2Position.x = targetCoords.x;
-    player2Position.y = targetCoords.y;
-    player2Position.z = targetCoords.z;
+    const from = { ...getCurrentPosition(2) };
+    const to = getCasillaCoordinates(newCasilla, 2);
+    startHop(2, from, to);
   },
 );
 
