@@ -51,35 +51,29 @@ function easeOutBack(t: number): number {
 }
 
 export function usePieceAnimation() {
-  const hops: Record<1 | 2, HopAnimation> = {
-    1: createDefaultHop(),
-    2: createDefaultHop(),
-  };
+  const hops: Record<number, HopAnimation> = {};
+  const grows: Record<number, GrowAnimation> = {};
+  const positions: Record<number, { x: number; y: number; z: number }> = {};
+  const scales: Record<number, number> = {};
+  let playerCount = 0;
 
-  const grows: Record<1 | 2, GrowAnimation> = {
-    1: createDefaultGrow(),
-    2: createDefaultGrow(),
-  };
-
-  const positions: Record<
-    1 | 2,
-    { x: number; y: number; z: number }
-  > = {
-    1: { x: 0, y: Y_SUELO, z: 0 },
-    2: { x: 0, y: Y_SUELO, z: 0 },
-  };
-
-  const scales: Record<1 | 2, number> = {
-    1: GAME_CONFIG.DEFAULT_SCALE,
-    2: GAME_CONFIG.DEFAULT_SCALE,
-  };
+  function init(count: number) {
+    playerCount = count;
+    for (let i = 0; i < count; i++) {
+      hops[i] = createDefaultHop();
+      grows[i] = createDefaultGrow();
+      positions[i] = { x: 0, y: Y_SUELO, z: 0 };
+      scales[i] = GAME_CONFIG.DEFAULT_SCALE;
+    }
+  }
 
   function startHop(
-    playerIndex: 1 | 2,
+    playerIndex: number,
     from: { x: number; y: number; z: number },
     to: { x: number; y: number; z: number },
   ) {
     const hop = hops[playerIndex];
+    if (!hop) return;
 
     if (hop.active) {
       positions[playerIndex].x = hop.toX;
@@ -97,21 +91,24 @@ export function usePieceAnimation() {
     hop.progress = 0;
   }
 
-  function startGrow(playerIndex: 1 | 2) {
+  function startGrow(playerIndex: number) {
     const grow = grows[playerIndex];
+    if (!grow) return;
     grow.active = true;
     grow.fromScale = GAME_CONFIG.SHARED_TILE_SCALE;
     grow.toScale = GAME_CONFIG.DEFAULT_SCALE;
     grow.progress = 0;
   }
 
-  function cancelGrow(playerIndex: 1 | 2) {
-    grows[playerIndex].active = false;
+  function cancelGrow(playerIndex: number) {
+    const grow = grows[playerIndex];
+    if (!grow) return;
+    grow.active = false;
     scales[playerIndex] = GAME_CONFIG.SHARED_TILE_SCALE;
   }
 
   function tick(deltaMs: number) {
-    for (const idx of [1, 2] as const) {
+    for (let idx = 0; idx < playerCount; idx++) {
       const hop = hops[idx];
       if (hop.active) {
         hop.progress += deltaMs / HOP_DURATION_MS;
@@ -124,12 +121,9 @@ export function usePieceAnimation() {
         const t = hop.progress;
         const arcY = Math.sin(Math.PI * t) * HOP_HEIGHT;
 
-        positions[idx].x =
-          hop.fromX + (hop.toX - hop.fromX) * t;
-        positions[idx].y =
-          hop.fromY + (hop.toY - hop.fromY) * t + arcY;
-        positions[idx].z =
-          hop.fromZ + (hop.toZ - hop.fromZ) * t;
+        positions[idx].x = hop.fromX + (hop.toX - hop.fromX) * t;
+        positions[idx].y = hop.fromY + (hop.toY - hop.fromY) * t + arcY;
+        positions[idx].z = hop.fromZ + (hop.toZ - hop.fromZ) * t;
       }
 
       const grow = grows[idx];
@@ -149,24 +143,25 @@ export function usePieceAnimation() {
     }
   }
 
-  function getCurrentPosition(playerIndex: 1 | 2) {
+  function getCurrentPosition(playerIndex: number) {
     return positions[playerIndex];
   }
 
-  function getCurrentScale(playerIndex: 1 | 2) {
+  function getCurrentScale(playerIndex: number) {
     return scales[playerIndex];
   }
 
-  function isAnimating(playerIndex: 1 | 2) {
-    return hops[playerIndex].active;
+  function isAnimating(playerIndex: number) {
+    const hop = hops[playerIndex];
+    return hop ? hop.active : false;
   }
 
-  function setScale(playerIndex: 1 | 2, scale: number) {
+  function setScale(playerIndex: number, scale: number) {
     scales[playerIndex] = scale;
   }
 
   function setPosition(
-    playerIndex: 1 | 2,
+    playerIndex: number,
     pos: { x: number; y: number; z: number },
   ) {
     positions[playerIndex].x = pos.x;
@@ -175,6 +170,7 @@ export function usePieceAnimation() {
   }
 
   return {
+    init,
     startHop,
     startGrow,
     cancelGrow,

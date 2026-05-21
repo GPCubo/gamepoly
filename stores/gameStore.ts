@@ -1,19 +1,30 @@
 import { defineStore } from "pinia";
+import { GAME_CONFIG } from "~/config/gameConfig";
+
+export interface PlayerConfig {
+  name: string;
+  tokenModel: string;
+}
+
+export interface PlayerState {
+  id: number;
+  name: string;
+  tokenModel: string;
+  position: number;
+  isMoving: boolean;
+}
+
+export interface MoveEvent {
+  playerIndex: number;
+  position: number;
+}
 
 export interface GameState {
-  currentPosition: number;
-  isMoving: boolean;
-  isRolling: boolean;
-  lastDiceRoll: number | null;
-
-  player2Position: number;
-  isPlayer2Moving: boolean;
-
+  phase: "setup" | "playing";
+  players: PlayerState[];
+  activePlayerIndex: number;
   isTurnComplete: boolean;
-
-  activePlayer: 1 | 2;
-
-  // NUEVO: Estado UI
+  moveEvent: MoveEvent | null;
   isDiceVisible: boolean;
   diceValues: [number, number];
   isDiceRolling: boolean;
@@ -23,56 +34,77 @@ export interface GameState {
 
 export const useGameStore = defineStore("game", {
   state: (): GameState => ({
-    currentPosition: 0,
-    isMoving: false,
-    isRolling: false,
-    lastDiceRoll: null,
-
-    player2Position: 0,
-    isPlayer2Moving: false,
-
+    phase: "setup",
+    players: [],
+    activePlayerIndex: 0,
     isTurnComplete: false,
-    activePlayer: 1 as 1 | 2,
-
-    // NUEVO
+    moveEvent: null,
     isDiceVisible: false,
     diceValues: [1, 1],
     isDiceRolling: false,
-    statusMessage: "Cargando entorno...",
+    statusMessage: "Configura la partida",
     isCamFollowActive: true,
   }),
 
   getters: {
     diceTotal: (state) => state.diceValues[0] + state.diceValues[1],
-    casillaActual: (state) => (state.currentPosition % 40) + 1,
-    casilla2Actual: (state) => (state.player2Position % 40) + 1,
+    activePlayer: (state) => state.players[state.activePlayerIndex] ?? null,
+    casillaActual: (state) => {
+      const p = state.players[state.activePlayerIndex];
+      return p ? (p.position % 40) + 1 : 0;
+    },
+    isAnyMoving: (state) =>
+      state.players.some((p) => p.isMoving),
   },
 
   actions: {
-    async movePlayer(steps: number) {
-      this.isMoving = true;
-      const target = this.currentPosition + steps;
+    setupGame(configs: PlayerConfig[]) {
+      this.players = configs.map((c, idx) => ({
+        id: idx,
+        name: c.name,
+        tokenModel: c.tokenModel,
+        position: 0,
+        isMoving: false,
+      }));
+      this.activePlayerIndex = 0;
+      this.phase = "playing";
+      this.isTurnComplete = false;
+      this.statusMessage = `¡${configs[0].name} comienza!`;
+    },
 
-      for (let i = this.currentPosition + 1; i <= target; i++) {
-        this.currentPosition = i;
+    async moveCurrentPlayer(steps: number) {
+      const p = this.players[this.activePlayerIndex];
+      if (!p) return;
+
+      p.isMoving = true;
+      const target = p.position + steps;
+
+      for (let i = p.position + 1; i <= target; i++) {
+        p.position = i;
+        this.moveEvent = {
+          playerIndex: this.activePlayerIndex,
+          position: i,
+        };
         await new Promise((r) => setTimeout(r, 300));
       }
 
-      this.isMoving = false;
+      p.isMoving = false;
+      this.moveEvent = null;
       this.isTurnComplete = true;
     },
 
-    async movePlayer2(steps: number) {
-      this.isPlayer2Moving = true;
-      const target = this.player2Position + steps;
+    finishTurn() {
+      const prevIndex = this.activePlayerIndex;
+      this.activePlayerIndex =
+        (this.activePlayerIndex + 1) % this.players.length;
 
-      for (let i = this.player2Position + 1; i <= target; i++) {
-        this.player2Position = i;
-        await new Promise((r) => setTimeout(r, 300));
-      }
+      this.isTurnComplete = false;
+      const tokenName =
+        GAME_CONFIG.TOKEN_MODELS.find(
+          (t) => t.file === this.players[this.activePlayerIndex].tokenModel,
+        )?.name ?? "?";
 
-      this.isPlayer2Moving = false;
-      this.isTurnComplete = true;
+      this.statusMessage = `¡Turno de ${this.players[this.activePlayerIndex].name} (${tokenName})!`;
     },
 
     showDice() {
@@ -98,13 +130,6 @@ export const useGameStore = defineStore("game", {
 
     setStatusMessage(msg: string) {
       this.statusMessage = msg;
-    },
-
-    finishTurn() {
-      this.isTurnComplete = false;
-      this.activePlayer = this.activePlayer === 1 ? 2 : 1;
-      this.statusMessage =
-        this.activePlayer === 1 ? "¡Turno del Sombrero!" : "¡Turno del Dedal!";
     },
   },
 });

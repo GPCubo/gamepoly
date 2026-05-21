@@ -6,7 +6,7 @@ export default defineNuxtConfig({
     devtools: true,
   },
   routeRules: {
-    // Forzamos a que el index sea solo del cliente (SPA) 🚀
     "/": { ssr: false },
+    "/game": { ssr: false },
   },
 });

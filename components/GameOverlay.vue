@@ -1,7 +1,7 @@
 <template>
   <div class="overlay-container">
     <div class="status-badge">
-      {{ store.activePlayer === 1 ? '🎩 Jugador 1 (Sombrero)' : '🧵 Jugador 2 (Dedal)' }} | Casilla: {{ currentPosition }}/40 | {{ store.statusMessage }}
+      {{ statusText }} | Casilla: {{ currentPosition }}/40 | {{ store.statusMessage }}
     </div>
 
     <button
@@ -17,7 +17,10 @@
         @click="onRollClick"
         :disabled="isMoving || store.isDiceRolling || store.isTurnComplete"
         class="action-btn roll-btn"
-        :class="{ 'disabled-btn': isMoving || store.isDiceRolling || store.isTurnComplete }"
+        :class="{
+          'disabled-btn':
+            isMoving || store.isDiceRolling || store.isTurnComplete,
+        }"
       >
         {{
           store.isDiceRolling
@@ -38,7 +41,6 @@
     </div>
   </div>
 
-  <!-- Dados 2D -->
   <div
     class="dado-wrapper"
     v-if="store.isDiceVisible"
@@ -66,17 +68,23 @@
 
 <script setup lang="ts">
 import { useGameStore } from "~/stores/gameStore";
-import { ref } from "vue";
+import { ref, computed } from "vue";
+import { GAME_CONFIG } from "~/config/gameConfig";
 
 const store = useGameStore();
 
-// Recibimos de forma estricta los estados del store e index.vue
+const statusText = computed(() => {
+  const ap = store.activePlayer;
+  if (!ap) return "Sin jugador";
+  const token = GAME_CONFIG.TOKEN_MODELS.find((t) => t.file === ap.tokenModel);
+  return `${token?.icon ?? "?"} ${ap.name} (${token?.name ?? "?"})`;
+});
+
 const props = defineProps<{
   currentPosition: number;
   isMoving: boolean;
 }>();
 
-// Avisamos al index.vue cuándo se ejecutan los clicks
 const emit = defineEmits<{
   (e: "roll", value: number): void;
   (e: "toggle-camera"): void;
@@ -129,7 +137,6 @@ async function onRollClick() {
 
   await new Promise((resolve) => {
     setTimeout(() => {
-      // Empezar animación de caída
       isSliding.value = true;
 
       setTimeout(() => {
@@ -139,9 +146,9 @@ async function onRollClick() {
           store.hideDice();
           isSliding.value = false;
           emit("roll", result);
-        }, 500); // tiempo para ver el resultado
-      }, 500); // duración de la animación slideDown
-    }, 1500); // tiempo de "rodar"
+        }, 500);
+      }, 500);
+    }, 1500);
   });
 }
 </script>
