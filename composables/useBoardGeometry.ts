@@ -51,6 +51,60 @@ export function useBoardGeometry() {
     return coords;
   };
 
+  // Centro geometrico REAL de cada casilla, derivado del modelo de Blender
+  // (scripts_blenders/create_monopoly_table.py). El tablero esta centrado en
+  // (0,0) y mide BOARD_SIZE. Se calcula en coordenadas de Blender (Z-up) y se
+  // convierte a three.js (Y-up) con: x = bx, z = -by.
+  const BOARD_SIZE = 4.5;
+  const BOARD_HALF = BOARD_SIZE / 2;
+  const CORNER_SIZE = 0.45;
+  const TILE_WIDTH = (BOARD_SIZE - CORNER_SIZE * 2) / 9;
+  const TILE_DEPTH = 0.45;
+
+  const getTileCenter = (idx: number): { x: number; z: number } => {
+    const H = BOARD_HALF;
+    const rem = idx % 10;
+    const step = CORNER_SIZE + (rem - 0.5) * TILE_WIDTH;
+
+    let bx: number;
+    let by: number;
+
+    if (idx === 0) {
+      bx = -H + CORNER_SIZE / 2;
+      by = -H + CORNER_SIZE / 2;
+    } else if (idx === 10) {
+      bx = H - CORNER_SIZE / 2;
+      by = -H + CORNER_SIZE / 2;
+    } else if (idx === 20) {
+      bx = H - CORNER_SIZE / 2;
+      by = H - CORNER_SIZE / 2;
+    } else if (idx === 30) {
+      bx = -H + CORNER_SIZE / 2;
+      by = H - CORNER_SIZE / 2;
+    } else {
+      const side = Math.floor(idx / 10);
+      if (side === 0) {
+        // Lado inferior (izquierda -> derecha)
+        bx = -H + step;
+        by = -H + TILE_DEPTH / 2;
+      } else if (side === 1) {
+        // Lado derecho (abajo -> arriba)
+        bx = H - TILE_DEPTH / 2;
+        by = -H + step;
+      } else if (side === 2) {
+        // Lado superior (derecha -> izquierda)
+        bx = H - step;
+        by = H - TILE_DEPTH / 2;
+      } else {
+        // Lado izquierdo (arriba -> abajo)
+        bx = -H + TILE_DEPTH / 2;
+        by = H - step;
+      }
+    }
+
+    return { x: bx, z: -by };
+  };
+
   const getTileLabelTransform = (
     casillaIndex: number,
   ): {
@@ -58,62 +112,69 @@ export function useBoardGeometry() {
     rotation: { x: number; y: number; z: number };
   } => {
     const idx = ((casillaIndex % 40) + 40) % 40;
-    const base = getCasillaCoordinates(casillaIndex);
+    const base = getTileCenter(idx);
     const labelY = ySuelo + GAME_CONFIG.LABEL_Y_OFFSET;
-    const isCorner = [0, 10, 20, 30].includes(idx);
 
-    const localOffX = isCorner
-      ? GAME_CONFIG.LABEL_CORNER_PADDING_X
-      : GAME_CONFIG.LABEL_PADDING_X;
-    const localOffZ = isCorner
-      ? GAME_CONFIG.LABEL_CORNER_PADDING_Z
-      : GAME_CONFIG.LABEL_PADDING_Z;
+    const inward = GAME_CONFIG.LABEL_INWARD_OFFSET;
+    const along = GAME_CONFIG.LABEL_ALONG_OFFSET;
+    const cornerInward = GAME_CONFIG.LABEL_CORNER_INWARD_OFFSET;
 
+    // El tablero esta centrado en (0,0). Para cada lado calculamos por separado:
+    //  - offX/offZ: desplazamiento de la etiqueta (hacia el interior + ajuste a lo
+    //    largo del lado), independiente de la rotacion del texto.
+    //  - rotZ: orientacion del texto para que se lea desde fuera hacia el centro,
+    //    igual que el lado inferior (la referencia que se lee bien).
     let rotZ: number;
+    let offX = 0;
+    let offZ = 0;
 
     if (idx === 0) {
-      // Esquina GO/Salida (inferior-izquierda): diagonal apuntando hacia afuera
+      // Esquina GO/Salida (inferior-izquierda)
       rotZ = Math.PI / 4;
+      offX = cornerInward;
+      offZ = -cornerInward;
     } else if (idx < 10) {
+      // Lado 1 (inferior): interior = -Z, recorrido en +X
       rotZ = 0;
+      offZ = -inward;
+      offX = along;
     } else if (idx === 10) {
-      // Esquina Carcel/Visita (inferior-derecha): diagonal opuesta a GO
+      // Esquina Carcel/Visita (inferior-derecha)
       rotZ = -Math.PI / 4;
+      offX = -cornerInward;
+      offZ = -cornerInward;
     } else if (idx < 20) {
-      rotZ = -Math.PI / 2;
+      // Lado 2 (derecho): interior = -X, recorrido en -Z
+      rotZ = Math.PI / 2;
+      offX = -inward;
+      offZ = along;
     } else if (idx === 20) {
       // Esquina Parking Gratuito (superior-derecha)
       rotZ = (-3 * Math.PI) / 4;
+      offX = -cornerInward;
+      offZ = cornerInward;
     } else if (idx < 30) {
+      // Lado 3 (superior): interior = +Z, recorrido en -X
       rotZ = Math.PI;
+      offZ = inward;
+      offX = -along;
     } else if (idx === 30) {
       // Esquina Ve-a-la-Carcel (superior-izquierda)
       rotZ = (3 * Math.PI) / 4;
+      offX = cornerInward;
+      offZ = cornerInward;
     } else {
-      rotZ = Math.PI / 2;
+      // Lado 4 (izquierdo): interior = +X, recorrido en +Z
+      rotZ = -Math.PI / 2;
+      offX = inward;
+      offZ = -along;
     }
-
-    const cosZ = Math.cos(rotZ);
-    const sinZ = Math.sin(rotZ);
-    const worldOffX = localOffX * cosZ - localOffZ * sinZ;
-    const worldOffZ = localOffX * sinZ + localOffZ * cosZ;
 
     const position = {
-      x: base.x + worldOffX,
+      x: base.x + offX,
       y: labelY,
-      z: base.z + worldOffZ,
+      z: base.z + offZ,
     };
-
-    // getCasillaCoordinates tiene un offset sistematico de 0.05 respecto al centro
-    // real del tile. La correccion se aplica por eje (no rotada) porque el signo
-    // del error es consistente independientemente del sentido de recorrido del lado.
-    if (!isCorner) {
-      if (idx < 10 || (idx >= 20 && idx < 30)) {
-        position.x += 0.05;  // lados inferior y superior: error en eje X
-      } else {
-        position.z -= 0.05;  // lados derecho e izquierdo: error en eje Z
-      }
-    }
 
     const rotation = { x: -Math.PI / 2, y: 0, z: rotZ };
 
