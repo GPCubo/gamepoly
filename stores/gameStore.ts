@@ -53,8 +53,7 @@ export const useGameStore = defineStore("game", {
       const p = state.players[state.activePlayerIndex];
       return p ? (p.position % 40) + 1 : 0;
     },
-    isAnyMoving: (state) =>
-      state.players.some((p) => p.isMoving),
+    isAnyMoving: (state) => state.players.some((p) => p.isMoving),
   },
 
   actions: {

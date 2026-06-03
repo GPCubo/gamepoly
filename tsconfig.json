@@ -1,0 +1,4 @@
+{
+  // El archivo .nuxt/tsconfig.json contiene todos los alias (~, @, etc.) de tu app
+  "extends": "./.nuxt/tsconfig.json"
+}

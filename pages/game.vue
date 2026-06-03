@@ -54,6 +54,19 @@
           />
         </template>
         <TresGridHelper :args="[30, 30, '#ff0055', '#444444']" />
+        <template v-for="label in tileLabels" :key="'label-' + label.index">
+          <TresMesh
+            :position="[label.position.x, label.position.y, label.position.z]"
+            :rotation="[label.rotation.x, label.rotation.y, label.rotation.z]"
+          >
+            <TresPlaneGeometry :args="[label.width, label.height]" />
+            <TresMeshBasicMaterial
+              :map="label.texture"
+              :transparent="true"
+              :side="2"
+            />
+          </TresMesh>
+        </template>
       </TresCanvas>
     </ClientOnly>
 
@@ -76,6 +89,7 @@ import { useGameStore } from "~/stores/gameStore";
 import { useBoardGeometry } from "~/composables/useBoardGeometry";
 import { usePieceAnimation } from "~/composables/usePieceAnimation";
 import { useCameraOrbit, CAM_LERP } from "~/composables/useCameraOrbit";
+import { useTileLabels } from "~/composables/useTileLabels";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import GameOverlay from "~/components/GameOverlay.vue";
 import type { Group } from "three";
@@ -118,6 +132,7 @@ if (playerCount > 0) {
 
 const { getCameraPosition } = useCameraOrbit();
 const { getCasillaCoordinates } = useBoardGeometry();
+const tileLabels = useTileLabels();
 
 const prevAnimating: boolean[] = Array(playerCount).fill(false);
 const prevShared: boolean[] = Array(playerCount).fill(false);
