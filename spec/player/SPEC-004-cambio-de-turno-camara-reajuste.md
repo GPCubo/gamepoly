@@ -1,11 +1,11 @@
 ---
-id: SPEC-007
+id: SPEC-004
 title: Cambio de Turno — Camara se Reajusta al Siguiente Jugador
 created_at: 2026-05-18T20:00:00
 status: done
 ---
 
-# SPEC-007: Cambio de Turno — Camara se Reajusta al Siguiente Jugador
+# SPEC-004: Cambio de Turno — Camara se Reajusta al Siguiente Jugador
 
 ## Description
 
@@ -13,7 +13,7 @@ Cuando el jugador hace click en el boton "Siguiente", el juego debe cambiar al t
 
 ## Context and Motivation
 
-En SPEC-004 se agrego una segunda ficha (dedal) y en SPEC-005 se refactorizo useBoardGeometry para soportar multiples jugadores. En SPEC-006 se agrego el boton "Siguiente" que emite `next-turn` pero `index.vue` no lo escucha. Se necesita completar el ciclo: al hacer click en "Siguiente", el turno cambia al otro jugador y la camara se mueve suavemente hacia su posicion.
+En player/SPEC-001 se agrego una segunda ficha (dedal) y en player/SPEC-002 se refactorizo useBoardGeometry para soportar multiples jugadores. En player/SPEC-003 se agrego el boton "Siguiente" que emite `next-turn` pero `index.vue` no lo escucha. Se necesita completar el ciclo: al hacer click en "Siguiente", el turno cambia al otro jugador y la camara se mueve suavemente hacia su posicion.
 
 ## Technical Analysis
 

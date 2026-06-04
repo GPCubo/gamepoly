@@ -1,9 +1,15 @@
-# Instalación de GameOverlay.vue en pages/index.vue
+---
+id: SPEC-002
+title: Instalación de GameOverlay.vue en pages/index.vue
+created_at: 2026-05-17T00:30:00
+status: done
+---
 
-## Objetivo
+# SPEC-002: Instalación de GameOverlay.vue en pages/index.vue
 
-Centralizar los controles del juego (estado, botón de dado, botón de cámara)
-en el componente `components/GameOverlay.vue` y usarlo en `pages/index.vue`.
+## Description
+
+Centralizar los controles del juego (estado, botón de dado, botón de cámara) en el componente `components/GameOverlay.vue` y usarlo en `pages/index.vue`.
 
 ## Paso 1: Limpiar `pages/index.vue`
 

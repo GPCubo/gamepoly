@@ -1,11 +1,11 @@
 ---
-id: SPEC-004
+id: SPEC-001
 title: Agregar Dedal al Tablero
 created_at: 2026-05-18T18:00:00
 status: done
 ---
 
-# SPEC-004: Agregar Dedal al Tablero
+# SPEC-001: Agregar Dedal al Tablero
 
 ## Description
 

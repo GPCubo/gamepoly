@@ -1,11 +1,11 @@
 ---
-id: SPEC-002
+id: SPEC-003
 title: Corrección Visual Puntos Dado 2D
 created_at: 2026-05-17T23:50:00
 status: done
 ---
 
-# SPEC-002: Corrección Visual Puntos Dado 2D
+# SPEC-003: Corrección Visual Puntos Dado 2D
 
 ## Descripción
 
@@ -13,7 +13,7 @@ El dado 2D actual muestra la cantidad correcta de puntos (1-6) pero la disposici
 
 ## Contexto y Motivación
 
-El componente `GameOverlay.vue` (SPEC-001) implementó un dado 2D diminuto con puntos negros sobre fondo blanco, pero la representación visual no coincide con un dado real:
+El componente `GameOverlay.vue` (dados/SPEC-002) implementó un dado 2D diminuto con puntos negros sobre fondo blanco, pero la representación visual no coincide con un dado real:
 
 - **Valor 2**: muestra dos puntos en fila horizontal → debería ser diagonal (arriba-derecha, abajo-izquierda)
 - **Valor 3**: muestra tres puntos en fila → debería ser diagonal (arriba-derecha, centro, abajo-izquierda)

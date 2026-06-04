@@ -1,11 +1,11 @@
 ---
-id: SPEC-001
+id: SPEC-002
 title: Rediseño Dado 2D con Animación
 created_at: 2026-05-17T23:37:36
 status: draft
 ---
 
-# SPEC-001: Rediseño Dado 2D con Animación
+# SPEC-002: Rediseño Dado 2D con Animación
 
 ## Descripción
 

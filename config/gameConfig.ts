@@ -29,4 +29,7 @@ export const GAME_CONFIG = {
   LABEL_CORNER_PLANE_HEIGHT: 0.18,
   // Desplazamiento hacia el interior para las esquinas (diagonal)
   LABEL_CORNER_INWARD_OFFSET: 0.0,
+
+  STARTING_CASH: 1500,
+  GO_SALARY: 200,
 } as const;

@@ -1,11 +1,11 @@
 ---
-id: SPEC-012
+id: SPEC-008
 title: Separacion de Fichas en Misma Casilla y Escala Reducida
 created_at: 2026-05-19T14:00:00
 status: done
 ---
 
-# SPEC-012: Separacion de Fichas en Misma Casilla y Escala Reducida
+# SPEC-008: Separacion de Fichas en Misma Casilla y Escala Reducida
 
 ## Description
 
@@ -17,7 +17,7 @@ Cuando dos o mas fichas comparten la misma casilla del tablero, actualmente se s
 
 ## Context and Motivation
 
-Modulo GAME del flujo de tablero y fichas. Actualmente en SPEC-009 se elimino el offset entre jugadores para que ambas fichas sigan el mismo camino. Esto provoca que cuando ambas estan en la misma casilla (ej. casilla 0 / GO), se superponen completamente. Se necesita separacion visual dinamica y escala reducida cuando comparten casilla, con valores configurables centralizados.
+Modulo GAME del flujo de tablero y fichas. Actualmente en player/SPEC-005 se elimino el offset entre jugadores para que ambas fichas sigan el mismo camino. Esto provoca que cuando ambas estan en la misma casilla (ej. casilla 0 / GO), se superponen completamente. Se necesita separacion visual dinamica y escala reducida cuando comparten casilla, con valores configurables centralizados.
 
 ## Technical Analysis
 

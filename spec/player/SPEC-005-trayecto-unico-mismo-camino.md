@@ -1,11 +1,11 @@
 ---
-id: SPEC-009
+id: SPEC-005
 title: Trayecto Unico — Fichas Comparten el Mismo Camino
 created_at: 2026-05-18T21:00:00
 status: done
 ---
 
-# SPEC-009: Trayecto Unico — Fichas Comparten el Mismo Camino
+# SPEC-005: Trayecto Unico — Fichas Comparten el Mismo Camino
 
 ## Description
 
@@ -13,7 +13,7 @@ Todas las fichas del tablero deben seguir exactamente el mismo trayecto. Actualm
 
 ## Context and Motivation
 
-En SPEC-005 se refactorizo `useBoardGeometry` para aceptar `playerIndex` como parametro del factory, con el objetivo de separar las coordenadas de cada jugador. Sin embargo, el usuario prefiere que todas las fichas sigan el mismo camino sin desplazamiento lateral. La superposicion visual cuando dos fichas estan en la misma casilla es aceptable por ahora.
+En player/SPEC-002 se refactorizo `useBoardGeometry` para aceptar `playerIndex` como parametro del factory, con el objetivo de separar las coordenadas de cada jugador. Sin embargo, el usuario prefiere que todas las fichas sigan el mismo camino sin desplazamiento lateral. La superposicion visual cuando dos fichas estan en la misma casilla es aceptable por ahora.
 
 ## Technical Analysis
 

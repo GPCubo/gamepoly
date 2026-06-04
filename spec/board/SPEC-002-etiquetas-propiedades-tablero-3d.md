@@ -1,12 +1,12 @@
 ---
-id: SPEC-015
+id: SPEC-002
 title: Etiquetas de propiedades en tablero 3D
 created_at: 2026-05-22T03:30:00
 updated_at: 2026-05-22T23:45:00
 status: in-progress
 ---
 
-# SPEC-015: Etiquetas de propiedades en tablero 3D
+# SPEC-002: Etiquetas de propiedades en tablero 3D
 
 ## Description
 
@@ -373,5 +373,5 @@ LABEL_PADDING_Z: -0.13  // era -0.20 — centra en area no-banda
 - `getCasillaCoordinates` NO se modifica para corregir el centrado de labels: esa funcion esta calibrada para el movimiento de piezas y modificarla puede romper la logica de juego. El fix va exclusivamente en `getTileLabelTransform`.
 - Se usa Canvas Texture como tecnica principal. Si se necesita mejor calidad de texto en el futuro, se podra migrar a MSDF fonts.
 - Las texturas canvas se generan una vez al montar el componente y se cachean (no se regeneran en cada frame).
-- Los precios se incluyen en la config pero su renderizado en la etiqueta es opcional y puede implementarse en un spec futuro (SPEC-016+).
+- Los precios se incluyen en la config pero su renderizado en la etiqueta es opcional y puede implementarse en un spec futuro (board/SPEC-003+).
 - La formula geometrica exacta de `getTileLabelTransform` (Opcion A) requiere validacion de signos en los 4 lados tras el primer render.

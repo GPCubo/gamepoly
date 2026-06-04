@@ -1,19 +1,19 @@
 ---
-id: SPEC-013
+id: SPEC-009
 title: Animacion de Crecimiento al Llegar a Casilla Libre
 created_at: 2026-05-19T15:30:00
 status: done
 ---
 
-# SPEC-013: Animacion de Crecimiento al Llegar a Casilla Libre
+# SPEC-009: Animacion de Crecimiento al Llegar a Casilla Libre
 
 ## Description
 
-Actualmente (SPEC-012), cuando dos fichas comparten la misma casilla se reducen a `SHARED_TILE_SCALE` (0.5), y cuando se separan a casillas diferentes vuelven instantaneamente a `DEFAULT_SCALE` (1.0). Se necesita una **animacion de crecimiento suave** que haga que la ficha crezca de `SHARED_TILE_SCALE` a `DEFAULT_SCALE` al llegar a su nueva casilla, en vez de un cambio abrupto. La animacion debe durar un tiempo configurable y usar una curva de easing `easeOutBack` para un efecto visual de rebote suave.
+Actualmente (player/SPEC-008), cuando dos fichas comparten la misma casilla se reducen a `SHARED_TILE_SCALE` (0.5), y cuando se separan a casillas diferentes vuelven instantaneamente a `DEFAULT_SCALE` (1.0). Se necesita una **animacion de crecimiento suave** que haga que la ficha crezca de `SHARED_TILE_SCALE` a `DEFAULT_SCALE` al llegar a su nueva casilla, en vez de un cambio abrupto. La animacion debe durar un tiempo configurable y usar una curva de easing `easeOutBack` para un efecto visual de rebote suave.
 
 ## Context and Motivation
 
-Modulo GAME del flujo de fichas. SPEC-012 implemento la escala reducida cuando fichas comparten casilla, pero el cambio de tamano es instantaneo (0.5 → 1.0 de un frame al otro), lo cual se ve abrupto y poco natural. Una animacion de crecimiento al llegar a la casilla destino dara una sensacion de "aterrizaje" mas pulida, complementando la animacion de hop de SPEC-010.
+Modulo GAME del flujo de fichas. player/SPEC-008 implemento la escala reducida cuando fichas comparten casilla, pero el cambio de tamano es instantaneo (0.5 → 1.0 de un frame al otro), lo cual se ve abrupto y poco natural. Una animacion de crecimiento al llegar a la casilla destino dara una sensacion de "aterrizaje" mas pulida, complementando la animacion de hop de player/SPEC-006.
 
 ## Technical Analysis
 
@@ -77,5 +77,5 @@ Produce: t=0 → ~0.7 (empieza ligeramente arriba de SHARED_TILE_SCALE por el re
 
 - Se descarta animar el encogimiento (de 1.0 a 0.5) porque el usuario pidio especificamente animacion al crecer, no al encogerse.
 - `easeOutBack` fue elegido sobre `easeOutCubic` o `easeOutElastic` por dar un rebote sutil que comunica "aterrizaje" sin ser exagerado.
-- La animacion de crecimiento es independiente de la animacion de hop (SPEC-010): pueden ocurrir simultaneamente sin interferir.
+- La animacion de crecimiento es independiente de la animacion de hop (player/SPEC-006): pueden ocurrir simultaneamente sin interferir.
 - Si una ficha ya esta creciendo y se vuelve a compartir casilla antes de terminar, la animacion se cancela y la escala vuelve instantaneamente a `SHARED_TILE_SCALE`.

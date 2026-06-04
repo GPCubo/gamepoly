@@ -47,6 +47,36 @@
         </select>
       </div>
 
+      <div class="game-config-section">
+        <span class="section-title">Configuración de partida</span>
+        <div class="config-row">
+          <label class="config-label">💰 Dinero inicial</label>
+          <div class="number-input-wrapper">
+            <span class="currency">$</span>
+            <input
+              v-model.number="startingCash"
+              class="number-input"
+              type="number"
+              min="100"
+              step="100"
+            />
+          </div>
+        </div>
+        <div class="config-row">
+          <label class="config-label">🏁 Salario (salida)</label>
+          <div class="number-input-wrapper">
+            <span class="currency">$</span>
+            <input
+              v-model.number="goSalary"
+              class="number-input"
+              type="number"
+              min="0"
+              step="50"
+            />
+          </div>
+        </div>
+      </div>
+
       <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
 
       <button class="start-btn" @click="startGame">
@@ -57,7 +87,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted, onUnmounted } from "vue";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import { useGameStore } from "~/stores/gameStore";
 
@@ -69,9 +99,22 @@ store.activePlayerIndex = 0;
 const icons = ["🎩", "🧵", "🐷", "🔑"];
 
 const selectedCount = ref(2);
-const playerNames = ref<string[]>(Array(GAME_CONFIG.MAX_PLAYERS).fill(""));
-const playerTokens = ref<string[]>(Array(GAME_CONFIG.MAX_PLAYERS).fill(""));
+const playerNames = ref<string[]>(
+  Array.from({ length: GAME_CONFIG.MAX_PLAYERS }, (_, i) => `Player 0${i + 1}`)
+);
+const playerTokens = ref<string[]>(
+  GAME_CONFIG.TOKEN_MODELS.slice(0, GAME_CONFIG.MAX_PLAYERS).map((t) => t.file)
+);
+const startingCash = ref<number>(GAME_CONFIG.STARTING_CASH);
+const goSalary = ref<number>(GAME_CONFIG.GO_SALARY);
 const errorMsg = ref("");
+
+function onKeyDown(e: KeyboardEvent) {
+  if (e.key === "Enter") startGame();
+}
+
+onMounted(() => window.addEventListener("keydown", onKeyDown));
+onUnmounted(() => window.removeEventListener("keydown", onKeyDown));
 
 function selectCount(n: number) {
   if (n >= 2 && n <= GAME_CONFIG.MAX_PLAYERS) {
@@ -88,6 +131,18 @@ function availableTokens(excludeIdx: number) {
 
 function startGame() {
   errorMsg.value = "";
+
+  const cash = Math.floor(startingCash.value);
+  const salary = Math.floor(goSalary.value);
+
+  if (!Number.isFinite(cash) || cash < 100) {
+    errorMsg.value = "El dinero inicial debe ser al menos $100.";
+    return;
+  }
+  if (!Number.isFinite(salary) || salary < 0) {
+    errorMsg.value = "El salario de salida no puede ser negativo.";
+    return;
+  }
 
   const players = [];
   const seenTokens = new Set<string>();
@@ -107,10 +162,10 @@ function startGame() {
     }
 
     seenTokens.add(token);
-    players.push({ name, tokenModel: token });
+    players.push({ name, tokenModel: token, startingCash: cash });
   }
 
-  store.setupGame(players);
+  store.setupGame(players, { goSalary: salary });
   navigateTo("/game");
 }
 </script>
@@ -278,5 +333,69 @@ function startGame() {
 .start-btn:hover {
   background: #059669;
   transform: translateY(-2px);
+}
+
+.game-config-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border-top: 1px solid rgba(74, 222, 128, 0.15);
+  padding-top: 16px;
+}
+
+.section-title {
+  color: rgba(74, 222, 128, 0.7);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.config-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.config-label {
+  color: #4ade80;
+  font-size: 14px;
+  min-width: 160px;
+}
+
+.number-input-wrapper {
+  display: flex;
+  align-items: center;
+  border: 1px solid rgba(74, 222, 128, 0.2);
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  transition: border 0.2s;
+}
+
+.number-input-wrapper:focus-within {
+  border-color: #4ade80;
+}
+
+.currency {
+  color: rgba(74, 222, 128, 0.6);
+  font-size: 14px;
+  padding: 10px 0 10px 14px;
+  user-select: none;
+}
+
+.number-input {
+  border: none;
+  background: transparent;
+  color: #e2e8f0;
+  font-family: monospace;
+  font-size: 14px;
+  padding: 10px 14px 10px 6px;
+  outline: none;
+  width: 90px;
+}
+
+.number-input::-webkit-inner-spin-button,
+.number-input::-webkit-outer-spin-button {
+  opacity: 0.4;
 }
 </style>

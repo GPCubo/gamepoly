@@ -1,8 +1,15 @@
-# Centralizar Variables de GameOverlay.vue en Pinia
+---
+id: SPEC-001
+title: Centralizar Variables de GameOverlay.vue en Pinia
+created_at: 2026-05-17T00:00:00
+status: done
+---
 
-## Objetivo
-Mover el estado reactivo del dado 2D y controles UI desde `GameOverlay.vue`
-a un store de Pinia para que sea consumible por otros componentes.
+# SPEC-001: Centralizar Variables de GameOverlay.vue en Pinia
+
+## Description
+
+Mover el estado reactivo del dado 2D y controles UI desde `GameOverlay.vue` a un store de Pinia para que sea consumible por otros componentes.
 
 ## Variables a Centralizar
 

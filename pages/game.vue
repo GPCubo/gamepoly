@@ -43,7 +43,7 @@
         />
         <template v-for="(scene, idx) in playerScenes" :key="idx">
           <primitive
-            v-if="scene"
+            v-if="scene && !store.bankruptPlayers.includes(idx)"
             :object="scene"
             :position="[
               displayPositions[idx]?.x ?? 0,
@@ -77,11 +77,37 @@
       @toggle-camera="store.toggleCameraFollow()"
       @next-turn="onNextTurn"
     />
+
+    <TileCard
+      v-if="showTileCard && !store.winner"
+      :tile="currentTile"
+      :owner-id="tileOwnerId"
+      :owner-name="tileOwnerName"
+      :rent-amount="tileRentAmount"
+      :active-player-id="store.activePlayer?.id ?? -1"
+      @close="showTileCard = false"
+      @buy="onBuyTile"
+      @auction="onAuctionTile"
+    />
+
+    <AuctionModal
+      v-if="showAuction && !store.winner"
+      :tile="currentTile"
+      :players="store.activePlayers"
+      :starting-bidder-index="auctionStartBidder"
+      @sold="onAuctionSold"
+      @unsold="onAuctionUnsold"
+    />
+
+    <WinnerOverlay
+      v-if="store.winner"
+      :player="store.winner"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, shallowRef, reactive, watch, ref } from "vue";
+import { onMounted, shallowRef, reactive, watch, ref, computed } from "vue";
 import { TresCanvas } from "@tresjs/core";
 import { OrbitControls } from "@tresjs/cientos";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -91,13 +117,116 @@ import { usePieceAnimation } from "~/composables/usePieceAnimation";
 import { useCameraOrbit, CAM_LERP } from "~/composables/useCameraOrbit";
 import { useTileLabels } from "~/composables/useTileLabels";
 import { GAME_CONFIG } from "~/config/gameConfig";
+import { BOARD_TILES } from "~/config/boardTilesConfig";
+import type { BoardTile } from "~/config/boardTilesConfig";
 import GameOverlay from "~/components/GameOverlay.vue";
+import TileCard from "~/components/TileCard.vue";
+import AuctionModal from "~/components/AuctionModal.vue";
+import WinnerOverlay from "~/components/WinnerOverlay.vue";
 import type { Group } from "three";
 
 const store = useGameStore();
 
 if (store.players.length === 0) {
   navigateTo("/");
+}
+
+const showTileCard = ref(false);
+const showAuction = ref(false);
+const currentTile = computed(() => BOARD_TILES[(store.casillaActual - 1 + 40) % 40]);
+
+const TAX_AMOUNTS: Record<number, number> = { 4: 200, 38: 100 };
+
+function computeRent(tile: BoardTile, ownerId: number): number {
+  if (tile.type === "railroad") {
+    const count = BOARD_TILES.filter(
+      (t) => t.type === "railroad" && store.propertyOwners[t.index] === ownerId,
+    ).length;
+    return 25 * count;
+  }
+  if (tile.type === "utility") {
+    const count = BOARD_TILES.filter(
+      (t) => t.type === "utility" && store.propertyOwners[t.index] === ownerId,
+    ).length;
+    return store.diceTotal * (count >= 2 ? 10 : 4);
+  }
+  return Math.floor((tile.price ?? 0) * 0.1);
+}
+
+const tileOwnerId = computed<number | undefined>(() => {
+  const t = currentTile.value;
+  if (t.type !== "property" && t.type !== "railroad" && t.type !== "utility") return undefined;
+  return store.propertyOwners[t.index];
+});
+
+const tileOwnerName = computed(
+  () => store.players.find((p) => p.id === tileOwnerId.value)?.name,
+);
+
+const tileRentAmount = computed(() => {
+  if (tileOwnerId.value === undefined) return 0;
+  return computeRent(currentTile.value, tileOwnerId.value);
+});
+
+const auctionStartBidder = computed(() => {
+  const alive = store.activePlayers;
+  const activeId = store.activePlayer?.id ?? -1;
+  const idx = alive.findIndex((p) => p.id === activeId);
+  return idx >= 0 ? idx : 0;
+});
+
+watch(
+  () => store.isTurnComplete,
+  (done) => {
+    if (!done) return;
+    const tile = currentTile.value;
+    const activeId = store.activePlayer?.id ?? -1;
+
+    if (tile.type === "tax") {
+      store.payTax(activeId, TAX_AMOUNTS[tile.index] ?? 100);
+    }
+
+    if (tile.type === "property" || tile.type === "railroad" || tile.type === "utility") {
+      const ownerId = store.propertyOwners[tile.index];
+      if (ownerId !== undefined && ownerId !== activeId) {
+        store.collectRent(activeId, ownerId, computeRent(tile, ownerId));
+      }
+    }
+
+    showTileCard.value = true;
+  },
+);
+
+watch(
+  () => store.winner,
+  (w) => { if (w) showTileCard.value = false; },
+);
+
+function onBuyTile() {
+  const activeId = store.activePlayer?.id ?? -1;
+  store.buyProperty(currentTile.value.index, activeId);
+  showTileCard.value = false;
+}
+
+function onAuctionTile() {
+  showTileCard.value = false;
+  showAuction.value = true;
+}
+
+function onAuctionSold(winnerId: number, amount: number) {
+  const tile = currentTile.value;
+  const winner = store.players.find((p) => p.id === winnerId);
+  if (winner) {
+    winner.cash -= amount;
+    store.propertyOwners[tile.index] = winnerId;
+    store._checkBankruptcy(winnerId);
+    store.statusMessage = `${winner.name} ganó la subasta de ${tile.name} por $${amount}`;
+  }
+  showAuction.value = false;
+}
+
+function onAuctionUnsold() {
+  showAuction.value = false;
 }
 
 const tableroScene = shallowRef<Group | null>(null);
@@ -263,6 +392,7 @@ function onDiceRoll(value: number) {
 }
 
 function onNextTurn() {
+  showTileCard.value = false;
   store.finishTurn();
 }
 </script>

@@ -1,11 +1,11 @@
 ---
-id: SPEC-005
+id: SPEC-002
 title: Board Geometry por Jugador — Cada Jugador con su useBoardGeometry
 created_at: 2026-05-18T18:30:00
 status: done
 ---
 
-# SPEC-005: Board Geometry por Jugador — Cada Jugador con su useBoardGeometry
+# SPEC-002: Board Geometry por Jugador — Cada Jugador con su useBoardGeometry
 
 ## Description
 
@@ -13,7 +13,7 @@ Refactorizar `useBoardGeometry` para que cada jugador tenga su propia instancia 
 
 ## Context and Motivation
 
-En SPEC-004 se agrego soporte para un segundo jugador (dedal) pasando `playerIndex` como segundo parametro a `getCasillaCoordinates`. Este enfoque escala mal: cada nuevo jugador agrega complejidad al punto de llamada y obliga a indexar manualmente. Al tener cada jugador su propia instancia de `useBoardGeometry`, la logica de offset se encapsula dentro del composable, y el codigo consumidor (`pages/index.vue`) queda mas limpio y escalable.
+En player/SPEC-001 se agrego soporte para un segundo jugador (dedal) pasando `playerIndex` como segundo parametro a `getCasillaCoordinates`. Este enfoque escala mal: cada nuevo jugador agrega complejidad al punto de llamada y obliga a indexar manualmente. Al tener cada jugador su propia instancia de `useBoardGeometry`, la logica de offset se encapsula dentro del composable, y el codigo consumidor (`pages/index.vue`) queda mas limpio y escalable.
 
 ## Technical Analysis
 

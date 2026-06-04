@@ -1,6 +1,17 @@
-# Dados 2D con CSS — Gameplay
+---
+id: SPEC-001
+title: Dados 2D con CSS — Gameplay
+created_at: 2026-05-16T00:00:00
+status: done
+---
 
-## Objetivo
+# SPEC-001: Dados 2D con CSS — Gameplay
+
+## Description
+
+Reemplazar el dado 3D (TresJS `diceScene`) por un dado 2D animado que aparece como overlay al hacer click en "🎲 Tirar Dados".
+
+### Comportamiento
 
 Reemplazar el dado 3D (TresJS `diceScene`) por un dado 2D animado que
 aparece como overlay al hacer click en "🎲 Tirar Dados".

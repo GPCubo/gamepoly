@@ -1,11 +1,11 @@
 ---
-id: SPEC-008
+id: SPEC-003
 title: Casilla Normalizada — Posicion 1-40 en la UI
 created_at: 2026-05-18T20:30:00
 status: done
 ---
 
-# SPEC-008: Casilla Normalizada — Posicion 1-40 en la UI
+# SPEC-003: Casilla Normalizada — Posicion 1-40 en la UI
 
 ## Description
 

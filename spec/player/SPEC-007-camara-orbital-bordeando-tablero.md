@@ -1,11 +1,11 @@
 ---
-id: SPEC-011
+id: SPEC-007
 title: Camara Orbital Bordeando el Tablero
 created_at: 2026-05-19T13:00:00
 status: done
 ---
 
-# SPEC-011: Camara Orbital Bordeando el Tablero
+# SPEC-007: Camara Orbital Bordeando el Tablero
 
 ## Description
 
@@ -15,7 +15,7 @@ La camara de seguimiento actual se posiciona directamente encima y detras del ju
 
 El modulo GAME del flujo de tablero. Cuando el jugador se mueve por las casillas del perimetro, la camara deberia acompanarlo desde afuera del tablero, no desde arriba. Actualmente el efecto es como ver el tablero desde arriba en primera persona sobre la ficha, lo cual oculta la perspectiva global del tablero y las otras fichas. Una camara orbital que rodea el tablero daria una experiencia mas similar a un juego de mesa real.
 
-SPEC-007 ya implemento el cambio de camara al jugador activo con lerp suave. Este spec refactoriza la logica de posicion de camara para que en vez de montarse sobre el jugador, orbite alrededor del borde del tablero.
+player/SPEC-004 ya implemento el cambio de camara al jugador activo con lerp suave. Este spec refactoriza la logica de posicion de camara para que en vez de montarse sobre el jugador, orbite alrededor del borde del tablero.
 
 ## Technical Analysis
 

@@ -1,4 +1,20 @@
 <template>
+  <div class="players-hud">
+    <div
+      v-for="p in store.players"
+      :key="p.id"
+      class="hud-player"
+      :class="{
+        'hud-active': p.id === store.activePlayer?.id,
+        'hud-bankrupt': store.bankruptPlayers.includes(p.id),
+      }"
+    >
+      <span class="hud-icon">{{ tokenIcon(p.tokenModel) }}</span>
+      <span class="hud-name">{{ p.name }}</span>
+      <span class="hud-cash" :class="{ 'hud-negative': p.cash < 0 }">${{ p.cash.toLocaleString() }}</span>
+    </div>
+  </div>
+
   <div class="overlay-container">
     <div class="status-badge">
       {{ statusText }} | Casilla: {{ currentPosition }}/40 | {{ store.statusMessage }}
@@ -79,6 +95,10 @@ const statusText = computed(() => {
   const token = GAME_CONFIG.TOKEN_MODELS.find((t) => t.file === ap.tokenModel);
   return `${token?.icon ?? "?"} ${ap.name} (${token?.name ?? "?"})`;
 });
+
+function tokenIcon(file: string) {
+  return GAME_CONFIG.TOKEN_MODELS.find((t) => t.file === file)?.icon ?? "?";
+}
 
 const props = defineProps<{
   currentPosition: number;
@@ -302,5 +322,64 @@ async function onRollClick() {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none !important;
+}
+
+.players-hud {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 100;
+  pointer-events: none;
+}
+
+.hud-player {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(74, 222, 128, 0.1);
+  border-radius: 10px;
+  padding: 6px 12px;
+  font-family: monospace;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.hud-active {
+  border-color: rgba(74, 222, 128, 0.5);
+  background: rgba(74, 222, 128, 0.08);
+}
+
+.hud-bankrupt {
+  opacity: 0.35;
+  text-decoration: line-through;
+}
+
+.hud-icon {
+  font-size: 14px;
+}
+
+.hud-name {
+  color: rgba(255, 255, 255, 0.7);
+  min-width: 70px;
+}
+
+.hud-active .hud-name {
+  color: #4ade80;
+  font-weight: bold;
+}
+
+.hud-cash {
+  color: #4ade80;
+  font-weight: bold;
+  margin-left: auto;
+  padding-left: 12px;
+}
+
+.hud-negative {
+  color: #f87171;
 }
 </style>

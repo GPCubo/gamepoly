@@ -1,0 +1,658 @@
+<template>
+  <Transition name="card">
+    <div class="tile-card" @click.self="emit('close')">
+      <div class="card-inner">
+        <button class="close-btn" @click="emit('close')">
+          <span class="material-symbols-outlined">close</span>
+        </button>
+
+        <!-- BADGE -->
+        <div v-if="ownerState === 'free' && (tile.type === 'property' || tile.type === 'railroad' || tile.type === 'utility')" class="hot-badge">
+          <span class="material-symbols-outlined badge-icon">trending_up</span>
+          <span>HOT PROPERTY</span>
+        </div>
+
+        <!-- PROPERTY -->
+        <template v-if="tile.type === 'property'">
+          <div class="color-band" :style="{ background: groupColor }">
+            <div class="band-header">
+              <span class="band-label">{{ groupLabel }}</span>
+            </div>
+            <h2 class="band-title">{{ tile.name }}</h2>
+          </div>
+          <div class="card-body">
+            <div class="price-section">
+              <div class="price-left">
+                <span class="price-micro">INVERSIÓN</span>
+                <span class="price-caption">PRECIO</span>
+              </div>
+              <span class="price-value">${{ tile.price }}</span>
+            </div>
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <span class="metric-label">ALQUILER</span>
+                <span class="metric-value">${{ rentBase }}</span>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">HIPOTECA</span>
+                <span class="metric-value">${{ Math.round((tile.price ?? 0) / 2) }}</span>
+              </div>
+            </div>
+            <template v-if="ownerState === 'own'">
+              <div class="own-banner">
+                <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+                <span>Es tuya</span>
+              </div>
+            </template>
+            <template v-else-if="ownerState === 'other'">
+              <div class="penalty-banner">
+                <span class="penalty-amount">−${{ rentAmount }}</span>
+                <span class="penalty-label">Alquiler pagado a {{ ownerName }}</span>
+              </div>
+            </template>
+            <template v-else>
+              <div class="action-stack">
+                <button class="action-btn buy-btn" @click="emit('buy')">
+                  <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">payments</span>
+                  <span>Comprar</span>
+                </button>
+                <button class="action-btn auction-btn" @click="emit('auction')">
+                  <span class="material-symbols-outlined">gavel</span>
+                  <span>Subastar</span>
+                </button>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- RAILROAD -->
+        <template v-else-if="tile.type === 'railroad'">
+          <div class="color-band railroad-band">
+            <div class="band-header">
+              <span class="band-label">FERROCARRIL</span>
+            </div>
+            <h2 class="band-title">{{ tile.name }}</h2>
+            <span class="band-emoji">🚂</span>
+          </div>
+          <div class="card-body">
+            <div class="price-section">
+              <div class="price-left">
+                <span class="price-micro">INVERSIÓN</span>
+                <span class="price-caption">PRECIO</span>
+              </div>
+              <span class="price-value">${{ tile.price }}</span>
+            </div>
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <span class="metric-label">ALQUILER</span>
+                <span class="metric-value">$25</span>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">HIPOTECA</span>
+                <span class="metric-value">${{ Math.round((tile.price ?? 0) / 2) }}</span>
+              </div>
+            </div>
+            <template v-if="ownerState === 'own'">
+              <div class="own-banner">
+                <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+                <span>Es tuyo</span>
+              </div>
+            </template>
+            <template v-else-if="ownerState === 'other'">
+              <div class="penalty-banner">
+                <span class="penalty-amount">−${{ rentAmount }}</span>
+                <span class="penalty-label">Alquiler pagado a {{ ownerName }}</span>
+              </div>
+            </template>
+            <template v-else>
+              <div class="action-stack">
+                <button class="action-btn buy-btn" @click="emit('buy')">
+                  <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">payments</span>
+                  <span>Comprar</span>
+                </button>
+                <button class="action-btn auction-btn" @click="emit('auction')">
+                  <span class="material-symbols-outlined">gavel</span>
+                  <span>Subastar</span>
+                </button>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- UTILITY -->
+        <template v-else-if="tile.type === 'utility'">
+          <div class="color-band utility-band">
+            <div class="band-header">
+              <span class="band-label">SERVICIO</span>
+            </div>
+            <h2 class="band-title">{{ tile.name }}</h2>
+            <span class="band-emoji">{{ tile.name.includes('Agua') ? '💧' : '💡' }}</span>
+          </div>
+          <div class="card-body">
+            <div class="price-section">
+              <div class="price-left">
+                <span class="price-micro">INVERSIÓN</span>
+                <span class="price-caption">PRECIO</span>
+              </div>
+              <span class="price-value">${{ tile.price }}</span>
+            </div>
+            <template v-if="ownerState === 'own'">
+              <div class="own-banner">
+                <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+                <span>Es tuyo</span>
+              </div>
+            </template>
+            <template v-else-if="ownerState === 'other'">
+              <div class="penalty-banner">
+                <span class="penalty-amount">−${{ rentAmount }}</span>
+                <span class="penalty-label">Alquiler pagado a {{ ownerName }}</span>
+              </div>
+            </template>
+            <template v-else>
+              <div class="action-stack">
+                <button class="action-btn buy-btn" @click="emit('buy')">
+                  <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">payments</span>
+                  <span>Comprar</span>
+                </button>
+                <button class="action-btn auction-btn" @click="emit('auction')">
+                  <span class="material-symbols-outlined">gavel</span>
+                  <span>Subastar</span>
+                </button>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <!-- TAX -->
+        <template v-else-if="tile.type === 'tax'">
+          <div class="color-band tax-band">
+            <div class="band-header">
+              <span class="band-label">IMPUESTO</span>
+            </div>
+            <h2 class="band-title">{{ tile.name }}</h2>
+            <span class="band-emoji">💸</span>
+          </div>
+          <div class="card-body">
+            <div class="penalty-banner tax-penalty">
+              <span class="penalty-amount">−${{ TAX_AMOUNTS[tile.index] ?? 100 }}</span>
+              <span class="penalty-label">Pagado al banco</span>
+            </div>
+            <p class="auto-deduct">Descontado automáticamente</p>
+          </div>
+        </template>
+
+        <!-- CARD (chance / community) -->
+        <template v-else-if="tile.type === 'card'">
+          <div class="color-band" :style="{ background: groupColor }">
+            <div class="band-header">
+              <span class="band-label">{{ tile.group === 'chance' ? 'SUERTE' : 'ARCA COMUNAL' }}</span>
+            </div>
+            <h2 class="band-title">{{ tile.name }}</h2>
+            <span class="band-emoji">{{ tile.group === 'chance' ? '🃏' : '📦' }}</span>
+          </div>
+          <div class="card-body">
+            <p class="card-hint">¡Roba una carta!</p>
+            <p class="auto-deduct">Sigue las instrucciones de la carta</p>
+          </div>
+        </template>
+
+        <!-- CORNER -->
+        <template v-else-if="tile.type === 'corner'">
+          <div class="color-band corner-band" :style="{ background: CORNER_META[tile.group]?.color ?? '#333' }">
+            <div class="band-header">
+              <span class="band-label">{{ CORNER_META[tile.group]?.label ?? '' }}</span>
+            </div>
+            <h2 class="band-title">{{ tile.name }}</h2>
+            <span class="band-emoji">{{ CORNER_META[tile.group]?.icon }}</span>
+          </div>
+          <div class="card-body">
+            <p class="corner-msg">{{ CORNER_META[tile.group]?.msg }}</p>
+          </div>
+        </template>
+
+      </div>
+    </div>
+  </Transition>
+</template>
+
+<script setup lang="ts">
+import { computed } from "vue";
+import type { BoardTile, TileGroup } from "~/config/boardTilesConfig";
+
+const props = defineProps<{
+  tile: BoardTile;
+  ownerId?: number;
+  ownerName?: string;
+  rentAmount?: number;
+  activePlayerId: number;
+}>();
+
+const emit = defineEmits<{
+  (e: "close"): void;
+  (e: "buy"): void;
+  (e: "auction"): void;
+}>();
+
+const ownerState = computed<"own" | "other" | "free">(() => {
+  if (props.ownerId === undefined) return "free";
+  if (props.ownerId === props.activePlayerId) return "own";
+  return "other";
+});
+
+const GROUP_COLORS: Record<TileGroup, string> = {
+  brown: "#92400e",
+  lightBlue: "#0ea5e9",
+  pink: "#db2777",
+  orange: "#ea580c",
+  red: "#dc2626",
+  yellow: "#ca8a04",
+  green: "#15803d",
+  darkBlue: "#1d4ed8",
+  railroad: "#1f2937",
+  utility: "#374151",
+  tax: "#374151",
+  chance: "#c2410c",
+  community: "#1d4ed8",
+  go: "#dc2626",
+  jail: "#6b7280",
+  parking: "#374151",
+  gotojail: "#dc2626",
+};
+
+const GROUP_LABELS: Partial<Record<TileGroup, string>> = {
+  brown: "MARRÓN", lightBlue: "AZUL CLARO", pink: "ROSA",
+  orange: "NARANJA", red: "ROJO", yellow: "AMARILLO",
+  green: "VERDE", darkBlue: "AZUL OSCURO",
+};
+
+const CORNER_META: Partial<Record<TileGroup, { icon: string; color: string; msg: string; label: string }>> = {
+  go:       { icon: "🚀", color: "#b91c1c", msg: "¡Cada vez que pases cobras salario!", label: "SALIDA" },
+  jail:     { icon: "⛓️",  color: "#4b5563", msg: "Solo estás de visita. Nada que hacer aquí.", label: "CÁRCEL" },
+  parking:  { icon: "🅿️", color: "#1e40af", msg: "Descansa aquí. No pasa nada — es gratis.", label: "PARKING" },
+  gotojail: { icon: "🚔", color: "#b91c1c", msg: "¡Ve directamente a la cárcel! No cobres el sueldo.", label: "VE A LA CÁRCEL" },
+};
+
+const TAX_AMOUNTS: Record<number, number> = { 4: 200, 38: 100 };
+
+const groupColor = computed(() => GROUP_COLORS[props.tile.group] ?? "#374151");
+const groupLabel = computed(() => GROUP_LABELS[props.tile.group] ?? "");
+const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
+</script>
+
+<style scoped>
+@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1');
+
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.tile-card {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  pointer-events: auto;
+  background: rgba(17, 19, 28, 0.5);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.card-inner {
+  position: relative;
+  width: 310px;
+  border-radius: 2rem;
+  overflow: hidden;
+  background: rgba(29, 31, 41, 0.97);
+  border: 1px solid rgba(74, 222, 128, 0.15);
+  box-shadow:
+    0 32px 64px -12px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
+  font-family: 'Hanken Grotesk', sans-serif;
+}
+
+.close-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(8px);
+  color: rgba(255, 255, 255, 0.8);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  transition: all 0.15s;
+  padding: 0;
+}
+
+.close-btn:hover {
+  background: rgba(0, 0, 0, 0.5);
+  color: white;
+  transform: scale(1.1);
+}
+
+.hot-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  transform: rotate(12deg);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: #ffd165;
+  color: #3f2e00;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  padding: 4px 12px;
+  border-radius: 9999px;
+  border: 2px solid rgba(17, 19, 28, 0.9);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.badge-icon {
+  font-size: 14px !important;
+  font-variation-settings: 'FILL' 1, 'wght' 400;
+}
+
+.color-band {
+  min-height: 128px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 24px 28px 20px;
+  position: relative;
+  transition: filter 0.2s;
+}
+
+.color-band:hover {
+  filter: brightness(1.1);
+}
+
+.railroad-band { background: #1f2937; }
+.utility-band  { background: #374151; }
+.tax-band      { background: #292524; }
+.corner-band   {}
+
+.band-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.band-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.65);
+}
+
+.band-title {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1.3;
+  color: #ffffff;
+  margin: 0;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  letter-spacing: -0.02em;
+}
+
+.band-emoji {
+  position: absolute;
+  right: 24px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 36px;
+  opacity: 0.7;
+}
+
+.card-body {
+  padding: 24px 28px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.price-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding-bottom: 16px;
+  border-bottom: 1px solid rgba(74, 222, 128, 0.1);
+}
+
+.price-left {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.price-micro {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(225, 225, 239, 0.4);
+}
+
+.price-caption {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(225, 225, 239, 0.85);
+}
+
+.price-value {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  color: #00e38f;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.metric-card {
+  background: rgba(25, 27, 36, 0.8);
+  border: 1px solid rgba(74, 222, 128, 0.06);
+  border-radius: 16px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.metric-label {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(225, 225, 239, 0.4);
+}
+
+.metric-value {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: rgba(225, 225, 239, 0.95);
+}
+
+.own-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  background: rgba(0, 227, 143, 0.1);
+  border: 1px solid rgba(0, 227, 143, 0.2);
+  border-radius: 12px;
+  color: #00e38f;
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.own-banner .material-symbols-outlined {
+  font-size: 20px;
+  color: #00e38f;
+}
+
+.penalty-banner {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px;
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.15);
+  border-radius: 12px;
+}
+
+.tax-penalty {
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.15);
+}
+
+.penalty-amount {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+  color: #f87171;
+}
+
+.tax-penalty .penalty-amount {
+  color: #fbbf24;
+}
+
+.penalty-label {
+  font-size: 12px;
+  color: rgba(225, 225, 239, 0.45);
+}
+
+.auto-deduct {
+  font-size: 12px;
+  color: rgba(225, 225, 239, 0.35);
+  margin: 0;
+}
+
+.card-hint {
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(225, 225, 239, 0.85);
+  margin: 0;
+}
+
+.corner-msg {
+  font-family: 'Hanken Grotesk', sans-serif;
+  font-size: 14px;
+  color: rgba(225, 225, 239, 0.6);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.action-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.action-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-radius: 16px;
+  border: none;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.action-btn .material-symbols-outlined {
+  font-size: 20px;
+}
+
+.buy-btn {
+  background: #00f59b;
+  color: #003920;
+  box-shadow: 0 8px 24px rgba(0, 245, 155, 0.2);
+}
+
+.buy-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 32px rgba(0, 245, 155, 0.3);
+}
+
+.buy-btn:active {
+  transform: scale(0.97);
+}
+
+.auction-btn {
+  background: rgba(50, 52, 62, 0.8);
+  color: rgba(225, 225, 239, 0.85);
+  border: 1px solid rgba(74, 222, 128, 0.12);
+}
+
+.auction-btn:hover {
+  background: rgba(50, 52, 62, 1);
+  color: #ffffff;
+  border-color: rgba(74, 222, 128, 0.25);
+}
+
+.auction-btn .material-symbols-outlined {
+  color: #d70357;
+  transition: transform 0.2s;
+}
+
+.auction-btn:hover .material-symbols-outlined {
+  transform: rotate(12deg);
+}
+
+.auction-btn:active {
+  transform: scale(0.97);
+}
+
+.card-enter-active {
+  animation: cardSlideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+.card-leave-active {
+  animation: cardFadeOut 0.2s ease-in both;
+}
+
+@keyframes cardSlideIn {
+  from { opacity: 0; transform: scale(0.85) translateY(24px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes cardFadeOut {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.92) translateY(-16px); }
+}
+</style>

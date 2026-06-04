@@ -1,11 +1,11 @@
 ---
-id: SPEC-003
+id: SPEC-004
 title: Dados Dobles — 2 Dados Horizontales Arriba con Suma
 created_at: 2026-05-18T00:15:00
 status: done
 ---
 
-# SPEC-003: Dados Dobles — 2 Dados Horizontales Arriba con Suma
+# SPEC-004: Dados Dobles — 2 Dados Horizontales Arriba con Suma
 
 ## Descripción
 
@@ -13,7 +13,7 @@ Cambiar el dado único actual por **2 dados** alineados horizontalmente en el ce
 
 ## Contexto y Motivación
 
-Actualmente (SPEC-001, SPEC-002) el juego usa un solo dado (`store.diceValue`, rango 1-6) posicionado abajo (`bottom: 80px`). Se necesita:
+Actualmente (dados/SPEC-002, dados/SPEC-003) el juego usa un solo dado (`store.diceValue`, rango 1-6) posicionado abajo (`bottom: 80px`). Se necesita:
 
 1. **2 dados** para más dinamismo tipo monopolio
 2. **Posición arriba** — cambiar de `bottom: 80px` a `top`

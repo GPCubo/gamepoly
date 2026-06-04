@@ -1,11 +1,11 @@
 ---
-id: SPEC-010
+id: SPEC-006
 title: Animacion de Salto por Casilla para Fichas
 created_at: 2026-05-19T12:00:00
 status: done
 ---
 
-# SPEC-010: Animacion de Salto por Casilla para Fichas
+# SPEC-006: Animacion de Salto por Casilla para Fichas
 
 ## Description
 

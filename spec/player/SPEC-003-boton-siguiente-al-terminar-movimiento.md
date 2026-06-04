@@ -1,11 +1,11 @@
 ---
-id: SPEC-006
+id: SPEC-003
 title: Boton Siguiente — Aparece al Terminar Movimiento
 created_at: 2026-05-18T19:00:00
 status: done
 ---
 
-# SPEC-006: Boton Siguiente — Aparece al Terminar Movimiento
+# SPEC-003: Boton Siguiente — Aparece al Terminar Movimiento
 
 ## Description
 

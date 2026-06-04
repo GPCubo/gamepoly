@@ -1,11 +1,11 @@
 ---
-id: SPEC-014
+id: SPEC-010
 title: Configuración de Múltiples Jugadores con Fichas Seleccionables
 created_at: 2026-05-20T12:00:00
 status: done
 ---
 
-# SPEC-014: Configuración de Múltiples Jugadores con Fichas Seleccionables
+# SPEC-010: Configuración de Múltiples Jugadores con Fichas Seleccionables
 
 ## Description
 

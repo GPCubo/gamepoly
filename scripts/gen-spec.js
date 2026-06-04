@@ -4,9 +4,11 @@
  * Uso: node scripts/gen-spec.js "Título de la tarea"
  */
 
-const fs = require('fs');
-const path = require('path');
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SPEC_DIR = path.join(__dirname, '..', 'spec');
 
 // Paso 1: Determinar próximo ID
@@ -38,7 +40,7 @@ function toKebabCase(str) {
   return str
     .toLowerCase()
     .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '') // Remover acentos
+    .replace(/[̀-ͯ]/g, '') // Remover acentos
     .replace(/[^a-z0-9\s-]/g, '') // Solo letras, números, espacios, guiones
     .trim()
     .replace(/\s+/g, '-'); // Espacios → guiones
@@ -85,13 +87,13 @@ status: draft
 
 ### Pasos ordenados
 
-1. 
-2. 
+1.
+2.
 
 ## Criterios de Aceptación
 
-- [ ] 
-- [ ] 
+- [ ]
+- [ ]
 
 ## Notas
 
@@ -104,7 +106,7 @@ status: draft
 function main() {
   const args = process.argv.slice(2);
   if (args.length === 0) {
-    console.error('Uso: node gen-spec.js "Título del spec"');
+    console.error('Uso: node scripts/gen-spec.js "Título del spec"');
     process.exit(1);
   }
 
