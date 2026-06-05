@@ -21,6 +21,7 @@ CORNER_SIZE       = 0.45
 TILE_WIDTH        = (BOARD_SIZE - (CORNER_SIZE * 2)) / 9
 TILE_DEPTH        = 0.45
 BAND_DEPTH        = 0.10
+PRICE_BOTTOM_MARGIN = 0.05
 
 # Marco decorativo (queda FUERA del anillo de casillas: no afecta alineación)
 FRAME_WIDTH       = 0.18
@@ -288,18 +289,11 @@ def build_gamepoly():
             c_mesh.parent = tile_container
             c_mesh.location = (0, 0, 0)
         else:
-            # Base Blanca Pulida
-            base_mesh = add_box(f"Tile_{i:02d}_Base",
-                                (TILE_WIDTH * 0.94, TILE_DEPTH, TILE_HEIGHT),
-                                (0, 0, 0), white_tile_mat)
-            bevel_mesh(base_mesh, width=0.004, segments=2)
-            base_mesh.parent = tile_container
-            base_mesh.location = (0, 0, 0)
-
             has_band = group in ["brown", "lightBlue", "pink", "orange", "red", "yellow", "green", "darkBlue"]
 
             if has_band:
-                # Banda de Color orientada de cara al borde interior de la casilla
+                # Banda de color SOLIDA: ocupa toda la franja superior,
+                # sin dejar blanco visible debajo ni en los bordes laterales.
                 band_mat = get_or_create_material(f"Mat_{group}", TILE_COLORS[group], roughness=0.15)
                 band_mesh = add_box(
                     f"Tile_{i:02d}_ColorBand",
@@ -309,7 +303,24 @@ def build_gamepoly():
                 bevel_mesh(band_mesh, width=0.003, segments=2)
                 band_mesh.parent = tile_container
                 band_mesh.location = (0, (TILE_DEPTH / 2) - (BAND_DEPTH / 2), TILE_HEIGHT * 0.05)
+
+                # Base blanca solo en la parte inferior (debajo de la banda)
+                base_depth = TILE_DEPTH - BAND_DEPTH
+                base_mesh = add_box(f"Tile_{i:02d}_Base",
+                                    (TILE_WIDTH * 0.94, base_depth, TILE_HEIGHT),
+                                    (0, -(TILE_DEPTH / 2) + (base_depth / 2), 0), white_tile_mat)
+                bevel_mesh(base_mesh, width=0.004, segments=2)
+                base_mesh.parent = tile_container
+                base_mesh.location = (0, -(TILE_DEPTH / 2) + (base_depth / 2), 0)
             else:
+                # Base blanca completa para casillas especiales
+                base_mesh = add_box(f"Tile_{i:02d}_Base",
+                                    (TILE_WIDTH * 0.94, TILE_DEPTH, TILE_HEIGHT),
+                                    (0, 0, 0), white_tile_mat)
+                bevel_mesh(base_mesh, width=0.004, segments=2)
+                base_mesh.parent = tile_container
+                base_mesh.location = (0, 0, 0)
+
                 # Bloque central indicador para casillas especiales (Suerte, Trenes, Impuestos)
                 spec_mat = get_or_create_material(
                     f"Mat_{group}", TILE_COLORS.get(group, TILE_COLORS["white"]), roughness=0.2)
@@ -322,36 +333,61 @@ def build_gamepoly():
                 spec_mesh.parent = tile_container
                 spec_mesh.location = (0, -0.05, TILE_HEIGHT * 0.05)
 
-        # # ── Etiquetas 3D (nombre + precio) sobre la casilla ──
-        # info = TILE_INFO[i]
-        # z_text = TILE_HEIGHT / 2 + 0.003
-        # has_band = group in ["brown", "lightBlue", "pink", "orange", "red", "yellow", "green", "darkBlue"]
-        # has_spec = not is_corner and not has_band
+        # ── Etiquetas 3D (nombre + precio) sobre la casilla ──
+        info = TILE_INFO[i]
+        z_text = TILE_HEIGHT / 2 + 0.004
+        is_band = group in ["brown", "lightBlue", "pink", "orange", "red", "yellow", "green", "darkBlue"]
+        is_spec = not is_corner and not is_band
 
-        # spec_top_y = (-0.05 + (TILE_DEPTH * 0.35) / 2) + 0.032 if has_spec else 0
-        # price_y = -TILE_DEPTH / 2 + 0.032
+        # Color del texto: blanco sobre banda de color / esquinas, oscuro sobre base blanca
+        # Determine if the band color is dark enough to need white text
+        band_rgba = TILE_COLORS.get(group, TILE_COLORS["white"])
+        band_luminance = 0.299 * band_rgba[0] + 0.587 * band_rgba[1] + 0.114 * band_rgba[2]
+        text_on_band = text_mat_white if band_luminance < 0.5 else text_mat
+        text_on_white = text_mat
 
-        # if is_corner:
-        #     add_text_line(
-        #         f"Tile_{i:02d}_Lbl", info["short"],
-        #         (0, 0, z_text), 0.055, text_mat_white, extrude=0.003,
-        #         parent=tile_container)
-        # elif "price" in info:
-        #     name_y = spec_top_y if has_spec else 0.04
-        #     add_text_line(
-        #         f"Tile_{i:02d}_Name", info["short"],
-        #         (0, name_y, z_text), 0.042, text_mat, extrude=0.002,
-        #         parent=tile_container)
-        #     add_text_line(
-        #         f"Tile_{i:02d}_Price", f"${info['price']}",
-        #         (0, price_y, z_text), 0.036, text_mat, extrude=0.002,
-        #         parent=tile_container)
-        # else:
-        #     lbl_y = spec_top_y if has_spec else 0.06
-        #     add_text_line(
-        #         f"Tile_{i:02d}_Lbl", info["short"],
-        #         (0, lbl_y, z_text), 0.042, text_mat, extrude=0.002,
-        #         parent=tile_container)
+        if is_corner:
+            add_text_line(
+                f"Tile_{i:02d}_Lbl", info["short"],
+                (0, 0, z_text), 0.055, text_on_band, extrude=0.003,
+                parent=tile_container)
+        elif is_band:
+            # Nombre del property: va en la banda de color (texto blanco o claro)
+            name_y = (TILE_DEPTH / 2) - (BAND_DEPTH / 2)
+            add_text_line(
+                f"Tile_{i:02d}_Name", info["short"],
+                (0, name_y, z_text), 0.038, text_on_band, extrude=0.002,
+                parent=tile_container)
+            # Precio: margen consistente desde el bottom
+            if "price" in info:
+                price_y = -TILE_DEPTH / 2 + PRICE_BOTTOM_MARGIN
+                add_text_line(
+                    f"Tile_{i:02d}_Price", f"${info['price']}",
+                    (0, price_y, z_text), 0.032, text_on_white, extrude=0.002,
+                    parent=tile_container)
+        elif is_spec:
+            # Casillas especiales: nombre en el bloque de color, texto blanco
+            spec_top_y_new = (-0.05 + (TILE_DEPTH * 0.35) / 2) + 0.032
+            spec_rgba = TILE_COLORS.get(group, TILE_COLORS["white"])
+            spec_luminance = 0.299 * spec_rgba[0] + 0.587 * spec_rgba[1] + 0.114 * spec_rgba[2]
+            text_on_spec = text_mat_white if spec_luminance < 0.5 else text_mat
+
+            add_text_line(
+                f"Tile_{i:02d}_Lbl", info["short"],
+                (0, spec_top_y_new, z_text), 0.038, text_on_spec, extrude=0.002,
+                parent=tile_container)
+            if "price" in info:
+                price_y = -TILE_DEPTH / 2 + PRICE_BOTTOM_MARGIN
+                add_text_line(
+                    f"Tile_{i:02d}_Price", f"${info['price']}",
+                    (0, price_y, z_text), 0.032, text_on_white, extrude=0.002,
+                    parent=tile_container)
+        else:
+            # Casillas sin banda ni bloque especial (no debería llegar aquí)
+            add_text_line(
+                f"Tile_{i:02d}_Lbl", info["short"],
+                (0, 0.04, z_text), 0.042, text_on_white, extrude=0.002,
+                parent=tile_container)
 
     # Activar sombreado de materiales en el viewport dinámicamente
     for area in bpy.context.screen.areas:

@@ -2,7 +2,7 @@
   <Transition name="card">
     <div class="tile-card" @click.self="emit('close')">
       <div class="card-inner">
-        <button class="close-btn" @click="emit('close')">
+        <button class="close-btn" tabindex="-1" @click="emit('close')">
           <span class="material-symbols-outlined">close</span>
         </button>
 
@@ -53,6 +53,10 @@
                 <span class="material-symbols-outlined filled">home</span>
                 <span>Es tuya</span>
               </div>
+              <button ref="closeActionBtnRef" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+                <span class="material-symbols-outlined">arrow_forward</span>
+                <span>Siguiente</span>
+              </button>
             </template>
             <template v-else-if="ownerState === 'other'">
               <div class="penalty-banner">
@@ -61,25 +65,33 @@
                   >Alquiler pagado a {{ ownerName }}</span
                 >
               </div>
+              <button ref="closeActionBtnRef2" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+                <span class="material-symbols-outlined">arrow_forward</span>
+                <span>Siguiente</span>
+              </button>
             </template>
             <template v-else>
               <div class="action-stack">
                 <button
+                  ref="buyBtnRef"
                   class="action-btn buy-btn"
                   :class="{ 'disabled-btn': !canAfford }"
                   :disabled="!canAfford"
+                  tabindex="0"
                   @click="canAfford && emit('buy')"
                 >
                   <span class="material-symbols-outlined filled">payments</span>
                   <span>{{ canAfford ? 'Comprar' : 'Sin fondos' }}</span>
                 </button>
-                <button class="action-btn auction-btn" @click="emit('auction')">
+                <button ref="auctionBtnRef" class="action-btn auction-btn" tabindex="0" @click="emit('auction')">
                   <span class="material-symbols-outlined">gavel</span>
                   <span>Subastar</span>
                 </button>
                 <button
                   v-if="canSkipBuy"
+                  ref="skipBtnRef"
                   class="action-btn skip-btn"
+                  tabindex="0"
                   @click="emit('skip')"
                 >
                   <span class="material-symbols-outlined">skip_next</span>
@@ -118,12 +130,16 @@
                   >${{ Math.round((tile.price ?? 0) / 2) }}</span
                 >
               </div>
-            </div>
-            <template v-if="ownerState === 'own'">
+</div>
+             <template v-if="ownerState === 'own'">
               <div class="own-banner">
                 <span class="material-symbols-outlined filled">home</span>
                 <span>Es tuyo</span>
               </div>
+              <button ref="closeActionBtnRef3" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+                <span class="material-symbols-outlined">arrow_forward</span>
+                <span>Siguiente</span>
+              </button>
             </template>
             <template v-else-if="ownerState === 'other'">
               <div class="penalty-banner">
@@ -132,25 +148,33 @@
                   >Alquiler pagado a {{ ownerName }}</span
                 >
               </div>
+              <button ref="closeActionBtnRef4" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+                <span class="material-symbols-outlined">arrow_forward</span>
+                <span>Siguiente</span>
+              </button>
             </template>
             <template v-else>
               <div class="action-stack">
                 <button
+                  ref="buyBtnRailRef"
                   class="action-btn buy-btn"
                   :class="{ 'disabled-btn': !canAfford }"
                   :disabled="!canAfford"
+                  tabindex="0"
                   @click="canAfford && emit('buy')"
                 >
                   <span class="material-symbols-outlined filled">payments</span>
                   <span>{{ canAfford ? 'Comprar' : 'Sin fondos' }}</span>
                 </button>
-                <button class="action-btn auction-btn" @click="emit('auction')">
+                <button ref="auctionBtnRailRef" class="action-btn auction-btn" tabindex="0" @click="emit('auction')">
                   <span class="material-symbols-outlined">gavel</span>
                   <span>Subastar</span>
                 </button>
                 <button
                   v-if="canSkipBuy"
+                  ref="skipBtnRailRef"
                   class="action-btn skip-btn"
+                  tabindex="0"
                   @click="emit('skip')"
                 >
                   <span class="material-symbols-outlined">skip_next</span>
@@ -185,6 +209,10 @@
                 <span class="material-symbols-outlined filled">home</span>
                 <span>Es tuyo</span>
               </div>
+              <button ref="closeActionBtnRef5" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+                <span class="material-symbols-outlined">arrow_forward</span>
+                <span>Siguiente</span>
+              </button>
             </template>
             <template v-else-if="ownerState === 'other'">
               <div class="penalty-banner">
@@ -193,25 +221,33 @@
                   >Alquiler pagado a {{ ownerName }}</span
                 >
               </div>
+              <button ref="closeActionBtnRef6" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+                <span class="material-symbols-outlined">arrow_forward</span>
+                <span>Siguiente</span>
+              </button>
             </template>
             <template v-else>
               <div class="action-stack">
                 <button
+                  ref="buyBtnUtilRef"
                   class="action-btn buy-btn"
                   :class="{ 'disabled-btn': !canAfford }"
                   :disabled="!canAfford"
+                  tabindex="0"
                   @click="canAfford && emit('buy')"
                 >
                   <span class="material-symbols-outlined filled">payments</span>
                   <span>{{ canAfford ? 'Comprar' : 'Sin fondos' }}</span>
                 </button>
-                <button class="action-btn auction-btn" @click="emit('auction')">
+                <button ref="auctionBtnUtilRef" class="action-btn auction-btn" tabindex="0" @click="emit('auction')">
                   <span class="material-symbols-outlined">gavel</span>
                   <span>Subastar</span>
                 </button>
                 <button
                   v-if="canSkipBuy"
+                  ref="skipBtnUtilRef"
                   class="action-btn skip-btn"
+                  tabindex="0"
                   @click="emit('skip')"
                 >
                   <span class="material-symbols-outlined">skip_next</span>
@@ -239,6 +275,10 @@
               <span class="penalty-label">Pagado al banco</span>
             </div>
             <p class="auto-deduct">Descontado automáticamente</p>
+            <button ref="closeActionBtnRefTax" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+              <span class="material-symbols-outlined">arrow_forward</span>
+              <span>Siguiente</span>
+            </button>
           </div>
         </template>
 
@@ -258,6 +298,10 @@
           <div class="card-body">
             <p class="card-hint">¡Roba una carta!</p>
             <p class="auto-deduct">Sigue las instrucciones de la carta</p>
+            <button ref="closeActionBtnRefCard" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+              <span class="material-symbols-outlined">arrow_forward</span>
+              <span>Siguiente</span>
+            </button>
           </div>
         </template>
 
@@ -277,6 +321,10 @@
           </div>
           <div class="card-body">
             <p class="corner-msg">{{ CORNER_META[tile.group]?.msg }}</p>
+            <button ref="closeActionBtnRefCorner" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+              <span class="material-symbols-outlined">arrow_forward</span>
+              <span>Siguiente</span>
+            </button>
           </div>
         </template>
       </div>
@@ -285,8 +333,9 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from "vue";
+import { computed, ref, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { BOARD_TILES, type BoardTile, type TileGroup } from "~/config/boardTilesConfig";
+import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
 
 const props = defineProps<{
   tile: BoardTile;
@@ -305,6 +354,25 @@ const emit = defineEmits<{
   (e: "skip"): void;
 }>();
 
+const buyBtnRef = ref<HTMLElement | null>(null);
+const buyBtnRailRef = ref<HTMLElement | null>(null);
+const buyBtnUtilRef = ref<HTMLElement | null>(null);
+const auctionBtnRef = ref<HTMLElement | null>(null);
+const auctionBtnRailRef = ref<HTMLElement | null>(null);
+const auctionBtnUtilRef = ref<HTMLElement | null>(null);
+const skipBtnRef = ref<HTMLElement | null>(null);
+const skipBtnRailRef = ref<HTMLElement | null>(null);
+const skipBtnUtilRef = ref<HTMLElement | null>(null);
+const closeActionBtnRef = ref<HTMLElement | null>(null);
+const closeActionBtnRef2 = ref<HTMLElement | null>(null);
+const closeActionBtnRef3 = ref<HTMLElement | null>(null);
+const closeActionBtnRef4 = ref<HTMLElement | null>(null);
+const closeActionBtnRef5 = ref<HTMLElement | null>(null);
+const closeActionBtnRef6 = ref<HTMLElement | null>(null);
+const closeActionBtnRefTax = ref<HTMLElement | null>(null);
+const closeActionBtnRefCard = ref<HTMLElement | null>(null);
+const closeActionBtnRefCorner = ref<HTMLElement | null>(null);
+
 const ownerState = computed<"own" | "other" | "free">(() => {
   if (props.ownerId === undefined) return "free";
   if (props.ownerId === props.activePlayerId) return "own";
@@ -312,6 +380,69 @@ const ownerState = computed<"own" | "other" | "free">(() => {
 });
 
 const canAfford = computed(() => (props.tile.price ?? 0) <= props.activePlayerCash);
+
+const tileType = computed(() => props.tile.type);
+
+const activeRefs = computed(() => {
+  if (ownerState.value === "own" || ownerState.value === "other") {
+    if (tileType.value === "property") {
+      return ownerState.value === "own" ? [closeActionBtnRef] : [closeActionBtnRef2];
+    }
+    if (tileType.value === "railroad") {
+      return ownerState.value === "own" ? [closeActionBtnRef3] : [closeActionBtnRef4];
+    }
+    if (tileType.value === "utility") {
+      return ownerState.value === "own" ? [closeActionBtnRef5] : [closeActionBtnRef6];
+    }
+    return [];
+  }
+  if (tileType.value === "tax") return [closeActionBtnRefTax];
+  if (tileType.value === "card") return [closeActionBtnRefCard];
+  if (tileType.value === "corner") return [closeActionBtnRefCorner];
+  if (tileType.value === "property") {
+    return props.canSkipBuy
+      ? [buyBtnRef, auctionBtnRef, skipBtnRef]
+      : [buyBtnRef, auctionBtnRef];
+  }
+  if (tileType.value === "railroad") {
+    return props.canSkipBuy
+      ? [buyBtnRailRef, auctionBtnRailRef, skipBtnRailRef]
+      : [buyBtnRailRef, auctionBtnRailRef];
+  }
+  if (tileType.value === "utility") {
+    return props.canSkipBuy
+      ? [buyBtnUtilRef, auctionBtnUtilRef, skipBtnUtilRef]
+      : [buyBtnUtilRef, auctionBtnUtilRef];
+  }
+  return [];
+});
+
+const canAutoFocus = computed(() => true);
+
+const { focusedIndex, focusButton, autoFocus } = useKeyboardNavigation(
+  activeRefs,
+  {
+    direction: "vertical",
+    autoFocusIndex: 0,
+    autoFocusOn: canAutoFocus,
+    loop: true,
+  }
+);
+
+function autoFocusFirstEnabled() {
+  nextTick(() => {
+    const refs = activeRefs.value;
+    for (const r of refs) {
+      const el = r.value;
+      if (el && !(el as HTMLButtonElement).disabled) {
+        el.focus();
+        return;
+      }
+    }
+  });
+}
+
+onMounted(() => autoFocusFirstEnabled());
 
 const colorByGroup = (group: TileGroup): string =>
   BOARD_TILES.find(t => t.group === group)?.color ?? "#374151";
@@ -381,25 +512,6 @@ const TAX_AMOUNTS: Record<number, number> = { 4: 200, 38: 100 };
 const groupColor = computed(() => GROUP_COLORS[props.tile.group] ?? "#374151");
 const groupLabel = computed(() => GROUP_LABELS[props.tile.group] ?? "");
 const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
-
-function onKeydown(e: KeyboardEvent) {
-  if (e.key !== "Enter" && e.key !== " ") return;
-  e.preventDefault();
-  e.stopImmediatePropagation();
-
-  if (ownerState.value !== "free") return;
-
-  if (canAfford.value) {
-    emit("buy");
-  } else if (props.canSkipBuy) {
-    emit("skip");
-  } else {
-    emit("auction");
-  }
-}
-
-onMounted(() => window.addEventListener("keydown", onKeydown));
-onUnmounted(() => window.removeEventListener("keydown", onKeydown));
 </script>
 
 <style scoped>
@@ -806,6 +918,49 @@ onUnmounted(() => window.removeEventListener("keydown", onKeydown));
   background: rgba(50, 52, 62, 0.9);
   color: rgba(225, 225, 239, 0.85);
   border-color: rgba(132, 149, 136, 0.35);
+}
+
+.action-btn:focus-visible {
+  outline: 2px solid #00e38f;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(0, 227, 143, 0.25);
+}
+
+.buy-btn:focus-visible {
+  outline-color: #00f59b;
+  box-shadow: 0 8px 24px rgba(0, 245, 155, 0.2), 0 0 0 4px rgba(0, 245, 155, 0.25);
+}
+
+.auction-btn:focus-visible {
+  outline-color: #d70357;
+  box-shadow: 0 0 0 4px rgba(215, 3, 87, 0.25);
+}
+
+.skip-btn:focus-visible {
+  outline-color: #849588;
+  box-shadow: 0 0 0 4px rgba(132, 149, 136, 0.25);
+}
+
+.next-action-btn {
+  background: #3b82f6;
+  color: white;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.25);
+}
+
+.next-action-btn:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+  box-shadow: 0 12px 32px rgba(59, 130, 246, 0.35);
+}
+
+.next-action-btn:active {
+  transform: scale(0.97);
+}
+
+.next-action-btn:focus-visible {
+  outline: 2px solid #3b82f6;
+  outline-offset: 3px;
+  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.25), 0 0 0 4px rgba(59, 130, 246, 0.2);
 }
 
 .card-enter-active {

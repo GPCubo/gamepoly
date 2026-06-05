@@ -128,7 +128,7 @@
           Reglas
         </button>
         <button class="reset-btn" @click="resetForm">RESTABLECER</button>
-        <button class="start-btn" @click="startGame">
+        <button ref="startBtnRef" class="start-btn" tabindex="0" @click="startGame">
           <span class="material-symbols-outlined start-icon">play_arrow</span>
           INICIAR
         </button>
@@ -232,7 +232,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, nextTick } from "vue";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import { useGameStore } from "~/stores/gameStore";
 
@@ -240,6 +240,8 @@ const store = useGameStore();
 store.phase = "setup";
 store.players = [];
 store.activePlayerIndex = 0;
+
+const startBtnRef = ref<HTMLElement | null>(null);
 
 const selectedCount = ref(2);
 const playerNames = ref<string[]>(
@@ -267,11 +269,23 @@ const visiblePlayers = computed(() => {
 });
 
 function onKeyDown(e: KeyboardEvent) {
-  if (e.key === "Enter") startGame();
-  if (e.key === "Escape" && showSettings.value) showSettings.value = false;
+  if (e.key === "Escape" && showSettings.value) {
+    showSettings.value = false;
+    return;
+  }
+  if (e.key === "Enter") {
+    const focused = document.activeElement;
+    if (focused && focused === startBtnRef.value) {
+      return;
+    }
+    startGame();
+  }
 }
 
-onMounted(() => window.addEventListener("keydown", onKeyDown));
+onMounted(() => {
+  window.addEventListener("keydown", onKeyDown);
+  nextTick(() => startBtnRef.value?.focus());
+});
 onUnmounted(() => window.removeEventListener("keydown", onKeyDown));
 
 function selectCount(n: number) {
@@ -868,6 +882,12 @@ function startGame() {
 
 .start-btn:active {
   transform: scale(0.97);
+}
+
+.start-btn:focus-visible {
+  outline: 2px solid #00e38f;
+  outline-offset: 3px;
+  box-shadow: 0 8px 24px -6px rgba(0, 245, 155, 0.35), 0 0 0 4px rgba(0, 245, 155, 0.25);
 }
 
 .start-icon {

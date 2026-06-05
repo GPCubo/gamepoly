@@ -6,21 +6,27 @@
       <h1 class="winner-name">{{ player.name }}</h1>
       <p class="winner-token">{{ tokenIcon }}</p>
       <p class="winner-cash">con ${{ player.cash.toLocaleString() }}</p>
-      <button class="new-game-btn" @click="navigateTo('/')">Nueva partida</button>
+      <button ref="newGameBtnRef" class="new-game-btn" tabindex="0" @click="navigateTo('/')">Nueva partida</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, onMounted, nextTick } from "vue";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import type { PlayerState } from "~/stores/gameStore";
 
 const props = defineProps<{ player: PlayerState }>();
 
+const newGameBtnRef = ref<HTMLElement | null>(null);
+
 const tokenIcon = computed(
   () => GAME_CONFIG.TOKEN_MODELS.find((t) => t.file === props.player.tokenModel)?.icon ?? "🎩",
 );
+
+onMounted(() => {
+  nextTick(() => newGameBtnRef.value?.focus());
+});
 </script>
 
 <style scoped>
@@ -106,5 +112,11 @@ const tokenIcon = computed(
 .new-game-btn:hover {
   background: #059669;
   transform: translateY(-2px);
+}
+
+.new-game-btn:focus-visible {
+  outline: 2px solid #4ade80;
+  outline-offset: 3px;
+  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4), 0 0 0 4px rgba(74, 222, 128, 0.25);
 }
 </style>

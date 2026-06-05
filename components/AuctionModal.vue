@@ -25,15 +25,17 @@
 
           <div class="bid-actions">
             <button
-              v-for="inc in BID_INCREMENTS"
+              v-for="(inc, idx) in BID_INCREMENTS"
               :key="inc"
+              :ref="(el) => bidBtnRefs[idx] = el as HTMLElement"
               class="bid-btn"
               :disabled="!canAfford(currentBid + inc)"
+              tabindex="0"
               @click="placeBid(inc)"
             >
               +${{ inc }}
             </button>
-            <button class="pass-btn" @click="pass()">Pasar</button>
+            <button ref="passBtnRef" class="pass-btn" tabindex="0" @click="pass()">Pasar</button>
           </div>
 
           <div class="remaining-players">
@@ -54,14 +56,14 @@
             <strong>{{ leaderName }}</strong> compró <strong>{{ tile.name }}</strong>
           </p>
           <p class="result-amount">por ${{ currentBid }}</p>
-          <button class="close-btn" @click="emitResult">Cerrar</button>
+          <button ref="closeSoldBtnRef" class="close-btn" tabindex="0" @click="emitResult">Cerrar</button>
         </div>
 
         <div v-else-if="phase === 'unsold'" class="result-panel">
           <p class="result-icon">🚫</p>
           <p class="result-msg">Nadie compró la propiedad.</p>
           <p class="result-sub">Queda libre.</p>
-          <button class="close-btn" @click="emitResult">Cerrar</button>
+          <button ref="closeUnsoldBtnRef" class="close-btn" tabindex="0" @click="emitResult">Cerrar</button>
         </div>
       </div>
     </div>
@@ -69,9 +71,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, nextTick, watch, type Ref } from "vue";
 import type { BoardTile } from "~/config/boardTilesConfig";
 import type { PlayerState } from "~/stores/gameStore";
+import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
 
 const props = defineProps<{
   tile: BoardTile;
@@ -85,6 +88,11 @@ const emit = defineEmits<{
 }>();
 
 const BID_INCREMENTS = [10, 50, 100];
+
+const bidBtnRefs = ref<(HTMLElement | null)[]>([null, null, null]);
+const passBtnRef = ref<HTMLElement | null>(null);
+const closeSoldBtnRef = ref<HTMLElement | null>(null);
+const closeUnsoldBtnRef = ref<HTMLElement | null>(null);
 
 const activeBidders = ref<number[]>([...props.players.map((p) => p.id)]);
 const currentBid = ref(0);
@@ -105,6 +113,59 @@ const currentBidderCash = computed(
 const leaderName = computed(
   () => props.players.find((p) => p.id === leaderId.value)?.name ?? "?",
 );
+
+const biddingRefs = computed(() => {
+  const refs: Ref<HTMLElement | null>[] = [];
+  for (let i = 0; i < BID_INCREMENTS.length; i++) {
+    refs.push(ref(bidBtnRefs.value[i]));
+  }
+  refs.push(passBtnRef);
+  return refs;
+});
+
+const resultRefs = computed(() =>
+  phase.value === "sold" ? [closeSoldBtnRef] : [closeUnsoldBtnRef]
+);
+
+const activeRefs = computed(() =>
+  phase.value === "bidding" ? biddingRefs.value : resultRefs.value
+);
+
+useKeyboardNavigation(
+  activeRefs,
+  {
+    direction: "horizontal",
+    autoFocusIndex: 0,
+    loop: true,
+  }
+);
+
+function focusFirstEnabled() {
+  nextTick(() => {
+    if (phase.value === "bidding") {
+      for (let i = 0; i < bidBtnRefs.value.length; i++) {
+        const el = bidBtnRefs.value[i];
+        if (el && !(el as HTMLButtonElement).disabled) {
+          el.focus();
+          return;
+        }
+      }
+      passBtnRef.value?.focus();
+    } else if (phase.value === "sold") {
+      closeSoldBtnRef.value?.focus();
+    } else if (phase.value === "unsold") {
+      closeUnsoldBtnRef.value?.focus();
+    }
+  });
+}
+
+onMounted(() => focusFirstEnabled());
+
+watch(phase, () => focusFirstEnabled());
+
+watch(currentBidderId, () => {
+  if (phase.value === "bidding") focusFirstEnabled();
+});
 
 function playerName(id: number) {
   return props.players.find((p) => p.id === id)?.name ?? "?";
@@ -301,6 +362,12 @@ function emitResult() {
   transform: translateY(-1px);
 }
 
+.bid-btn:focus-visible {
+  outline: 2px solid #4ade80;
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.25);
+}
+
 .bid-btn:disabled {
   opacity: 0.25;
   cursor: not-allowed;
@@ -322,6 +389,12 @@ function emitResult() {
 .pass-btn:hover {
   background: rgba(255, 255, 255, 0.07);
   color: rgba(255, 255, 255, 0.7);
+}
+
+.pass-btn:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 4px rgba(255, 255, 255, 0.1);
 }
 
 .remaining-players {
@@ -397,5 +470,11 @@ function emitResult() {
 .close-btn:hover {
   background: #059669;
   transform: translateY(-1px);
+}
+
+.close-btn:focus-visible {
+  outline: 2px solid #4ade80;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.25);
 }
 </style>

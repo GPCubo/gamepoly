@@ -2,7 +2,7 @@
   <Transition name="card">
     <div class="card-overlay" @click.self="closeDisabled ? null : emit('close')">
       <div class="card-inner" :class="cardGroup">
-        <button class="close-btn" @click="emit('close')" :disabled="closeDisabled">
+        <button class="close-btn" @click="emit('close')" :disabled="closeDisabled" tabindex="-1">
           <span class="material-symbols-outlined">close</span>
         </button>
 
@@ -17,7 +17,7 @@
             <span class="material-symbols-outlined effect-icon">{{ effectIcon }}</span>
             <span class="effect-text">{{ effectDescription }}</span>
           </div>
-          <button class="accept-btn" @click="emit('accept')">
+          <button ref="acceptBtnRef" class="accept-btn" tabindex="0" @click="emit('accept')">
             <span class="material-symbols-outlined">check</span>
             Aceptar
           </button>
@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref, onMounted, nextTick } from "vue";
 import type { GameCard } from "~/config/boardTilesConfig";
 
 const props = defineProps<{
@@ -40,6 +40,12 @@ const emit = defineEmits<{
   (e: "close"): void;
   (e: "accept"): void;
 }>();
+
+const acceptBtnRef = ref<HTMLElement | null>(null);
+
+onMounted(() => {
+  nextTick(() => acceptBtnRef.value?.focus());
+});
 
 const cardGroup = computed(() => props.card.group);
 
@@ -255,6 +261,12 @@ const effectDescription = computed(() => {
 
 .accept-btn:active {
   transform: scale(0.97);
+}
+
+.accept-btn:focus-visible {
+  outline: 2px solid #00f59b;
+  outline-offset: 3px;
+  box-shadow: 0 8px 24px rgba(0, 245, 155, 0.2), 0 0 0 4px rgba(0, 245, 155, 0.25);
 }
 
 .accept-btn .material-symbols-outlined {

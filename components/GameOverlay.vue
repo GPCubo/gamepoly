@@ -26,10 +26,15 @@
       <span v-if="store.isDoubles" class="doubles-badge">DOBLES</span>
     </div>
 
-    <div v-if="activePlayerInJail && !store.isTurnComplete" class="jail-actions">
+    <div
+      v-if="activePlayerInJail && !store.isTurnComplete"
+      class="jail-actions"
+    >
       <button
+        ref="bailBtnRef"
         @click="onPayBailClick"
         :disabled="activePlayerCash < store.jailBailCost"
+        tabindex="0"
         class="action-btn bail-btn"
       >
         🔓 Pagar fianza (${{ store.jailBailCost }})
@@ -38,7 +43,9 @@
 
     <button
       v-if="store.isTurnComplete"
+      ref="nextBtnRef"
       @click="onNextTurnClick"
+      tabindex="0"
       class="action-btn next-btn"
     >
       Siguiente ↪
@@ -46,12 +53,22 @@
 
     <div class="action-buttons">
       <button
+        ref="rollBtnRef"
         @click="onRollClick"
-        :disabled="isMoving || store.isDiceRolling || store.isTurnComplete || (activePlayerInJail && activePlayerJailRolling)"
+        :disabled="
+          isMoving ||
+          store.isDiceRolling ||
+          store.isTurnComplete ||
+          (activePlayerInJail && activePlayerJailRolling)
+        "
+        tabindex="0"
         class="action-btn roll-btn"
         :class="{
           'disabled-btn':
-            isMoving || store.isDiceRolling || store.isTurnComplete || (activePlayerInJail && activePlayerJailRolling),
+            isMoving ||
+            store.isDiceRolling ||
+            store.isTurnComplete ||
+            (activePlayerInJail && activePlayerJailRolling),
           'jail-roll-btn': activePlayerInJail,
         }"
       >
@@ -67,7 +84,9 @@
       </button>
 
       <button
+        ref="camBtnRef"
         @click="store.toggleCameraFollow()"
+        tabindex="0"
         class="action-btn cam-btn"
         :class="{ 'cam-active': store.isCamFollowActive }"
       >
@@ -104,8 +123,9 @@
 
 <script setup lang="ts">
 import { useGameStore } from "~/stores/gameStore";
-import { ref, computed, onMounted, onUnmounted } from "vue";
+import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { GAME_CONFIG } from "~/config/gameConfig";
+import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
 
 const store = useGameStore();
 
@@ -139,6 +159,69 @@ const isRolling = ref(false);
 const activePlayerInJail = computed(() => store.activePlayer?.inJail ?? false);
 const activePlayerCash = computed(() => store.activePlayer?.cash ?? 0);
 const activePlayerJailRolling = ref(false);
+
+const rollBtnRef = ref<HTMLElement | null>(null);
+const bailBtnRef = ref<HTMLElement | null>(null);
+const nextBtnRef = ref<HTMLElement | null>(null);
+const camBtnRef = ref<HTMLElement | null>(null);
+
+const shouldAutoFocus = computed(() => !props.cardOpen);
+const overlayEnabled = computed(() => !props.cardOpen);
+
+const actionRefs = computed(() => {
+  if (store.isTurnComplete) {
+    return [nextBtnRef, camBtnRef];
+  }
+  if (activePlayerInJail.value) {
+    return [bailBtnRef, rollBtnRef, camBtnRef];
+  }
+  return [rollBtnRef, camBtnRef];
+});
+
+const { focusButton, autoFocus } = useKeyboardNavigation(actionRefs, {
+  direction: "horizontal",
+  autoFocusOn: shouldAutoFocus,
+  enabled: overlayEnabled,
+  loop: true,
+});
+
+function focusPrimaryButton() {
+  nextTick(() => {
+    if (props.cardOpen) return;
+    if (store.isTurnComplete) {
+      nextBtnRef.value?.focus();
+    } else if (activePlayerInJail.value) {
+      const btn =
+        bailBtnRef.value && !(bailBtnRef.value as HTMLButtonElement).disabled
+          ? bailBtnRef.value
+          : null;
+      if (btn) {
+        btn.focus();
+      } else {
+        rollBtnRef.value?.focus();
+      }
+    } else {
+      rollBtnRef.value?.focus();
+    }
+  });
+}
+
+watch(
+  () => store.isTurnComplete,
+  () => focusPrimaryButton(),
+);
+watch(
+  () => store.activePlayerIndex,
+  () => focusPrimaryButton(),
+);
+watch(
+  () => props.cardOpen,
+  (val) => {
+    if (!val) focusPrimaryButton();
+  },
+);
+
+onMounted(() => focusPrimaryButton());
 
 const facePositions: Record<number, Record<string, string>[]> = {
   1: [{ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }],
@@ -215,21 +298,6 @@ const canRoll = computed(
     !store.isTurnComplete &&
     !isRolling.value,
 );
-
-function onKeydown(e: KeyboardEvent) {
-  if (e.key === "Enter" || e.key === " ") {
-    if (props.cardOpen) return;
-    e.preventDefault();
-    if (store.isTurnComplete) {
-      onNextTurnClick();
-    } else if (canRoll.value) {
-      onRollClick();
-    }
-  }
-}
-
-onMounted(() => window.addEventListener("keydown", onKeydown));
-onUnmounted(() => window.removeEventListener("keydown", onKeydown));
 </script>
 
 <style scoped>
@@ -501,5 +569,40 @@ onUnmounted(() => window.removeEventListener("keydown", onKeydown));
 .jail-roll-btn:hover:not(.disabled-btn) {
   background: #4f46e5 !important;
   transform: translateY(-2px);
+}
+
+.action-btn:focus-visible {
+  outline: 2px solid #00e38f;
+  outline-offset: 3px;
+  box-shadow: 0 0 0 4px rgba(0, 245, 155, 0.25);
+}
+
+.roll-btn:focus-visible {
+  outline-color: #4ade80;
+  box-shadow:
+    0 10px 15px -3px rgba(16, 185, 129, 0.4),
+    0 0 0 4px rgba(74, 222, 128, 0.25);
+}
+
+.next-btn:focus-visible {
+  outline-color: #3b82f6;
+  box-shadow:
+    0 10px 15px -3px rgba(59, 130, 246, 0.4),
+    0 0 0 4px rgba(59, 130, 246, 0.25);
+}
+
+.bail-btn:focus-visible {
+  outline-color: #f59e0b;
+  box-shadow:
+    0 8px 16px rgba(245, 158, 11, 0.3),
+    0 0 0 4px rgba(245, 158, 11, 0.25);
+}
+
+.cam-btn:focus-visible {
+  outline: 2px solid #9ca3af;
+  outline-offset: 3px;
+  box-shadow:
+    0 8px 15px rgba(0, 0, 0, 0.2),
+    0 0 0 4px rgba(156, 163, 175, 0.25);
 }
 </style>
