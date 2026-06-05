@@ -77,6 +77,7 @@
       @roll="onDiceRoll"
       @toggle-camera="store.toggleCameraFollow()"
       @next-turn="onNextTurn"
+      @pay-bail="onPayBail"
     />
 
     <TileCard
@@ -192,8 +193,19 @@ watch(
   () => store.isTurnComplete,
   (done) => {
     if (!done) return;
+    const activePlayer = store.activePlayer;
+    if (activePlayer && activePlayer.inJail) return;
+
     const tile = currentTile.value;
     const activeId = store.activePlayer?.id ?? -1;
+
+    if (tile.group === "gotojail") {
+      pendingDoublesTurn = false;
+      store.sendToJail(activeId);
+      return;
+    }
+
+    if (tile.type === "corner") return;
 
     if (tile.type === "card") {
       store.drawCard(tile.group as "chance" | "community");
@@ -225,6 +237,12 @@ function onBuyTile() {
   const activeId = store.activePlayer?.id ?? -1;
   store.buyProperty(currentTile.value.index, activeId);
   showTileCard.value = false;
+  if (pendingDoublesTurn) {
+    pendingDoublesTurn = false;
+    store.finishTurnKeepPlayer();
+  } else {
+    store.finishTurn();
+  }
 }
 
 function onAuctionTile() {
@@ -234,7 +252,12 @@ function onAuctionTile() {
 
 function onSkipTile() {
   showTileCard.value = false;
-  store.finishTurn();
+  if (pendingDoublesTurn) {
+    pendingDoublesTurn = false;
+    store.finishTurnKeepPlayer();
+  } else {
+    store.finishTurn();
+  }
 }
 
 function onAuctionSold(winnerId: number, amount: number) {
@@ -247,26 +270,56 @@ function onAuctionSold(winnerId: number, amount: number) {
     store.statusMessage = `${winner.name} ganó la subasta de ${tile.name} por $${amount}`;
   }
   showAuction.value = false;
+  if (pendingDoublesTurn) {
+    pendingDoublesTurn = false;
+    store.finishTurnKeepPlayer();
+  } else {
+    store.finishTurn();
+  }
 }
 
 function onAuctionUnsold() {
   showAuction.value = false;
+  if (pendingDoublesTurn) {
+    pendingDoublesTurn = false;
+    store.finishTurnKeepPlayer();
+  } else {
+    store.finishTurn();
+  }
 }
 
 function onCardClose() {
   showCardOverlay.value = false;
   store.activeCard = null;
-  store.finishTurn();
+  if (pendingDoublesTurn) {
+    pendingDoublesTurn = false;
+    store.finishTurnKeepPlayer();
+  } else {
+    store.finishTurn();
+  }
 }
 
-function onCardAccept() {
+async function onCardAccept() {
   showCardOverlay.value = false;
-  store.applyCardEffect();
+  const movedPosition = await store.applyCardEffect();
+  const activePlayer = store.activePlayer;
+  if (activePlayer && activePlayer.inJail) {
+    pendingDoublesTurn = false;
+    return;
+  }
+  if (movedPosition) {
+    return;
+  }
   const tile = currentTile.value;
   if (tile.type === "property" || tile.type === "railroad" || tile.type === "utility") {
     showTileCard.value = true;
   } else {
-    store.finishTurn();
+    if (pendingDoublesTurn) {
+      pendingDoublesTurn = false;
+      store.finishTurnKeepPlayer();
+    } else {
+      store.finishTurn();
+    }
   }
 }
 
@@ -429,11 +482,57 @@ watch(
 );
 
 function onDiceRoll(value: number) {
+  const player = store.activePlayer;
+  if (!player) return;
+
+  if (player.inJail) {
+    const result = store.rollFromJail();
+    if (result === "stayed") {
+      store.isTurnComplete = true;
+      return;
+    }
+    if (result === "forced_free") {
+      store.moveCurrentPlayer(value);
+      return;
+    }
+    store.moveCurrentPlayer(value);
+    const isExtraTurn = store.doublesGiveExtraTurn && store.checkDoubles();
+    if (isExtraTurn) {
+      pendingDoublesTurn = true;
+    }
+    return;
+  }
+
   store.moveCurrentPlayer(value);
+
+  if (store.doublesGiveExtraTurn) {
+    const activePlayer = store.activePlayer;
+    if (activePlayer && activePlayer.inJail) {
+      pendingDoublesTurn = false;
+      return;
+    }
+    const isExtraTurn = store.checkDoubles();
+    if (isExtraTurn) {
+      pendingDoublesTurn = true;
+    }
+  }
 }
+
+let pendingDoublesTurn = false;
 
 function onNextTurn() {
   showTileCard.value = false;
-  store.finishTurn();
+  if (pendingDoublesTurn) {
+    pendingDoublesTurn = false;
+    store.finishTurnKeepPlayer();
+  } else {
+    store.finishTurn();
+  }
+}
+
+function onPayBail() {
+  const player = store.activePlayer;
+  if (!player || !player.inJail) return;
+  store.payJailBail(player.id);
 }
 </script>

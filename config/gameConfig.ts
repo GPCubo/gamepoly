@@ -33,4 +33,6 @@ export const GAME_CONFIG = {
   STARTING_CASH: 1500,
   GO_SALARY: 200,
   CAN_SKIP_BUY: false,
+  DOUBLES_GIVE_EXTRA_TURN: true,
+  JAIL_BAIL_COST: 50,
 } as const;

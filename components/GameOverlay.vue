@@ -7,10 +7,12 @@
       :class="{
         'hud-active': p.id === store.activePlayer?.id,
         'hud-bankrupt': store.bankruptPlayers.includes(p.id),
+        'hud-jail': p.inJail,
       }"
     >
       <span class="hud-icon">{{ tokenIcon(p.tokenModel) }}</span>
       <span class="hud-name">{{ p.name }}</span>
+      <span v-if="p.inJail" class="hud-jail-badge">🔓</span>
       <span class="hud-cash" :class="{ 'hud-negative': p.cash < 0 }"
         >${{ p.cash.toLocaleString() }}</span
       >
@@ -21,6 +23,17 @@
     <div class="status-badge">
       {{ statusText }} | Casilla: {{ currentPosition }}/40 |
       {{ store.statusMessage }}
+      <span v-if="store.isDoubles" class="doubles-badge">DOBLES</span>
+    </div>
+
+    <div v-if="activePlayerInJail && !store.isTurnComplete" class="jail-actions">
+      <button
+        @click="onPayBailClick"
+        :disabled="activePlayerCash < store.jailBailCost"
+        class="action-btn bail-btn"
+      >
+        🔓 Pagar fianza (${{ store.jailBailCost }})
+      </button>
     </div>
 
     <button
@@ -34,19 +47,22 @@
     <div class="action-buttons">
       <button
         @click="onRollClick"
-        :disabled="isMoving || store.isDiceRolling || store.isTurnComplete"
+        :disabled="isMoving || store.isDiceRolling || store.isTurnComplete || (activePlayerInJail && activePlayerJailRolling)"
         class="action-btn roll-btn"
         :class="{
           'disabled-btn':
-            isMoving || store.isDiceRolling || store.isTurnComplete,
+            isMoving || store.isDiceRolling || store.isTurnComplete || (activePlayerInJail && activePlayerJailRolling),
+          'jail-roll-btn': activePlayerInJail,
         }"
       >
         {{
-          store.isDiceRolling
-            ? "Rodando..."
-            : isMoving
-              ? "Moviendo..."
-              : "🎲 Tirar Dados"
+          activePlayerInJail
+            ? "🎲 Tirar por dobles"
+            : store.isDiceRolling
+              ? "Rodando..."
+              : isMoving
+                ? "Moviendo..."
+                : "🎲 Tirar Dados"
         }}
       </button>
 
@@ -67,6 +83,7 @@
   >
     <div class="dado-titulo">
       Total: {{ store.diceTotal }} · Casilla: {{ currentPosition }}/40
+      <span v-if="store.isDoubles" class="doubles-text"> ¡DOBLES! </span>
     </div>
     <div class="dados-row">
       <div
@@ -113,10 +130,15 @@ const emit = defineEmits<{
   (e: "roll", value: number): void;
   (e: "toggle-camera"): void;
   (e: "next-turn"): void;
+  (e: "pay-bail"): void;
 }>();
 
 const isSliding = ref(false);
 const isRolling = ref(false);
+
+const activePlayerInJail = computed(() => store.activePlayer?.inJail ?? false);
+const activePlayerCash = computed(() => store.activePlayer?.cash ?? 0);
+const activePlayerJailRolling = ref(false);
 
 const facePositions: Record<number, Record<string, string>[]> = {
   1: [{ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }],
@@ -154,6 +176,12 @@ const facePositions: Record<number, Record<string, string>[]> = {
 
 function onNextTurnClick() {
   emit("next-turn");
+}
+
+function onPayBailClick() {
+  const player = store.activePlayer;
+  if (!player || !player.inJail) return;
+  store.payJailBail(player.id);
 }
 
 async function onRollClick() {
@@ -412,5 +440,66 @@ onUnmounted(() => window.removeEventListener("keydown", onKeydown));
 
 .hud-negative {
   color: #f87171;
+}
+
+.hud-jail {
+  border-color: rgba(251, 191, 36, 0.5);
+  background: rgba(251, 191, 36, 0.08);
+}
+
+.hud-jail-badge {
+  font-size: 12px;
+}
+
+.doubles-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 10px;
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+  color: #1a1a2e;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  border-radius: 6px;
+}
+
+.doubles-text {
+  color: #fbbf24;
+  font-weight: 700;
+  margin-left: 6px;
+}
+
+.jail-actions {
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.bail-btn {
+  background: #f59e0b;
+  color: #1a1a2e;
+  box-shadow: 0 8px 16px rgba(245, 158, 11, 0.3);
+}
+
+.bail-btn:hover:not(:disabled) {
+  background: #d97706;
+  transform: translateY(-2px);
+}
+
+.bail-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.jail-roll-btn {
+  background: #6366f1 !important;
+  box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4) !important;
+}
+
+.jail-roll-btn:hover:not(.disabled-btn) {
+  background: #4f46e5 !important;
+  transform: translateY(-2px);
 }
 </style>

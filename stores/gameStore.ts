@@ -15,6 +15,9 @@ export interface PlayerState {
   position: number;
   isMoving: boolean;
   cash: number;
+  inJail: boolean;
+  jailTurns: number;
+  consecutiveDoubles: number;
 }
 
 export interface MoveEvent {
@@ -38,9 +41,12 @@ export interface GameState {
   bankruptPlayers: number[];
   isAuctionActive: boolean;
   canSkipBuy: boolean;
+  doublesGiveExtraTurn: boolean;
+  jailBailCost: number;
   chanceDeck: number[];
   communityDeck: number[];
   activeCard: GameCard | null;
+  isDoubles: boolean;
 }
 
 export const useGameStore = defineStore("game", {
@@ -60,9 +66,12 @@ export const useGameStore = defineStore("game", {
     bankruptPlayers: [],
     isAuctionActive: false,
     canSkipBuy: GAME_CONFIG.CAN_SKIP_BUY,
+    doublesGiveExtraTurn: GAME_CONFIG.DOUBLES_GIVE_EXTRA_TURN,
+    jailBailCost: GAME_CONFIG.JAIL_BAIL_COST,
     chanceDeck: [],
     communityDeck: [],
     activeCard: null,
+    isDoubles: false,
   }),
 
   getters: {
@@ -85,7 +94,7 @@ export const useGameStore = defineStore("game", {
   },
 
   actions: {
-    setupGame(configs: PlayerConfig[], options?: { goSalary?: number; canSkipBuy?: boolean }) {
+    setupGame(configs: PlayerConfig[], options?: { goSalary?: number; canSkipBuy?: boolean; doublesGiveExtraTurn?: boolean }) {
       const defaultCash = GAME_CONFIG.STARTING_CASH;
       this.players = configs.map((c, idx) => ({
         id: idx,
@@ -94,15 +103,20 @@ export const useGameStore = defineStore("game", {
         position: 0,
         isMoving: false,
         cash: c.startingCash ?? defaultCash,
+        inJail: false,
+        jailTurns: 0,
+        consecutiveDoubles: 0,
       }));
       this.activePlayerIndex = 0;
       this.phase = "playing";
       this.isTurnComplete = false;
       this.goSalary = options?.goSalary ?? GAME_CONFIG.GO_SALARY;
       this.canSkipBuy = options?.canSkipBuy ?? GAME_CONFIG.CAN_SKIP_BUY;
+      this.doublesGiveExtraTurn = options?.doublesGiveExtraTurn ?? GAME_CONFIG.DOUBLES_GIVE_EXTRA_TURN;
       this.chanceDeck = shuffleDeck(Array.from({ length: CHANCE_CARDS.length }, (_, i) => i));
       this.communityDeck = shuffleDeck(Array.from({ length: COMMUNITY_CARDS.length }, (_, i) => i));
       this.activeCard = null;
+      this.isDoubles = false;
       this.statusMessage = `¡${configs[0].name} comienza!`;
       this.propertyOwners = {};
       this.bankruptPlayers = [];
@@ -132,12 +146,19 @@ export const useGameStore = defineStore("game", {
       }
 
       p.isMoving = false;
+      p.inJail = false;
+      p.jailTurns = 0;
       this.moveEvent = null;
       this.isTurnComplete = true;
     },
 
     finishTurn() {
       this.isTurnComplete = false;
+      this.isDoubles = false;
+      const current = this.players[this.activePlayerIndex];
+      if (current) {
+        current.consecutiveDoubles = 0;
+      }
       const total = this.players.length;
       let next = (this.activePlayerIndex + 1) % total;
       let guard = 0;
@@ -151,6 +172,102 @@ export const useGameStore = defineStore("game", {
           (t) => t.file === this.players[this.activePlayerIndex].tokenModel,
         )?.name ?? "?";
       this.statusMessage = `¡Turno de ${this.players[this.activePlayerIndex].name} (${tokenName})!`;
+    },
+
+    finishTurnKeepPlayer() {
+      this.isTurnComplete = false;
+      this.isDoubles = false;
+      const tokenName =
+        GAME_CONFIG.TOKEN_MODELS.find(
+          (t) => t.file === this.players[this.activePlayerIndex].tokenModel,
+        )?.name ?? "?";
+      this.statusMessage = `¡${this.players[this.activePlayerIndex].name} sacó dobles, tira de nuevo!`;
+    },
+
+    sendToJail(playerId: number) {
+      const player = this.players.find((p) => p.id === playerId);
+      if (!player) return;
+      player.inJail = true;
+      player.jailTurns = 0;
+      player.position = 10;
+      player.consecutiveDoubles = 0;
+      this.moveEvent = {
+        playerIndex: this.players.indexOf(player),
+        position: 10,
+      };
+      this.statusMessage = `¡${player.name} va a la cárcel!`;
+    },
+
+    payJailBail(playerId: number) {
+      const player = this.players.find((p) => p.id === playerId);
+      if (!player || !player.inJail) return;
+      player.cash -= this.jailBailCost;
+      player.inJail = false;
+      player.jailTurns = 0;
+      this.statusMessage = `${player.name} pagó $${this.jailBailCost} de fianza y sale de la cárcel`;
+      this._checkBankruptcy(playerId);
+    },
+
+    rollFromJail(): "freed" | "stayed" | "forced_free" {
+      const player = this.players[this.activePlayerIndex];
+      if (!player || !player.inJail) return "freed";
+
+      const d1 = this.diceValues[0];
+      const d2 = this.diceValues[1];
+      const doubled = d1 === d2;
+
+      if (doubled) {
+        player.inJail = false;
+        player.jailTurns = 0;
+        player.consecutiveDoubles = 1;
+        this.isDoubles = true;
+        this.statusMessage = `¡${player.name} sacó dobles y sale de la cárcel!`;
+        return "freed";
+      }
+
+      player.jailTurns++;
+      if (player.jailTurns >= 3) {
+        player.cash -= this.jailBailCost;
+        player.inJail = false;
+        player.jailTurns = 0;
+        this.statusMessage = `${player.name} cumplió 3 turnos, sale pagando $${this.jailBailCost}`;
+        this._checkBankruptcy(player.id);
+        return "forced_free";
+      }
+
+      this.statusMessage = `${player.name} no sacó dobles. Turno en cárcel (${player.jailTurns}/3)`;
+      return "stayed";
+    },
+
+    checkDoubles(): boolean {
+      const d1 = this.diceValues[0];
+      const d2 = this.diceValues[1];
+      this.isDoubles = d1 === d2;
+
+      if (!this.isDoubles || !this.doublesGiveExtraTurn) {
+        const player = this.players[this.activePlayerIndex];
+        if (player) player.consecutiveDoubles = 0;
+        return false;
+      }
+
+      const player = this.players[this.activePlayerIndex];
+      if (!player) return false;
+
+      player.consecutiveDoubles++;
+
+      if (player.consecutiveDoubles >= 3) {
+        this.sendToJail(player.id);
+        return false;
+      }
+
+      return true;
+    },
+
+    canActivePlayerRoll(): boolean {
+      const player = this.activePlayer;
+      if (!player) return false;
+      if (player.isMoving || this.isDiceRolling || this.isTurnComplete) return false;
+      return true;
     },
 
     buyProperty(tileIndex: number, playerId: number) {
@@ -224,31 +341,44 @@ export const useGameStore = defineStore("game", {
       }
     },
 
-    applyCardEffect() {
+    async applyCardEffect(): Promise<boolean> {
       const card = this.activeCard;
-      if (!card) return;
+      if (!card) return false;
 
       const player = this.players[this.activePlayerIndex];
-      if (!player) return;
+      if (!player) return false;
+
+      let movedPosition = false;
 
       switch (card.action) {
         case "moveTo": {
+          movedPosition = true;
+          this.isTurnComplete = false;
           const target = card.tileIndex ?? 0;
-          const currentPos = player.position;
+          const currentPos = player.position % 40;
           const steps = target > currentPos
             ? target - currentPos
             : (40 - currentPos) + target;
-          this.moveCurrentPlayer(steps);
+          await this.moveCurrentPlayer(steps);
           break;
         }
         case "moveSteps": {
           const steps = card.amount ?? 1;
           if (steps > 0) {
-            this.moveCurrentPlayer(steps);
+            movedPosition = true;
+            this.isTurnComplete = false;
+            await this.moveCurrentPlayer(steps);
           } else if (steps < 0) {
+            movedPosition = true;
+            this.isTurnComplete = false;
             player.position += steps;
             if (player.position < 0) player.position += 40;
+            this.moveEvent = {
+              playerIndex: this.activePlayerIndex,
+              position: player.position,
+            };
             this.statusMessage = `${player.name} retrocede ${Math.abs(steps)} casillas`;
+            this.isTurnComplete = true;
           }
           break;
         }
@@ -278,13 +408,16 @@ export const useGameStore = defineStore("game", {
           break;
         }
         case "goToJail": {
-          player.position = 10;
-          this.statusMessage = `${player.name} va a la cárcel`;
+          movedPosition = true;
+          this.isTurnComplete = false;
+          this.sendToJail(player.id);
+          this.isTurnComplete = true;
           break;
         }
       }
 
       this.activeCard = null;
+      return movedPosition;
     },
 
     showDice() {
