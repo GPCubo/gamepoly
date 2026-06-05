@@ -79,7 +79,7 @@ TILE_INFO = [
     {"short": "Suerte"},                               # 7  chance
     {"short": "Calle de Alcala", "price": 100},        # 8  lightBlue
     {"short": "Gran Via", "price": 120},               # 9  lightBlue
-    {"short": "Carcel (Visita)"},                      # 10  jail
+    {"short": "Carcel"},                               # 10  jail
     {"short": "Paseo del Prado", "price": 140},        # 11  pink
     {"short": "Electrica", "price": 150},              # 12  utility
     {"short": "Calle de Serrano", "price": 140},       # 13  pink
@@ -366,15 +366,12 @@ def build_gamepoly():
                     (0, price_y, z_text), 0.032, text_on_white, extrude=0.002,
                     parent=tile_container)
         elif is_spec:
-            # Casillas especiales: nombre en el bloque de color, texto blanco
+            # Casillas especiales: texto siempre oscuro (estaciones, lujos, impuestos)
             spec_top_y_new = (-0.05 + (TILE_DEPTH * 0.35) / 2) + 0.032
-            spec_rgba = TILE_COLORS.get(group, TILE_COLORS["white"])
-            spec_luminance = 0.299 * spec_rgba[0] + 0.587 * spec_rgba[1] + 0.114 * spec_rgba[2]
-            text_on_spec = text_mat_white if spec_luminance < 0.5 else text_mat
 
             add_text_line(
                 f"Tile_{i:02d}_Lbl", info["short"],
-                (0, spec_top_y_new, z_text), 0.038, text_on_spec, extrude=0.002,
+                (0, spec_top_y_new, z_text), 0.038, text_on_white, extrude=0.002,
                 parent=tile_container)
             if "price" in info:
                 price_y = -TILE_DEPTH / 2 + PRICE_BOTTOM_MARGIN
