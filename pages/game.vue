@@ -53,8 +53,8 @@
             :scale="displayScales[idx] ?? 1"
           />
         </template>
-        <TresGridHelper :args="[30, 30, '#ff0055', '#444444']" />
-        <template v-for="label in tileLabels" :key="'label-' + label.index">
+        <!-- <TresGridHelper :args="[30, 30, '#ff0055', '#444444']" /> -->
+        <!-- <template v-for="label in tileLabels" :key="'label-' + label.index">
           <TresMesh
             :position="[label.position.x, label.position.y, label.position.z]"
             :rotation="[label.rotation.x, label.rotation.y, label.rotation.z]"
@@ -66,13 +66,14 @@
               :side="2"
             />
           </TresMesh>
-        </template>
+        </template> -->
       </TresCanvas>
     </ClientOnly>
 
     <GameOverlay
       :current-position="store.casillaActual"
       :is-moving="store.isAnyMoving"
+      :card-open="showTileCard || showAuction || showCardOverlay"
       @roll="onDiceRoll"
       @toggle-camera="store.toggleCameraFollow()"
       @next-turn="onNextTurn"
@@ -85,9 +86,19 @@
       :owner-name="tileOwnerName"
       :rent-amount="tileRentAmount"
       :active-player-id="store.activePlayer?.id ?? -1"
+      :active-player-cash="store.activePlayer?.cash ?? 0"
+      :can-skip-buy="store.canSkipBuy"
       @close="showTileCard = false"
       @buy="onBuyTile"
       @auction="onAuctionTile"
+      @skip="onSkipTile"
+    />
+
+    <CardOverlay
+      v-if="showCardOverlay && store.activeCard && !store.winner"
+      :card="store.activeCard"
+      @close="onCardClose"
+      @accept="onCardAccept"
     />
 
     <AuctionModal
@@ -123,6 +134,7 @@ import GameOverlay from "~/components/GameOverlay.vue";
 import TileCard from "~/components/TileCard.vue";
 import AuctionModal from "~/components/AuctionModal.vue";
 import WinnerOverlay from "~/components/WinnerOverlay.vue";
+import CardOverlay from "~/components/CardOverlay.vue";
 import type { Group } from "three";
 
 const store = useGameStore();
@@ -133,6 +145,7 @@ if (store.players.length === 0) {
 
 const showTileCard = ref(false);
 const showAuction = ref(false);
+const showCardOverlay = ref(false);
 const currentTile = computed(() => BOARD_TILES[(store.casillaActual - 1 + 40) % 40]);
 
 const TAX_AMOUNTS: Record<number, number> = { 4: 200, 38: 100 };
@@ -182,6 +195,12 @@ watch(
     const tile = currentTile.value;
     const activeId = store.activePlayer?.id ?? -1;
 
+    if (tile.type === "card") {
+      store.drawCard(tile.group as "chance" | "community");
+      showCardOverlay.value = true;
+      return;
+    }
+
     if (tile.type === "tax") {
       store.payTax(activeId, TAX_AMOUNTS[tile.index] ?? 100);
     }
@@ -213,6 +232,11 @@ function onAuctionTile() {
   showAuction.value = true;
 }
 
+function onSkipTile() {
+  showTileCard.value = false;
+  store.finishTurn();
+}
+
 function onAuctionSold(winnerId: number, amount: number) {
   const tile = currentTile.value;
   const winner = store.players.find((p) => p.id === winnerId);
@@ -227,6 +251,23 @@ function onAuctionSold(winnerId: number, amount: number) {
 
 function onAuctionUnsold() {
   showAuction.value = false;
+}
+
+function onCardClose() {
+  showCardOverlay.value = false;
+  store.activeCard = null;
+  store.finishTurn();
+}
+
+function onCardAccept() {
+  showCardOverlay.value = false;
+  store.applyCardEffect();
+  const tile = currentTile.value;
+  if (tile.type === "property" || tile.type === "railroad" || tile.type === "utility") {
+    showTileCard.value = true;
+  } else {
+    store.finishTurn();
+  }
 }
 
 const tableroScene = shallowRef<Group | null>(null);

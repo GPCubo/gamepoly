@@ -11,13 +11,16 @@
     >
       <span class="hud-icon">{{ tokenIcon(p.tokenModel) }}</span>
       <span class="hud-name">{{ p.name }}</span>
-      <span class="hud-cash" :class="{ 'hud-negative': p.cash < 0 }">${{ p.cash.toLocaleString() }}</span>
+      <span class="hud-cash" :class="{ 'hud-negative': p.cash < 0 }"
+        >${{ p.cash.toLocaleString() }}</span
+      >
     </div>
   </div>
 
   <div class="overlay-container">
     <div class="status-badge">
-      {{ statusText }} | Casilla: {{ currentPosition }}/40 | {{ store.statusMessage }}
+      {{ statusText }} | Casilla: {{ currentPosition }}/40 |
+      {{ store.statusMessage }}
     </div>
 
     <button
@@ -84,7 +87,7 @@
 
 <script setup lang="ts">
 import { useGameStore } from "~/stores/gameStore";
-import { ref, computed } from "vue";
+import { ref, computed, onMounted, onUnmounted } from "vue";
 import { GAME_CONFIG } from "~/config/gameConfig";
 
 const store = useGameStore();
@@ -103,6 +106,7 @@ function tokenIcon(file: string) {
 const props = defineProps<{
   currentPosition: number;
   isMoving: boolean;
+  cardOpen?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -112,6 +116,7 @@ const emit = defineEmits<{
 }>();
 
 const isSliding = ref(false);
+const isRolling = ref(false);
 
 const facePositions: Record<number, Record<string, string>[]> = {
   1: [{ top: "50%", left: "50%", transform: "translate(-50%, -50%)" }],
@@ -152,6 +157,8 @@ function onNextTurnClick() {
 }
 
 async function onRollClick() {
+  if (isRolling.value) return;
+  isRolling.value = true;
   store.showDice();
   isSliding.value = false;
 
@@ -165,12 +172,36 @@ async function onRollClick() {
           const result = store.diceTotal;
           store.hideDice();
           isSliding.value = false;
+          isRolling.value = false;
           emit("roll", result);
         }, 500);
       }, 500);
     }, 1500);
   });
 }
+
+const canRoll = computed(
+  () =>
+    !props.isMoving &&
+    !store.isDiceRolling &&
+    !store.isTurnComplete &&
+    !isRolling.value,
+);
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key === "Enter" || e.key === " ") {
+    if (props.cardOpen) return;
+    e.preventDefault();
+    if (store.isTurnComplete) {
+      onNextTurnClick();
+    } else if (canRoll.value) {
+      onRollClick();
+    }
+  }
+}
+
+onMounted(() => window.addEventListener("keydown", onKeydown));
+onUnmounted(() => window.removeEventListener("keydown", onKeydown));
 </script>
 
 <style scoped>

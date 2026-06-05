@@ -1,6 +1,6 @@
 import { defineStore } from "pinia";
 import { GAME_CONFIG } from "~/config/gameConfig";
-import { BOARD_TILES } from "~/config/boardTilesConfig";
+import { BOARD_TILES, CHANCE_CARDS, COMMUNITY_CARDS, shuffleDeck, resolveCardText, type GameCard } from "~/config/boardTilesConfig";
 
 export interface PlayerConfig {
   name: string;
@@ -37,6 +37,10 @@ export interface GameState {
   propertyOwners: Record<number, number>;
   bankruptPlayers: number[];
   isAuctionActive: boolean;
+  canSkipBuy: boolean;
+  chanceDeck: number[];
+  communityDeck: number[];
+  activeCard: GameCard | null;
 }
 
 export const useGameStore = defineStore("game", {
@@ -55,6 +59,10 @@ export const useGameStore = defineStore("game", {
     propertyOwners: {},
     bankruptPlayers: [],
     isAuctionActive: false,
+    canSkipBuy: GAME_CONFIG.CAN_SKIP_BUY,
+    chanceDeck: [],
+    communityDeck: [],
+    activeCard: null,
   }),
 
   getters: {
@@ -77,7 +85,7 @@ export const useGameStore = defineStore("game", {
   },
 
   actions: {
-    setupGame(configs: PlayerConfig[], options?: { goSalary?: number }) {
+    setupGame(configs: PlayerConfig[], options?: { goSalary?: number; canSkipBuy?: boolean }) {
       const defaultCash = GAME_CONFIG.STARTING_CASH;
       this.players = configs.map((c, idx) => ({
         id: idx,
@@ -91,6 +99,10 @@ export const useGameStore = defineStore("game", {
       this.phase = "playing";
       this.isTurnComplete = false;
       this.goSalary = options?.goSalary ?? GAME_CONFIG.GO_SALARY;
+      this.canSkipBuy = options?.canSkipBuy ?? GAME_CONFIG.CAN_SKIP_BUY;
+      this.chanceDeck = shuffleDeck(Array.from({ length: CHANCE_CARDS.length }, (_, i) => i));
+      this.communityDeck = shuffleDeck(Array.from({ length: COMMUNITY_CARDS.length }, (_, i) => i));
+      this.activeCard = null;
       this.statusMessage = `¡${configs[0].name} comienza!`;
       this.propertyOwners = {};
       this.bankruptPlayers = [];
@@ -186,6 +198,93 @@ export const useGameStore = defineStore("game", {
       const player = this.players.find((p) => p.id === playerId);
       if (!player || this.bankruptPlayers.includes(playerId)) return;
       if (player.cash < 0) this.declareBankruptcy(playerId);
+    },
+
+    drawCard(group: "chance" | "community") {
+      const deck = group === "chance" ? this.chanceDeck : this.communityDeck;
+      const cards = group === "chance" ? CHANCE_CARDS : COMMUNITY_CARDS;
+
+      if (deck.length === 0) {
+        const newDeck = shuffleDeck(Array.from({ length: cards.length }, (_, i) => i));
+        if (group === "chance") {
+          this.chanceDeck = newDeck;
+        } else {
+          this.communityDeck = newDeck;
+        }
+      }
+
+      const currentDeck = group === "chance" ? this.chanceDeck : this.communityDeck;
+      const index = currentDeck.shift()!;
+      this.activeCard = { ...cards[index], text: resolveCardText(cards[index]) };
+
+      if (group === "chance") {
+        this.chanceDeck.push(index);
+      } else {
+        this.communityDeck.push(index);
+      }
+    },
+
+    applyCardEffect() {
+      const card = this.activeCard;
+      if (!card) return;
+
+      const player = this.players[this.activePlayerIndex];
+      if (!player) return;
+
+      switch (card.action) {
+        case "moveTo": {
+          const target = card.tileIndex ?? 0;
+          const currentPos = player.position;
+          const steps = target > currentPos
+            ? target - currentPos
+            : (40 - currentPos) + target;
+          this.moveCurrentPlayer(steps);
+          break;
+        }
+        case "moveSteps": {
+          const steps = card.amount ?? 1;
+          if (steps > 0) {
+            this.moveCurrentPlayer(steps);
+          } else if (steps < 0) {
+            player.position += steps;
+            if (player.position < 0) player.position += 40;
+            this.statusMessage = `${player.name} retrocede ${Math.abs(steps)} casillas`;
+          }
+          break;
+        }
+        case "collect": {
+          player.cash += card.amount ?? 0;
+          this.statusMessage = `${player.name} cobra $${card.amount ?? 0}`;
+          break;
+        }
+        case "pay": {
+          player.cash -= card.amount ?? 0;
+          this.statusMessage = `${player.name} paga $${card.amount ?? 0}`;
+          this._checkBankruptcy(player.id);
+          break;
+        }
+        case "payEach": {
+          const amount = card.amount ?? 0;
+          const otherPlayers = this.players.filter(
+            (p) => p.id !== player.id && !this.bankruptPlayers.includes(p.id),
+          );
+          const totalPay = amount * otherPlayers.length;
+          player.cash -= totalPay;
+          for (const other of otherPlayers) {
+            other.cash += amount;
+          }
+          this.statusMessage = `${player.name} paga $${amount} a cada jugador ($${totalPay} total)`;
+          this._checkBankruptcy(player.id);
+          break;
+        }
+        case "goToJail": {
+          player.position = 10;
+          this.statusMessage = `${player.name} va a la cárcel`;
+          break;
+        }
+      }
+
+      this.activeCard = null;
     },
 
     showDice() {

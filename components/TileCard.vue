@@ -7,10 +7,18 @@
         </button>
 
         <!-- BADGE -->
-        <div v-if="ownerState === 'free' && (tile.type === 'property' || tile.type === 'railroad' || tile.type === 'utility')" class="hot-badge">
+        <!-- <div
+          v-if="
+            ownerState === 'free' &&
+            (tile.type === 'property' ||
+              tile.type === 'railroad' ||
+              tile.type === 'utility')
+          "
+          class="hot-badge"
+        >
           <span class="material-symbols-outlined badge-icon">trending_up</span>
           <span>HOT PROPERTY</span>
-        </div>
+        </div> -->
 
         <!-- PROPERTY -->
         <template v-if="tile.type === 'property'">
@@ -35,30 +43,47 @@
               </div>
               <div class="metric-card">
                 <span class="metric-label">HIPOTECA</span>
-                <span class="metric-value">${{ Math.round((tile.price ?? 0) / 2) }}</span>
+                <span class="metric-value"
+                  >${{ Math.round((tile.price ?? 0) / 2) }}</span
+                >
               </div>
             </div>
             <template v-if="ownerState === 'own'">
               <div class="own-banner">
-                <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+                <span class="material-symbols-outlined filled">home</span>
                 <span>Es tuya</span>
               </div>
             </template>
             <template v-else-if="ownerState === 'other'">
               <div class="penalty-banner">
                 <span class="penalty-amount">−${{ rentAmount }}</span>
-                <span class="penalty-label">Alquiler pagado a {{ ownerName }}</span>
+                <span class="penalty-label"
+                  >Alquiler pagado a {{ ownerName }}</span
+                >
               </div>
             </template>
             <template v-else>
               <div class="action-stack">
-                <button class="action-btn buy-btn" @click="emit('buy')">
-                  <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">payments</span>
-                  <span>Comprar</span>
+                <button
+                  class="action-btn buy-btn"
+                  :class="{ 'disabled-btn': !canAfford }"
+                  :disabled="!canAfford"
+                  @click="canAfford && emit('buy')"
+                >
+                  <span class="material-symbols-outlined filled">payments</span>
+                  <span>{{ canAfford ? 'Comprar' : 'Sin fondos' }}</span>
                 </button>
                 <button class="action-btn auction-btn" @click="emit('auction')">
                   <span class="material-symbols-outlined">gavel</span>
                   <span>Subastar</span>
+                </button>
+                <button
+                  v-if="canSkipBuy"
+                  class="action-btn skip-btn"
+                  @click="emit('skip')"
+                >
+                  <span class="material-symbols-outlined">skip_next</span>
+                  <span>Omitir</span>
                 </button>
               </div>
             </template>
@@ -89,30 +114,47 @@
               </div>
               <div class="metric-card">
                 <span class="metric-label">HIPOTECA</span>
-                <span class="metric-value">${{ Math.round((tile.price ?? 0) / 2) }}</span>
+                <span class="metric-value"
+                  >${{ Math.round((tile.price ?? 0) / 2) }}</span
+                >
               </div>
             </div>
             <template v-if="ownerState === 'own'">
               <div class="own-banner">
-                <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+                <span class="material-symbols-outlined filled">home</span>
                 <span>Es tuyo</span>
               </div>
             </template>
             <template v-else-if="ownerState === 'other'">
               <div class="penalty-banner">
                 <span class="penalty-amount">−${{ rentAmount }}</span>
-                <span class="penalty-label">Alquiler pagado a {{ ownerName }}</span>
+                <span class="penalty-label"
+                  >Alquiler pagado a {{ ownerName }}</span
+                >
               </div>
             </template>
             <template v-else>
               <div class="action-stack">
-                <button class="action-btn buy-btn" @click="emit('buy')">
-                  <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">payments</span>
-                  <span>Comprar</span>
+                <button
+                  class="action-btn buy-btn"
+                  :class="{ 'disabled-btn': !canAfford }"
+                  :disabled="!canAfford"
+                  @click="canAfford && emit('buy')"
+                >
+                  <span class="material-symbols-outlined filled">payments</span>
+                  <span>{{ canAfford ? 'Comprar' : 'Sin fondos' }}</span>
                 </button>
                 <button class="action-btn auction-btn" @click="emit('auction')">
                   <span class="material-symbols-outlined">gavel</span>
                   <span>Subastar</span>
+                </button>
+                <button
+                  v-if="canSkipBuy"
+                  class="action-btn skip-btn"
+                  @click="emit('skip')"
+                >
+                  <span class="material-symbols-outlined">skip_next</span>
+                  <span>Omitir</span>
                 </button>
               </div>
             </template>
@@ -126,7 +168,9 @@
               <span class="band-label">SERVICIO</span>
             </div>
             <h2 class="band-title">{{ tile.name }}</h2>
-            <span class="band-emoji">{{ tile.name.includes('Agua') ? '💧' : '💡' }}</span>
+            <span class="band-emoji">{{
+              tile.name.includes("Agua") ? "💧" : "💡"
+            }}</span>
           </div>
           <div class="card-body">
             <div class="price-section">
@@ -138,25 +182,40 @@
             </div>
             <template v-if="ownerState === 'own'">
               <div class="own-banner">
-                <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">home</span>
+                <span class="material-symbols-outlined filled">home</span>
                 <span>Es tuyo</span>
               </div>
             </template>
             <template v-else-if="ownerState === 'other'">
               <div class="penalty-banner">
                 <span class="penalty-amount">−${{ rentAmount }}</span>
-                <span class="penalty-label">Alquiler pagado a {{ ownerName }}</span>
+                <span class="penalty-label"
+                  >Alquiler pagado a {{ ownerName }}</span
+                >
               </div>
             </template>
             <template v-else>
               <div class="action-stack">
-                <button class="action-btn buy-btn" @click="emit('buy')">
-                  <span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">payments</span>
-                  <span>Comprar</span>
+                <button
+                  class="action-btn buy-btn"
+                  :class="{ 'disabled-btn': !canAfford }"
+                  :disabled="!canAfford"
+                  @click="canAfford && emit('buy')"
+                >
+                  <span class="material-symbols-outlined filled">payments</span>
+                  <span>{{ canAfford ? 'Comprar' : 'Sin fondos' }}</span>
                 </button>
                 <button class="action-btn auction-btn" @click="emit('auction')">
                   <span class="material-symbols-outlined">gavel</span>
                   <span>Subastar</span>
+                </button>
+                <button
+                  v-if="canSkipBuy"
+                  class="action-btn skip-btn"
+                  @click="emit('skip')"
+                >
+                  <span class="material-symbols-outlined">skip_next</span>
+                  <span>Omitir</span>
                 </button>
               </div>
             </template>
@@ -174,7 +233,9 @@
           </div>
           <div class="card-body">
             <div class="penalty-banner tax-penalty">
-              <span class="penalty-amount">−${{ TAX_AMOUNTS[tile.index] ?? 100 }}</span>
+              <span class="penalty-amount"
+                >−${{ TAX_AMOUNTS[tile.index] ?? 100 }}</span
+              >
               <span class="penalty-label">Pagado al banco</span>
             </div>
             <p class="auto-deduct">Descontado automáticamente</p>
@@ -185,10 +246,14 @@
         <template v-else-if="tile.type === 'card'">
           <div class="color-band" :style="{ background: groupColor }">
             <div class="band-header">
-              <span class="band-label">{{ tile.group === 'chance' ? 'SUERTE' : 'ARCA COMUNAL' }}</span>
+              <span class="band-label">{{
+                tile.group === "chance" ? "SUERTE" : "ARCA COMUNAL"
+              }}</span>
             </div>
             <h2 class="band-title">{{ tile.name }}</h2>
-            <span class="band-emoji">{{ tile.group === 'chance' ? '🃏' : '📦' }}</span>
+            <span class="band-emoji">{{
+              tile.group === "chance" ? "🃏" : "📦"
+            }}</span>
           </div>
           <div class="card-body">
             <p class="card-hint">¡Roba una carta!</p>
@@ -198,9 +263,14 @@
 
         <!-- CORNER -->
         <template v-else-if="tile.type === 'corner'">
-          <div class="color-band corner-band" :style="{ background: CORNER_META[tile.group]?.color ?? '#333' }">
+          <div
+            class="color-band corner-band"
+            :style="{ background: CORNER_META[tile.group]?.color ?? '#333' }"
+          >
             <div class="band-header">
-              <span class="band-label">{{ CORNER_META[tile.group]?.label ?? '' }}</span>
+              <span class="band-label">{{
+                CORNER_META[tile.group]?.label ?? ""
+              }}</span>
             </div>
             <h2 class="band-title">{{ tile.name }}</h2>
             <span class="band-emoji">{{ CORNER_META[tile.group]?.icon }}</span>
@@ -209,15 +279,14 @@
             <p class="corner-msg">{{ CORNER_META[tile.group]?.msg }}</p>
           </div>
         </template>
-
       </div>
     </div>
   </Transition>
 </template>
 
 <script setup lang="ts">
-import { computed } from "vue";
-import type { BoardTile, TileGroup } from "~/config/boardTilesConfig";
+import { computed, onMounted, onUnmounted } from "vue";
+import { BOARD_TILES, type BoardTile, type TileGroup } from "~/config/boardTilesConfig";
 
 const props = defineProps<{
   tile: BoardTile;
@@ -225,12 +294,15 @@ const props = defineProps<{
   ownerName?: string;
   rentAmount?: number;
   activePlayerId: number;
+  activePlayerCash: number;
+  canSkipBuy: boolean;
 }>();
 
 const emit = defineEmits<{
   (e: "close"): void;
   (e: "buy"): void;
   (e: "auction"): void;
+  (e: "skip"): void;
 }>();
 
 const ownerState = computed<"own" | "other" | "free">(() => {
@@ -239,37 +311,69 @@ const ownerState = computed<"own" | "other" | "free">(() => {
   return "other";
 });
 
+const canAfford = computed(() => (props.tile.price ?? 0) <= props.activePlayerCash);
+
+const colorByGroup = (group: TileGroup): string =>
+  BOARD_TILES.find(t => t.group === group)?.color ?? "#374151";
+
 const GROUP_COLORS: Record<TileGroup, string> = {
-  brown: "#92400e",
-  lightBlue: "#0ea5e9",
-  pink: "#db2777",
-  orange: "#ea580c",
-  red: "#dc2626",
-  yellow: "#ca8a04",
-  green: "#15803d",
-  darkBlue: "#1d4ed8",
-  railroad: "#1f2937",
-  utility: "#374151",
-  tax: "#374151",
-  chance: "#c2410c",
-  community: "#1d4ed8",
-  go: "#dc2626",
-  jail: "#6b7280",
-  parking: "#374151",
-  gotojail: "#dc2626",
+  brown: colorByGroup("brown"),
+  lightBlue: colorByGroup("lightBlue"),
+  pink: colorByGroup("pink"),
+  orange: colorByGroup("orange"),
+  red: colorByGroup("red"),
+  yellow: colorByGroup("yellow"),
+  green: colorByGroup("green"),
+  darkBlue: colorByGroup("darkBlue"),
+  railroad: colorByGroup("railroad"),
+  utility: colorByGroup("utility"),
+  tax: colorByGroup("tax"),
+  chance: colorByGroup("chance"),
+  community: colorByGroup("community"),
+  go: colorByGroup("go"),
+  jail: colorByGroup("jail"),
+  parking: colorByGroup("parking"),
+  gotojail: colorByGroup("gotojail"),
 };
 
 const GROUP_LABELS: Partial<Record<TileGroup, string>> = {
-  brown: "MARRÓN", lightBlue: "AZUL CLARO", pink: "ROSA",
-  orange: "NARANJA", red: "ROJO", yellow: "AMARILLO",
-  green: "VERDE", darkBlue: "AZUL OSCURO",
+  brown: "MARRÓN",
+  lightBlue: "AZUL CLARO",
+  pink: "ROSA",
+  orange: "NARANJA",
+  red: "ROJO",
+  yellow: "AMARILLO",
+  green: "VERDE",
+  darkBlue: "AZUL OSCURO",
 };
 
-const CORNER_META: Partial<Record<TileGroup, { icon: string; color: string; msg: string; label: string }>> = {
-  go:       { icon: "🚀", color: "#b91c1c", msg: "¡Cada vez que pases cobras salario!", label: "SALIDA" },
-  jail:     { icon: "⛓️",  color: "#4b5563", msg: "Solo estás de visita. Nada que hacer aquí.", label: "CÁRCEL" },
-  parking:  { icon: "🅿️", color: "#1e40af", msg: "Descansa aquí. No pasa nada — es gratis.", label: "PARKING" },
-  gotojail: { icon: "🚔", color: "#b91c1c", msg: "¡Ve directamente a la cárcel! No cobres el sueldo.", label: "VE A LA CÁRCEL" },
+const CORNER_META: Partial<
+  Record<TileGroup, { icon: string; color: string; msg: string; label: string }>
+> = {
+  go: {
+    icon: "🚀",
+    color: "#b91c1c",
+    msg: "¡Cada vez que pases cobras salario!",
+    label: "SALIDA",
+  },
+  jail: {
+    icon: "⛓️",
+    color: "#4b5563",
+    msg: "Solo estás de visita. Nada que hacer aquí.",
+    label: "CÁRCEL",
+  },
+  parking: {
+    icon: "🅿️",
+    color: "#1e40af",
+    msg: "Descansa aquí. No pasa nada — es gratis.",
+    label: "PARKING",
+  },
+  gotojail: {
+    icon: "🚔",
+    color: "#b91c1c",
+    msg: "¡Ve directamente a la cárcel! No cobres el sueldo.",
+    label: "VE A LA CÁRCEL",
+  },
 };
 
 const TAX_AMOUNTS: Record<number, number> = { 4: 200, 38: 100 };
@@ -277,14 +381,45 @@ const TAX_AMOUNTS: Record<number, number> = { 4: 200, 38: 100 };
 const groupColor = computed(() => GROUP_COLORS[props.tile.group] ?? "#374151");
 const groupLabel = computed(() => GROUP_LABELS[props.tile.group] ?? "");
 const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
+
+function onKeydown(e: KeyboardEvent) {
+  if (e.key !== "Enter" && e.key !== " ") return;
+  e.preventDefault();
+  e.stopImmediatePropagation();
+
+  if (ownerState.value !== "free") return;
+
+  if (canAfford.value) {
+    emit("buy");
+  } else if (props.canSkipBuy) {
+    emit("skip");
+  } else {
+    emit("auction");
+  }
+}
+
+onMounted(() => window.addEventListener("keydown", onKeydown));
+onUnmounted(() => window.removeEventListener("keydown", onKeydown));
 </script>
 
 <style scoped>
-@import url('https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1');
+@import url("https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1");
 
 .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
+}
+
+.material-symbols-outlined.filled {
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
 }
 
 .tile-card {
@@ -298,6 +433,7 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
   background: rgba(17, 19, 28, 0.5);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
+  perspective: 900px;
 }
 
 .card-inner {
@@ -310,7 +446,7 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
   box-shadow:
     0 32px 64px -12px rgba(0, 0, 0, 0.6),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
-  font-family: 'Hanken Grotesk', sans-serif;
+  font-family: "Hanken Grotesk", sans-serif;
 }
 
 .close-btn {
@@ -350,7 +486,7 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
   gap: 4px;
   background: #ffd165;
   color: #3f2e00;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -362,7 +498,9 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
 
 .badge-icon {
   font-size: 14px !important;
-  font-variation-settings: 'FILL' 1, 'wght' 400;
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 400;
 }
 
 .color-band {
@@ -379,10 +517,17 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
   filter: brightness(1.1);
 }
 
-.railroad-band { background: #1f2937; }
-.utility-band  { background: #374151; }
-.tax-band      { background: #292524; }
-.corner-band   {}
+.railroad-band {
+  background: #1f2937;
+}
+.utility-band {
+  background: #374151;
+}
+.tax-band {
+  background: #292524;
+}
+.corner-band {
+}
 
 .band-header {
   display: flex;
@@ -392,7 +537,7 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
 }
 
 .band-label {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -401,7 +546,7 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
 }
 
 .band-title {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 24px;
   font-weight: 800;
   line-height: 1.3;
@@ -442,7 +587,7 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
 }
 
 .price-micro {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -451,7 +596,7 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
 }
 
 .price-caption {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -460,7 +605,7 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
 }
 
 .price-value {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 28px;
   font-weight: 800;
   color: #00e38f;
@@ -485,7 +630,7 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
 }
 
 .metric-label {
-  font-family: 'JetBrains Mono', monospace;
+  font-family: "JetBrains Mono", monospace;
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.1em;
@@ -494,7 +639,7 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
 }
 
 .metric-value {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 18px;
   font-weight: 700;
   color: rgba(225, 225, 239, 0.95);
@@ -534,7 +679,7 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
 }
 
 .penalty-amount {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 22px;
   font-weight: 800;
   color: #f87171;
@@ -556,7 +701,7 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
 }
 
 .card-hint {
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 16px;
   font-weight: 700;
   color: rgba(225, 225, 239, 0.85);
@@ -564,7 +709,7 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
 }
 
 .corner-msg {
-  font-family: 'Hanken Grotesk', sans-serif;
+  font-family: "Hanken Grotesk", sans-serif;
   font-size: 14px;
   color: rgba(225, 225, 239, 0.6);
   margin: 0;
@@ -587,7 +732,7 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
   padding: 14px 20px;
   border-radius: 16px;
   border: none;
-  font-family: 'Plus Jakarta Sans', sans-serif;
+  font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 16px;
   font-weight: 700;
   cursor: pointer;
@@ -639,20 +784,62 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
   transform: scale(0.97);
 }
 
+.disabled-btn {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none !important;
+  filter: grayscale(0.5);
+}
+
+.disabled-btn:hover {
+  transform: none !important;
+  filter: grayscale(0.5);
+}
+
+.skip-btn {
+  background: rgba(50, 52, 62, 0.6);
+  color: rgba(225, 225, 239, 0.6);
+  border: 1px dashed rgba(132, 149, 136, 0.2);
+}
+
+.skip-btn:hover {
+  background: rgba(50, 52, 62, 0.9);
+  color: rgba(225, 225, 239, 0.85);
+  border-color: rgba(132, 149, 136, 0.35);
+}
+
 .card-enter-active {
-  animation: cardSlideIn 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  animation: cardSlideIn 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
 .card-leave-active {
-  animation: cardFadeOut 0.2s ease-in both;
+  animation: cardFadeOut 0.22s ease-in both;
 }
 
 @keyframes cardSlideIn {
-  from { opacity: 0; transform: scale(0.85) translateY(24px); }
-  to   { opacity: 1; transform: scale(1) translateY(0); }
+  from {
+    opacity: 0;
+    transform: perspective(900px) rotateY(12deg) rotateX(6deg) scale(0.88)
+      translateY(30px);
+  }
+  50% {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+    transform: perspective(900px) rotateY(0deg) rotateX(0deg) scale(1)
+      translateY(0);
+  }
 }
 
 @keyframes cardFadeOut {
-  from { opacity: 1; transform: scale(1); }
-  to   { opacity: 0; transform: scale(0.92) translateY(-16px); }
+  from {
+    opacity: 1;
+    transform: perspective(900px) rotateY(0deg) rotateX(0deg) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: perspective(900px) rotateY(-6deg) rotateX(-3deg) scale(0.93)
+      translateY(-14px);
+  }
 }
 </style>

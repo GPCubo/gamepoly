@@ -32,4 +32,5 @@ export const GAME_CONFIG = {
 
   STARTING_CASH: 1500,
   GO_SALARY: 200,
+  CAN_SKIP_BUY: false,
 } as const;

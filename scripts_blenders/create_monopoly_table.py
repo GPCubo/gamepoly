@@ -31,30 +31,31 @@ ENABLE_BEVEL      = True
 
 # PALETA COHESIVA (mismos tonos clásicos que las etiquetas 2D)
 TILE_COLORS = {
-    "brown":        (0.584, 0.329, 0.212, 1),
-    "lightBlue":    (0.667, 0.878, 0.980, 1),
-    "pink":         (0.851, 0.227, 0.588, 1),
-    "orange":       (0.969, 0.580, 0.114, 1),
-    "red":          (0.929, 0.106, 0.141, 1),
-    "yellow":       (0.996, 0.949, 0.000, 1),
-    "green":        (0.122, 0.698, 0.353, 1),
-    "darkBlue":     (0.000, 0.447, 0.733, 1),
-    "railroad":     (0.169, 0.169, 0.169, 1),
-    "utility":      (0.620, 0.820, 0.651, 1),
-    "tax":          (0.353, 0.353, 0.353, 1),
-    "chance":       (0.969, 0.580, 0.114, 1),
-    "community":    (0.227, 0.651, 0.878, 1),
+    # Grupos de propiedad
+    "brown":             (0.584, 0.329, 0.212, 1),
+    "lightBlue":         (0.667, 0.878, 0.980, 1),
+    "pink":              (0.851, 0.227, 0.588, 1),
+    "orange":            (0.969, 0.580, 0.114, 1),
+    "red":               (0.929, 0.106, 0.141, 1),
+    "yellow":            (0.996, 0.949, 0.000, 1),
+    "green":             (0.122, 0.698, 0.353, 1),
+    "darkBlue":          (0.000, 0.447, 0.733, 1),
+    "railroad":          (0.169, 0.169, 0.169, 1),
+    "utility":           (0.620, 0.820, 0.651, 1),
+    "tax":               (0.353, 0.353, 0.353, 1),
+    "chance":            (0.969, 0.580, 0.114, 1),
+    "community":         (0.227, 0.651, 0.878, 1),
     # Esquinas
-    "go":           (0.157, 0.706, 0.388, 1),
-    "jail":         (0.902, 0.494, 0.133, 1),
-    "parking":      (0.753, 0.224, 0.169, 1),
-    "gotojail":     (0.573, 0.169, 0.129, 1),
+    "go":                (0.157, 0.706, 0.388, 1),
+    "jail":              (0.902, 0.494, 0.133, 1),
+    "parking":           (0.753, 0.224, 0.169, 1),
+    "gotojail":          (0.573, 0.169, 0.129, 1),
     # Superficies
     "white":        (0.965, 0.965, 0.945, 1),   # Base de casillas
     "wood":         (0.180, 0.100, 0.050, 1),    # Mesa contenedora
     "frame":        (0.280, 0.150, 0.070, 1),    # Marco de madera
     "board_center": (0.918, 0.933, 0.890, 1),    # Fondo claro del tablero
-    "center_panel": (0.870, 0.895, 0.850, 1),    # Área central de dados
+    "center_panel": (0.870, 0.895, 0.850, 1),    # Area central de dados
 }
 
 # Mapeo exacto de las 40 casillas (Sentido horario desde GO)
@@ -63,6 +64,50 @@ TILE_GROUPS = [
     "jail", "pink", "utility", "pink", "pink", "railroad", "orange", "community", "orange", "orange",
     "parking", "red", "chance", "red", "red", "railroad", "yellow", "yellow", "utility", "yellow",
     "gotojail", "green", "green", "community", "green", "railroad", "chance", "darkBlue", "tax", "darkBlue"
+]
+
+# Datos de cada casilla: nombre corto (para 3D), nombre completo y precio
+TILE_INFO = [
+    {"short": "Salida"},                               # 0  go
+    {"short": "Ronda de Arrieta", "price": 60},        # 1  brown
+    {"short": "Arca Comunal"},                         # 2  community
+    {"short": "Plaza de Lavapies", "price": 60},       # 3  brown
+    {"short": "Impuesto"},                             # 4  tax
+    {"short": "Estacion Norte", "price": 200},         # 5  railroad
+    {"short": "La Montera", "price": 100},             # 6  lightBlue
+    {"short": "Suerte"},                               # 7  chance
+    {"short": "Calle de Alcala", "price": 100},        # 8  lightBlue
+    {"short": "Gran Via", "price": 120},               # 9  lightBlue
+    {"short": "Carcel (Visita)"},                      # 10  jail
+    {"short": "Paseo del Prado", "price": 140},        # 11  pink
+    {"short": "Electrica", "price": 150},              # 12  utility
+    {"short": "Calle de Serrano", "price": 140},       # 13  pink
+    {"short": "Paseo de Recoletos", "price": 160},     # 14  pink
+    {"short": "Estacion Este", "price": 200},          # 15  railroad
+    {"short": "Calle de Goya", "price": 180},          # 16  orange
+    {"short": "Arca Comunal"},                         # 17  community
+    {"short": "Calle de Velazquez", "price": 180},     # 18  orange
+    {"short": "Castellana", "price": 200},             # 19  orange
+    {"short": "Parking"},                              # 20  parking
+    {"short": "Plaza de Espana", "price": 220},        # 21  red
+    {"short": "Suerte"},                               # 22  chance
+    {"short": "Fuencarral", "price": 220},             # 23  red
+    {"short": "Reforma", "price": 240},                # 24  red
+    {"short": "Estacion Sur", "price": 200},           # 25  railroad
+    {"short": "America", "price": 260},                # 26  yellow
+    {"short": "Bravo Murillo", "price": 260},          # 27  yellow
+    {"short": "Agua", "price": 150},                   # 28  utility
+    {"short": "Alberto Aguilera", "price": 280},       # 29  yellow
+    {"short": "Ve Carcel"},                            # 30  gotojail
+    {"short": "Paseo de Gracia", "price": 300},        # 31  green
+    {"short": "Rambla de Cataluna", "price": 300},     # 32  green
+    {"short": "Arca Comunal"},                         # 33  community
+    {"short": "Avenida Diagonal", "price": 320},       # 34  green
+    {"short": "Estacion Oeste", "price": 200},         # 35  railroad
+    {"short": "Suerte"},                               # 36  chance
+    {"short": "La Habana", "price": 350},              # 37  darkBlue
+    {"short": "Lujo"},                                 # 38  tax
+    {"short": "Paseo del Arte", "price": 400},         # 39  darkBlue
 ]
 
 # ─────────────────────────────────────────────────────────────────────────
@@ -120,6 +165,24 @@ def bevel_mesh(obj, width=0.004, segments=2):
     mod.limit_method = 'ANGLE'
     mod.angle_limit = math.radians(40)
     bpy.ops.object.modifier_apply(modifier=mod.name)
+
+def add_text_line(name, text_str, location, size, material, extrude=0.002, parent=None):
+    """Crea texto 3D sobre la casilla. Se posiciona en espacio local del contenedor."""
+    curve_data = bpy.data.curves.new(name=f"{name}_Data", type='FONT')
+    curve_data.body = text_str
+    curve_data.size = size
+    curve_data.extrude = extrude
+    curve_data.align_x = 'CENTER'
+    curve_data.align_y = 'CENTER'
+    curve_data.space_character = 1.0
+    curve_data.space_word = 1.0
+    obj = bpy.data.objects.new(name, curve_data)
+    obj.location = location
+    obj.data.materials.append(material)
+    bpy.context.scene.collection.objects.link(obj)
+    if parent:
+        obj.parent = parent
+    return obj
 
 # ─────────────────────────────────────────────────────────────────────────
 # MATRIZ DE TRANSFORMACIÓN (Corrige orientación y giros invertidos)
@@ -179,6 +242,8 @@ def build_gamepoly():
     center_mat = get_or_create_material("BoardCenter", TILE_COLORS["board_center"], roughness=0.6)
     panel_mat = get_or_create_material("CenterPanel", TILE_COLORS["center_panel"], roughness=0.55)
     white_tile_mat = get_or_create_material("TileWhite", TILE_COLORS["white"], roughness=0.45)
+    text_mat = get_or_create_material("TileText", (0.06, 0.06, 0.06, 1), roughness=0.3)
+    text_mat_white = get_or_create_material("TileTextWhite", (0.95, 0.95, 0.92, 1), roughness=0.3)
 
     # 1. Mesa base del juego
     table = add_box("Table_Base", (TABLE_WIDTH, TABLE_DEPTH, TABLE_TOP_Z),
@@ -214,9 +279,11 @@ def build_gamepoly():
         bpy.context.scene.collection.objects.link(tile_container)
 
         if is_corner:
-            # Bloque de Esquina (blanco)
+            # Bloque de Esquina (color propio del grupo)
+            corner_mat = get_or_create_material(
+                f"Mat_{group}", TILE_COLORS.get(group, TILE_COLORS["white"]), roughness=0.35)
             c_mesh = add_box(f"Tile_{i:02d}_CornerMesh",
-                             (CORNER_SIZE, CORNER_SIZE, TILE_HEIGHT), (0, 0, 0), white_tile_mat)
+                             (CORNER_SIZE, CORNER_SIZE, TILE_HEIGHT), (0, 0, 0), corner_mat)
             bevel_mesh(c_mesh, width=0.006, segments=2)
             c_mesh.parent = tile_container
             c_mesh.location = (0, 0, 0)
@@ -254,6 +321,37 @@ def build_gamepoly():
                 bevel_mesh(spec_mesh, width=0.004, segments=2)
                 spec_mesh.parent = tile_container
                 spec_mesh.location = (0, -0.05, TILE_HEIGHT * 0.05)
+
+        # # ── Etiquetas 3D (nombre + precio) sobre la casilla ──
+        # info = TILE_INFO[i]
+        # z_text = TILE_HEIGHT / 2 + 0.003
+        # has_band = group in ["brown", "lightBlue", "pink", "orange", "red", "yellow", "green", "darkBlue"]
+        # has_spec = not is_corner and not has_band
+
+        # spec_top_y = (-0.05 + (TILE_DEPTH * 0.35) / 2) + 0.032 if has_spec else 0
+        # price_y = -TILE_DEPTH / 2 + 0.032
+
+        # if is_corner:
+        #     add_text_line(
+        #         f"Tile_{i:02d}_Lbl", info["short"],
+        #         (0, 0, z_text), 0.055, text_mat_white, extrude=0.003,
+        #         parent=tile_container)
+        # elif "price" in info:
+        #     name_y = spec_top_y if has_spec else 0.04
+        #     add_text_line(
+        #         f"Tile_{i:02d}_Name", info["short"],
+        #         (0, name_y, z_text), 0.042, text_mat, extrude=0.002,
+        #         parent=tile_container)
+        #     add_text_line(
+        #         f"Tile_{i:02d}_Price", f"${info['price']}",
+        #         (0, price_y, z_text), 0.036, text_mat, extrude=0.002,
+        #         parent=tile_container)
+        # else:
+        #     lbl_y = spec_top_y if has_spec else 0.06
+        #     add_text_line(
+        #         f"Tile_{i:02d}_Lbl", info["short"],
+        #         (0, lbl_y, z_text), 0.042, text_mat, extrude=0.002,
+        #         parent=tile_container)
 
     # Activar sombreado de materiales en el viewport dinámicamente
     for area in bpy.context.screen.areas:
