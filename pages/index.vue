@@ -234,6 +234,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, nextTick } from "vue";
 import { GAME_CONFIG } from "~/config/gameConfig";
+import { applyLocalScenarioSeeds } from "~/config/localScenarioSeeds";
 import { useGameStore } from "~/stores/gameStore";
 
 const store = useGameStore();
@@ -327,6 +328,19 @@ function resetForm() {
   playerPage.value = 0;
 }
 
+function isLocalGameUrl() {
+  if (typeof window === "undefined") return false;
+  return ["localhost", "127.0.0.1", "::1", "[::1]"].includes(
+    window.location.hostname,
+  );
+}
+
+function applyLocalGameScenarioSeeds() {
+  if (!isLocalGameUrl()) return false;
+  const params = new URLSearchParams(window.location.search);
+  return applyLocalScenarioSeeds(params, store).length > 0;
+}
+
 function startGame() {
   errorMsg.value = "";
 
@@ -364,6 +378,7 @@ function startGame() {
   }
 
   store.setupGame(players, { goSalary: salary, canSkipBuy: canSkipBuy.value, doublesGiveExtraTurn: doublesGiveExtraTurn.value });
+  applyLocalGameScenarioSeeds();
   navigateTo("/game");
 }
 </script>

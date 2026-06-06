@@ -39,12 +39,12 @@
             <div class="metrics-grid">
               <div class="metric-card">
                 <span class="metric-label">ALQUILER</span>
-                <span class="metric-value">${{ rentBase }}</span>
+                <span class="metric-value">${{ rentAmount ?? rentBase }}</span>
               </div>
               <div class="metric-card">
                 <span class="metric-label">HIPOTECA</span>
                 <span class="metric-value"
-                  >${{ Math.round((tile.price ?? 0) / 2) }}</span
+                  >${{ mortgageValue ?? Math.round((tile.price ?? 0) / 2) }}</span
                 >
               </div>
             </div>
@@ -53,13 +53,86 @@
                 <span class="material-symbols-outlined filled">home</span>
                 <span>Es tuya</span>
               </div>
+              <div class="development-panel" :class="{ mortgaged: isMortgaged }">
+                <span class="development-label">DESARROLLO</span>
+                <strong>{{ developmentLabel }}</strong>
+                <span v-if="isMortgaged" class="development-note">No cobra alquiler</span>
+                <span v-else-if="canBuildHouse" class="development-note">Casa: ${{ houseCost }}</span>
+                <span v-else-if="canBuildHotel" class="development-note">Hotel: ${{ hotelCost }}</span>
+              </div>
+              <div class="action-stack management-actions">
+                <button
+                  v-if="!hasHotel && (houses ?? 0) < 3"
+                  ref="buildHouseBtnRef"
+                  class="action-btn manage-btn"
+                  :class="{ 'disabled-btn': !canBuildHouse }"
+                  :disabled="!canBuildHouse"
+                  tabindex="0"
+                  @click="canBuildHouse && emit('build-house')"
+                >
+                  <span class="material-symbols-outlined filled">home_work</span>
+                  <span>Construir casa ${{ houseCost }}</span>
+                </button>
+                <button
+                  v-if="!hasHotel && (houses ?? 0) >= 3"
+                  ref="buildHotelBtnRef"
+                  class="action-btn manage-btn hotel-btn"
+                  :class="{ 'disabled-btn': !canBuildHotel }"
+                  :disabled="!canBuildHotel"
+                  tabindex="0"
+                  @click="canBuildHotel && emit('build-hotel')"
+                >
+                  <span class="material-symbols-outlined filled">apartment</span>
+                  <span>Ampliar a hotel ${{ hotelCost }}</span>
+                </button>
+                <button
+                  v-if="canSellImprovement || hasHotel || (houses ?? 0) > 0"
+                  ref="sellImprovementBtnRef"
+                  class="action-btn manage-btn sell-btn"
+                  :class="{ 'disabled-btn': !canSellImprovement }"
+                  :disabled="!canSellImprovement"
+                  tabindex="0"
+                  @click="canSellImprovement && emit('sell-improvement')"
+                >
+                  <span class="material-symbols-outlined">sell</span>
+                  <span>{{ improvementSellLabel }}</span>
+                </button>
+                <button
+                  v-if="!isMortgaged"
+                  ref="mortgageBtnRef"
+                  class="action-btn manage-btn mortgage-btn"
+                  :class="{ 'disabled-btn': !canMortgage }"
+                  :disabled="!canMortgage"
+                  tabindex="0"
+                  @click="canMortgage && emit('mortgage')"
+                >
+                  <span class="material-symbols-outlined">account_balance</span>
+                  <span>Hipotecar +${{ mortgageValue }}</span>
+                </button>
+                <button
+                  v-else
+                  ref="unmortgageBtnRef"
+                  class="action-btn manage-btn mortgage-btn"
+                  :class="{ 'disabled-btn': !canUnmortgage }"
+                  :disabled="!canUnmortgage"
+                  tabindex="0"
+                  @click="canUnmortgage && emit('unmortgage')"
+                >
+                  <span class="material-symbols-outlined">paid</span>
+                  <span>Levantar hipoteca ${{ unmortgageCost }}</span>
+                </button>
+              </div>
               <button ref="closeActionBtnRef" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
                 <span class="material-symbols-outlined">arrow_forward</span>
                 <span>Siguiente</span>
               </button>
             </template>
             <template v-else-if="ownerState === 'other'">
-              <div class="penalty-banner">
+              <div v-if="isMortgaged" class="mortgage-banner">
+                <span class="material-symbols-outlined">account_balance</span>
+                <span>Propiedad hipotecada: no se paga alquiler</span>
+              </div>
+              <div v-else class="penalty-banner">
                 <span class="penalty-amount">−${{ rentAmount }}</span>
                 <span class="penalty-label"
                   >Alquiler pagado a {{ ownerName }}</span
@@ -122,12 +195,12 @@
             <div class="metrics-grid">
               <div class="metric-card">
                 <span class="metric-label">ALQUILER</span>
-                <span class="metric-value">$25</span>
+                <span class="metric-value">${{ rentAmount ?? 25 }}</span>
               </div>
               <div class="metric-card">
                 <span class="metric-label">HIPOTECA</span>
                 <span class="metric-value"
-                  >${{ Math.round((tile.price ?? 0) / 2) }}</span
+                  >${{ mortgageValue ?? Math.round((tile.price ?? 0) / 2) }}</span
                 >
               </div>
 </div>
@@ -136,13 +209,48 @@
                 <span class="material-symbols-outlined filled">home</span>
                 <span>Es tuyo</span>
               </div>
+              <div class="development-panel" :class="{ mortgaged: isMortgaged }">
+                <span class="development-label">ESTADO</span>
+                <strong>{{ developmentLabel }}</strong>
+                <span v-if="isMortgaged" class="development-note">No cobra alquiler</span>
+              </div>
+              <div class="action-stack management-actions">
+                <button
+                  v-if="!isMortgaged"
+                  ref="mortgageBtnRef"
+                  class="action-btn manage-btn mortgage-btn"
+                  :class="{ 'disabled-btn': !canMortgage }"
+                  :disabled="!canMortgage"
+                  tabindex="0"
+                  @click="canMortgage && emit('mortgage')"
+                >
+                  <span class="material-symbols-outlined">account_balance</span>
+                  <span>Hipotecar +${{ mortgageValue }}</span>
+                </button>
+                <button
+                  v-else
+                  ref="unmortgageBtnRef"
+                  class="action-btn manage-btn mortgage-btn"
+                  :class="{ 'disabled-btn': !canUnmortgage }"
+                  :disabled="!canUnmortgage"
+                  tabindex="0"
+                  @click="canUnmortgage && emit('unmortgage')"
+                >
+                  <span class="material-symbols-outlined">paid</span>
+                  <span>Levantar hipoteca ${{ unmortgageCost }}</span>
+                </button>
+              </div>
               <button ref="closeActionBtnRef3" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
                 <span class="material-symbols-outlined">arrow_forward</span>
                 <span>Siguiente</span>
               </button>
             </template>
             <template v-else-if="ownerState === 'other'">
-              <div class="penalty-banner">
+              <div v-if="isMortgaged" class="mortgage-banner">
+                <span class="material-symbols-outlined">account_balance</span>
+                <span>Propiedad hipotecada: no se paga alquiler</span>
+              </div>
+              <div v-else class="penalty-banner">
                 <span class="penalty-amount">−${{ rentAmount }}</span>
                 <span class="penalty-label"
                   >Alquiler pagado a {{ ownerName }}</span
@@ -204,10 +312,53 @@
               </div>
               <span class="price-value">${{ tile.price }}</span>
             </div>
+            <div class="metrics-grid">
+              <div class="metric-card">
+                <span class="metric-label">ALQUILER</span>
+                <span class="metric-value">${{ rentAmount ?? 0 }}</span>
+              </div>
+              <div class="metric-card">
+                <span class="metric-label">HIPOTECA</span>
+                <span class="metric-value"
+                  >${{ mortgageValue ?? Math.round((tile.price ?? 0) / 2) }}</span
+                >
+              </div>
+            </div>
             <template v-if="ownerState === 'own'">
               <div class="own-banner">
                 <span class="material-symbols-outlined filled">home</span>
                 <span>Es tuyo</span>
+              </div>
+              <div class="development-panel" :class="{ mortgaged: isMortgaged }">
+                <span class="development-label">ESTADO</span>
+                <strong>{{ developmentLabel }}</strong>
+                <span v-if="isMortgaged" class="development-note">No cobra alquiler</span>
+              </div>
+              <div class="action-stack management-actions">
+                <button
+                  v-if="!isMortgaged"
+                  ref="mortgageBtnRef"
+                  class="action-btn manage-btn mortgage-btn"
+                  :class="{ 'disabled-btn': !canMortgage }"
+                  :disabled="!canMortgage"
+                  tabindex="0"
+                  @click="canMortgage && emit('mortgage')"
+                >
+                  <span class="material-symbols-outlined">account_balance</span>
+                  <span>Hipotecar +${{ mortgageValue }}</span>
+                </button>
+                <button
+                  v-else
+                  ref="unmortgageBtnRef"
+                  class="action-btn manage-btn mortgage-btn"
+                  :class="{ 'disabled-btn': !canUnmortgage }"
+                  :disabled="!canUnmortgage"
+                  tabindex="0"
+                  @click="canUnmortgage && emit('unmortgage')"
+                >
+                  <span class="material-symbols-outlined">paid</span>
+                  <span>Levantar hipoteca ${{ unmortgageCost }}</span>
+                </button>
               </div>
               <button ref="closeActionBtnRef5" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
                 <span class="material-symbols-outlined">arrow_forward</span>
@@ -215,7 +366,11 @@
               </button>
             </template>
             <template v-else-if="ownerState === 'other'">
-              <div class="penalty-banner">
+              <div v-if="isMortgaged" class="mortgage-banner">
+                <span class="material-symbols-outlined">account_balance</span>
+                <span>Propiedad hipotecada: no se paga alquiler</span>
+              </div>
+              <div v-else class="penalty-banner">
                 <span class="penalty-amount">−${{ rentAmount }}</span>
                 <span class="penalty-label"
                   >Alquiler pagado a {{ ownerName }}</span
@@ -327,6 +482,13 @@
             </button>
           </div>
         </template>
+        <div
+          v-if="ownerColor && (tile.type === 'property' || tile.type === 'railroad' || tile.type === 'utility')"
+          class="currency-badge"
+          :style="{ background: ownerColor }"
+        >
+          {{ CURRENCY_SYMBOL }}
+        </div>
       </div>
     </div>
   </Transition>
@@ -335,16 +497,32 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from "vue";
 import { BOARD_TILES, type BoardTile, type TileGroup } from "~/config/boardTilesConfig";
+import { GAME_CONFIG } from "~/config/gameConfig";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
+
+const CURRENCY_SYMBOL = GAME_CONFIG.CURRENCY_SYMBOL;
 
 const props = defineProps<{
   tile: BoardTile;
   ownerId?: number;
   ownerName?: string;
+  ownerColor?: string;
   rentAmount?: number;
   activePlayerId: number;
   activePlayerCash: number;
   canSkipBuy: boolean;
+  houses?: number;
+  hasHotel?: boolean;
+  isMortgaged?: boolean;
+  canBuildHouse?: boolean;
+  canBuildHotel?: boolean;
+  canSellImprovement?: boolean;
+  canMortgage?: boolean;
+  canUnmortgage?: boolean;
+  houseCost?: number;
+  hotelCost?: number;
+  mortgageValue?: number;
+  unmortgageCost?: number;
 }>();
 
 const emit = defineEmits<{
@@ -352,6 +530,11 @@ const emit = defineEmits<{
   (e: "buy"): void;
   (e: "auction"): void;
   (e: "skip"): void;
+  (e: "build-house"): void;
+  (e: "build-hotel"): void;
+  (e: "sell-improvement"): void;
+  (e: "mortgage"): void;
+  (e: "unmortgage"): void;
 }>();
 
 const buyBtnRef = ref<HTMLElement | null>(null);
@@ -372,6 +555,11 @@ const closeActionBtnRef6 = ref<HTMLElement | null>(null);
 const closeActionBtnRefTax = ref<HTMLElement | null>(null);
 const closeActionBtnRefCard = ref<HTMLElement | null>(null);
 const closeActionBtnRefCorner = ref<HTMLElement | null>(null);
+const buildHouseBtnRef = ref<HTMLElement | null>(null);
+const buildHotelBtnRef = ref<HTMLElement | null>(null);
+const sellImprovementBtnRef = ref<HTMLElement | null>(null);
+const mortgageBtnRef = ref<HTMLElement | null>(null);
+const unmortgageBtnRef = ref<HTMLElement | null>(null);
 
 const ownerState = computed<"own" | "other" | "free">(() => {
   if (props.ownerId === undefined) return "free";
@@ -386,13 +574,26 @@ const tileType = computed(() => props.tile.type);
 const activeRefs = computed(() => {
   if (ownerState.value === "own" || ownerState.value === "other") {
     if (tileType.value === "property") {
-      return ownerState.value === "own" ? [closeActionBtnRef] : [closeActionBtnRef2];
+      return ownerState.value === "own"
+        ? [
+            buildHouseBtnRef,
+            buildHotelBtnRef,
+            sellImprovementBtnRef,
+            mortgageBtnRef,
+            unmortgageBtnRef,
+            closeActionBtnRef,
+          ]
+        : [closeActionBtnRef2];
     }
     if (tileType.value === "railroad") {
-      return ownerState.value === "own" ? [closeActionBtnRef3] : [closeActionBtnRef4];
+      return ownerState.value === "own"
+        ? [mortgageBtnRef, unmortgageBtnRef, closeActionBtnRef3]
+        : [closeActionBtnRef4];
     }
     if (tileType.value === "utility") {
-      return ownerState.value === "own" ? [closeActionBtnRef5] : [closeActionBtnRef6];
+      return ownerState.value === "own"
+        ? [mortgageBtnRef, unmortgageBtnRef, closeActionBtnRef5]
+        : [closeActionBtnRef6];
     }
     return [];
   }
@@ -512,6 +713,16 @@ const TAX_AMOUNTS: Record<number, number> = { 4: 200, 38: 100 };
 const groupColor = computed(() => GROUP_COLORS[props.tile.group] ?? "#374151");
 const groupLabel = computed(() => GROUP_LABELS[props.tile.group] ?? "");
 const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
+const developmentLabel = computed(() => {
+  if (props.isMortgaged) return "Hipotecada";
+  if (props.hasHotel) return "Hotel";
+  const houses = props.houses ?? 0;
+  if (houses === 0) return "Sin mejoras";
+  return `${houses} ${houses === 1 ? "casa" : "casas"}`;
+});
+const improvementSellLabel = computed(() =>
+  props.hasHotel ? "Vender hotel" : "Vender casa",
+);
 </script>
 
 <style scoped>
@@ -775,6 +986,75 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
   color: #00e38f;
 }
 
+.development-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px solid rgba(59, 130, 246, 0.16);
+  border-radius: 12px;
+}
+
+.development-panel.mortgaged {
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.18);
+}
+
+.development-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgba(225, 225, 239, 0.42);
+}
+
+.development-panel strong {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 16px;
+  color: rgba(225, 225, 239, 0.96);
+}
+
+.development-note {
+  font-size: 12px;
+  color: rgba(225, 225, 239, 0.52);
+}
+
+.management-actions {
+  gap: 8px;
+  padding-top: 0;
+}
+
+.manage-btn {
+  min-height: 42px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 13px;
+  background: rgba(50, 52, 62, 0.82);
+  color: rgba(225, 225, 239, 0.88);
+  border: 1px solid rgba(74, 222, 128, 0.10);
+}
+
+.manage-btn:hover:not(:disabled) {
+  background: rgba(64, 68, 82, 0.95);
+  transform: translateY(-1px);
+}
+
+.hotel-btn {
+  background: rgba(239, 68, 68, 0.16);
+  border-color: rgba(239, 68, 68, 0.28);
+}
+
+.sell-btn {
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.22);
+}
+
+.mortgage-btn {
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.20);
+}
+
 .penalty-banner {
   display: flex;
   flex-direction: column;
@@ -804,6 +1084,23 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
 .penalty-label {
   font-size: 12px;
   color: rgba(225, 225, 239, 0.45);
+}
+
+.mortgage-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  background: rgba(251, 191, 36, 0.08);
+  border: 1px solid rgba(251, 191, 36, 0.16);
+  border-radius: 12px;
+  color: #fbbf24;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.mortgage-banner .material-symbols-outlined {
+  font-size: 20px;
 }
 
 .auto-deduct {
@@ -996,5 +1293,24 @@ const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
     transform: perspective(900px) rotateY(-6deg) rotateX(-3deg) scale(0.93)
       translateY(-14px);
   }
+}
+
+.currency-badge {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  color: #1a1a2e;
+  z-index: 5;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 </style>

@@ -6,6 +6,12 @@ export default defineNuxtConfig({
   tres: {
     devtools: true,
   },
+  runtimeConfig: {
+    public: {
+      showAllHouses: process.env.NUXT_PUBLIC_SHOW_ALL_HOUSES === "true",
+      hideAllHouses: process.env.NUXT_PUBLIC_HIDE_ALL_HOUSES === "true",
+    },
+  },
   routeRules: {
     "/": { ssr: false },
     "/game": { ssr: false },

@@ -7,10 +7,10 @@ export const GAME_CONFIG = {
   MAX_PLAYERS: 4,
   TOKEN_MODELS_DIR: "/models/users/",
   TOKEN_MODELS: [
-    { file: "sombrero.glb", name: "Sombrero", icon: "🎩" },
-    { file: "dedal.glb", name: "Dedal", icon: "🧵" },
-    { file: "pork.glb", name: "Alcancía", icon: "🐷" },
-    { file: "key.glb", name: "Llave", icon: "🔑" },
+    { file: "sombrero.glb", name: "Sombrero", icon: "🎩", color: "#ef4444" },
+    { file: "dedal.glb", name: "Dedal", icon: "🧵", color: "#3b82f6" },
+    { file: "pork.glb", name: "Alcancía", icon: "🐷", color: "#ec4899" },
+    { file: "key.glb", name: "Llave", icon: "🔑", color: "#eab308" },
   ] as const,
 
   LABEL_FONT_SIZE: 34,
@@ -35,4 +35,5 @@ export const GAME_CONFIG = {
   CAN_SKIP_BUY: false,
   DOUBLES_GIVE_EXTRA_TURN: true,
   JAIL_BAIL_COST: 50,
+  CURRENCY_SYMBOL: "$",
 } as const;

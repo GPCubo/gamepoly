@@ -1,6 +1,39 @@
 export const Y_SUELO = 0.82;
 
+import { BOARD_TILES } from "~/config/boardTilesConfig";
 import { GAME_CONFIG } from "~/config/gameConfig";
+import type { BoardTile, TileGroup } from "~/config/boardTilesConfig";
+
+export type PropertyColorGroup = Extract<
+  TileGroup,
+  | "brown"
+  | "lightBlue"
+  | "pink"
+  | "orange"
+  | "red"
+  | "yellow"
+  | "green"
+  | "darkBlue"
+>;
+
+export interface BoardBuildArea {
+  group: PropertyColorGroup;
+  tileIndexes: number[];
+  position: { x: number; y: number; z: number };
+  rotation: { x: number; y: number; z: number };
+  width: number;
+  depth: number;
+}
+
+export interface BoardBuildSlot {
+  group: PropertyColorGroup;
+  tileIndex: number;
+  slotIndex: number;
+  slotCount: number;
+  area: BoardBuildArea;
+  position: { x: number; y: number; z: number };
+  rotation: { x: number; y: number; z: number };
+}
 
 export function useBoardGeometry() {
   const ySuelo = Y_SUELO;
@@ -60,6 +93,9 @@ export function useBoardGeometry() {
   const CORNER_SIZE = 0.45;
   const TILE_WIDTH = (BOARD_SIZE - CORNER_SIZE * 2) / 9;
   const TILE_DEPTH = 0.45;
+  const BAND_DEPTH = 0.10;
+  const WHITE_RELIEF_DEPTH = TILE_DEPTH - BAND_DEPTH;
+  const BUILD_Y_OFFSET = GAME_CONFIG.LABEL_Y_OFFSET + 0.015;
 
   const getTileCenter = (idx: number): { x: number; z: number } => {
     const H = BOARD_HALF;
@@ -103,6 +139,177 @@ export function useBoardGeometry() {
     }
 
     return { x: bx, z: -by };
+  };
+
+  const PROPERTY_COLOR_GROUPS = new Set<PropertyColorGroup>([
+    "brown",
+    "lightBlue",
+    "pink",
+    "orange",
+    "red",
+    "yellow",
+    "green",
+    "darkBlue",
+  ]);
+
+  const isPropertyColorGroup = (group: TileGroup): group is PropertyColorGroup =>
+    PROPERTY_COLOR_GROUPS.has(group as PropertyColorGroup);
+
+  const getTileSide = (idx: number): 0 | 1 | 2 | 3 =>
+    Math.floor((((idx % 40) + 40) % 40) / 10) as 0 | 1 | 2 | 3;
+
+  const getBuildYaw = (side: 0 | 1 | 2 | 3): number => {
+    if (side === 0) return 0;
+    if (side === 1) return -Math.PI / 2;
+    if (side === 2) return Math.PI;
+    return Math.PI / 2;
+  };
+
+  const applyTileDepthOffset = (
+    center: { x: number; z: number },
+    side: 0 | 1 | 2 | 3,
+    localY: number,
+  ): { x: number; z: number } => {
+    if (side === 0) return { x: center.x, z: center.z - localY };
+    if (side === 1) return { x: center.x - localY, z: center.z };
+    if (side === 2) return { x: center.x, z: center.z + localY };
+    return { x: center.x + localY, z: center.z };
+  };
+
+  const applySideLengthOffset = (
+    center: { x: number; z: number },
+    side: 0 | 1 | 2 | 3,
+    localX: number,
+  ): { x: number; z: number } => {
+    if (side === 0) return { x: center.x + localX, z: center.z };
+    if (side === 1) return { x: center.x, z: center.z - localX };
+    if (side === 2) return { x: center.x - localX, z: center.z };
+    return { x: center.x, z: center.z + localX };
+  };
+
+  const getPropertyTilesByGroup = (
+    group: PropertyColorGroup,
+    tiles: BoardTile[] = BOARD_TILES,
+  ): BoardTile[] =>
+    tiles
+      .filter((tile) => tile.type === "property" && tile.group === group)
+      .sort((a, b) => a.index - b.index);
+
+  const getPropertyGroupBuildArea = (
+    group: PropertyColorGroup,
+    tiles: BoardTile[] = BOARD_TILES,
+  ): BoardBuildArea | null => {
+    const groupTiles = getPropertyTilesByGroup(group, tiles);
+    if (groupTiles.length === 0) return null;
+
+    const first = groupTiles[0].index;
+    const last = groupTiles[groupTiles.length - 1].index;
+    const side = getTileSide(first);
+    const firstRem = first % 10;
+    const lastRem = last % 10;
+    const spanSlots = lastRem - firstRem + 1;
+
+    const firstCenter = getTileCenter(first);
+    const lastCenter = getTileCenter(last);
+    const baseCenter = {
+      x: (firstCenter.x + lastCenter.x) / 2,
+      z: (firstCenter.z + lastCenter.z) / 2,
+    };
+
+    // En create_monopoly_table.py, la franja blanca de cada propiedad queda
+    // entre el borde exterior y la banda de color. Este centro local apunta a
+    // esa franja completa, no al centro de una casilla individual.
+    const whiteReliefCenterLocalY = -BAND_DEPTH / 2;
+    const areaCenter = applyTileDepthOffset(baseCenter, side, whiteReliefCenterLocalY);
+
+    return {
+      group,
+      tileIndexes: groupTiles.map((tile) => tile.index),
+      position: {
+        x: areaCenter.x,
+        y: ySuelo + BUILD_Y_OFFSET,
+        z: areaCenter.z,
+      },
+      rotation: { x: 0, y: getBuildYaw(side), z: 0 },
+      width: spanSlots * TILE_WIDTH,
+      depth: WHITE_RELIEF_DEPTH,
+    };
+  };
+
+  const getPropertyGroupBuildSlots = (
+    group: PropertyColorGroup,
+    slotCount: number,
+    tiles: BoardTile[] = BOARD_TILES,
+  ): BoardBuildSlot[] => {
+    const area = getPropertyGroupBuildArea(group, tiles);
+    if (!area || slotCount <= 0) return [];
+
+    const groupTiles = getPropertyTilesByGroup(group, tiles);
+    const side = getTileSide(groupTiles[0].index);
+    const slotSpacing = area.width / slotCount;
+    const start = -area.width / 2 + slotSpacing / 2;
+
+    return Array.from({ length: slotCount }, (_, slotIndex) => {
+      const localX = start + slotIndex * slotSpacing;
+      const slotXZ = applySideLengthOffset(area.position, side, localX);
+
+      return {
+        group,
+        tileIndex: groupTiles[slotIndex]?.index ?? groupTiles[0].index,
+        slotIndex,
+        slotCount,
+        area,
+        position: {
+          x: slotXZ.x,
+          y: area.position.y,
+          z: slotXZ.z,
+        },
+        rotation: area.rotation,
+      };
+    });
+  };
+
+  const getPropertyBuildSlot = (
+    tileIndex: number,
+    tiles: BoardTile[] = BOARD_TILES,
+  ): BoardBuildSlot | null => {
+    const tile = tiles.find((candidate) => candidate.index === tileIndex);
+    if (!tile || tile.type !== "property" || !isPropertyColorGroup(tile.group)) return null;
+
+    const groupTiles = getPropertyTilesByGroup(tile.group, tiles);
+    const slotIndex = groupTiles.findIndex((candidate) => candidate.index === tileIndex);
+    const slots = getPropertyGroupBuildSlots(tile.group, groupTiles.length, tiles);
+
+    return slots[slotIndex] ?? null;
+  };
+
+  const getPropertyBuildingSlots = (
+    tileIndex: number,
+    slotCount: number,
+    tiles: BoardTile[] = BOARD_TILES,
+  ): BoardBuildSlot[] => {
+    const baseSlot = getPropertyBuildSlot(tileIndex, tiles);
+    if (!baseSlot || slotCount <= 0) return [];
+
+    const side = getTileSide(tileIndex);
+    const spacing = Math.min(TILE_WIDTH * 0.24, 0.08);
+    const start = -((slotCount - 1) * spacing) / 2;
+
+    return Array.from({ length: slotCount }, (_, slotIndex) => {
+      const localX = start + slotIndex * spacing;
+      const slotXZ = applySideLengthOffset(baseSlot.position, side, localX);
+
+      return {
+        ...baseSlot,
+        slotIndex,
+        slotCount,
+        position: {
+          x: slotXZ.x,
+          y: baseSlot.position.y,
+          z: slotXZ.z,
+        },
+      };
+    });
   };
 
   const getTileLabelTransform = (
@@ -183,6 +390,10 @@ export function useBoardGeometry() {
 
   return {
     getCasillaCoordinates,
+    getPropertyBuildSlot,
+    getPropertyBuildingSlots,
+    getPropertyGroupBuildArea,
+    getPropertyGroupBuildSlots,
     getTileLabelTransform,
   };
 }

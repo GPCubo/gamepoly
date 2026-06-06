@@ -41,6 +41,23 @@
           :position="[0, 0, 0]"
           :scale="1.0"
         />
+        <template v-for="(item, idx) in boardHouseScenes" :key="item.key">
+          <primitive
+            v-if="item.scene"
+            :object="item.scene"
+            :position="[
+              boardHouseTransforms[idx].position.x,
+              boardHouseTransforms[idx].position.y,
+              boardHouseTransforms[idx].position.z,
+            ]"
+            :rotation="[
+              boardHouseTransforms[idx].rotation.x,
+              boardHouseTransforms[idx].rotation.y,
+              boardHouseTransforms[idx].rotation.z,
+            ]"
+            :scale="boardHouseTransforms[idx].scale"
+          />
+        </template>
         <template v-for="(scene, idx) in playerScenes" :key="idx">
           <primitive
             v-if="scene && !store.bankruptPlayers.includes(idx)"
@@ -73,11 +90,10 @@
     <GameOverlay
       :current-position="store.casillaActual"
       :is-moving="store.isAnyMoving"
-      :card-open="showTileCard || showAuction || showCardOverlay"
+      :card-open="showTileCard || showAuction || showCardOverlay || showExchange"
       @roll="onDiceRoll"
-      @toggle-camera="store.toggleCameraFollow()"
       @next-turn="onNextTurn"
-      @pay-bail="onPayBail"
+      @open-exchange="onOpenExchange"
     />
 
     <TileCard
@@ -85,14 +101,32 @@
       :tile="currentTile"
       :owner-id="tileOwnerId"
       :owner-name="tileOwnerName"
+      :owner-color="tileOwnerColor"
       :rent-amount="tileRentAmount"
       :active-player-id="store.activePlayer?.id ?? -1"
       :active-player-cash="store.activePlayer?.cash ?? 0"
       :can-skip-buy="store.canSkipBuy"
+      :houses="tileDevelopment.houses"
+      :has-hotel="tileDevelopment.hotel"
+      :is-mortgaged="tileDevelopment.mortgaged"
+      :can-build-house="canBuildHouseOnTile"
+      :can-build-hotel="canBuildHotelOnTile"
+      :can-sell-improvement="canSellImprovementOnTile"
+      :can-mortgage="canMortgageTile"
+      :can-unmortgage="canUnmortgageTile"
+      :house-cost="tileHouseCost"
+      :hotel-cost="tileHotelCost"
+      :mortgage-value="tileMortgageValue"
+      :unmortgage-cost="tileUnmortgageCost"
       @close="showTileCard = false"
       @buy="onBuyTile"
       @auction="onAuctionTile"
       @skip="onSkipTile"
+      @build-house="onBuildHouse"
+      @build-hotel="onBuildHotel"
+      @sell-improvement="onSellImprovement"
+      @mortgage="onMortgageTile"
+      @unmortgage="onUnmortgageTile"
     />
 
     <CardOverlay
@@ -115,6 +149,19 @@
       v-if="store.winner"
       :player="store.winner"
     />
+
+    <ExchangeModal
+      v-if="showExchange && !store.winner"
+      :active-player="store.activePlayer!"
+      :players="store.activePlayers"
+      :property-owners="store.propertyOwners"
+      :proposal="store.exchangeProposal"
+      :is-responding="exchangeIsResponding"
+      @propose="onExchangePropose"
+      @accept="onExchangeAccept"
+      @reject="onExchangeReject"
+      @cancel="onExchangeCancel"
+    />
   </div>
 </template>
 
@@ -131,14 +178,23 @@ import { useTileLabels } from "~/composables/useTileLabels";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import { BOARD_TILES } from "~/config/boardTilesConfig";
 import type { BoardTile } from "~/config/boardTilesConfig";
+import {
+  BOARD_HOUSE_ASSET_DEFINITIONS,
+  getPropertyDevelopmentPlacements,
+  getAllPropertyHousePlacements,
+} from "~/config/boardHouseAssets";
+import type { BoardHouseAssetPlacement } from "~/config/boardHouseAssets";
 import GameOverlay from "~/components/GameOverlay.vue";
 import TileCard from "~/components/TileCard.vue";
 import AuctionModal from "~/components/AuctionModal.vue";
 import WinnerOverlay from "~/components/WinnerOverlay.vue";
 import CardOverlay from "~/components/CardOverlay.vue";
+import ExchangeModal from "~/components/ExchangeModal.vue";
 import type { Group } from "three";
+import type { ExchangeProposal } from "~/stores/gameStore";
 
 const store = useGameStore();
+const runtimeConfig = useRuntimeConfig();
 
 if (store.players.length === 0) {
   navigateTo("/");
@@ -147,24 +203,14 @@ if (store.players.length === 0) {
 const showTileCard = ref(false);
 const showAuction = ref(false);
 const showCardOverlay = ref(false);
+const showExchange = ref(false);
+const exchangeIsResponding = ref(false);
 const currentTile = computed(() => BOARD_TILES[(store.casillaActual - 1 + 40) % 40]);
 
 const TAX_AMOUNTS: Record<number, number> = { 4: 200, 38: 100 };
 
 function computeRent(tile: BoardTile, ownerId: number): number {
-  if (tile.type === "railroad") {
-    const count = BOARD_TILES.filter(
-      (t) => t.type === "railroad" && store.propertyOwners[t.index] === ownerId,
-    ).length;
-    return 25 * count;
-  }
-  if (tile.type === "utility") {
-    const count = BOARD_TILES.filter(
-      (t) => t.type === "utility" && store.propertyOwners[t.index] === ownerId,
-    ).length;
-    return store.diceTotal * (count >= 2 ? 10 : 4);
-  }
-  return Math.floor((tile.price ?? 0) * 0.1);
+  return store.calculateRent(tile, ownerId);
 }
 
 const tileOwnerId = computed<number | undefined>(() => {
@@ -177,10 +223,42 @@ const tileOwnerName = computed(
   () => store.players.find((p) => p.id === tileOwnerId.value)?.name,
 );
 
+const tileOwnerColor = computed<string | undefined>(() => {
+  if (tileOwnerId.value === undefined) return undefined;
+  const owner = store.players.find((p) => p.id === tileOwnerId.value);
+  if (!owner) return undefined;
+  const token = GAME_CONFIG.TOKEN_MODELS.find((t) => t.file === owner.tokenModel);
+  return token?.color;
+});
+
 const tileRentAmount = computed(() => {
   if (tileOwnerId.value === undefined) return 0;
   return computeRent(currentTile.value, tileOwnerId.value);
 });
+
+const tileDevelopment = computed(() =>
+  store.getPropertyDevelopment(currentTile.value.index),
+);
+const activePlayerId = computed(() => store.activePlayer?.id ?? -1);
+const tileHouseCost = computed(() => store.getHouseCost(currentTile.value.index));
+const tileHotelCost = computed(() => store.getHotelCost(currentTile.value.index));
+const tileMortgageValue = computed(() => store.getMortgageValue(currentTile.value.index));
+const tileUnmortgageCost = computed(() => store.getUnmortgageCost(currentTile.value.index));
+const canBuildHouseOnTile = computed(() =>
+  store.canBuildHouse(currentTile.value.index, activePlayerId.value),
+);
+const canBuildHotelOnTile = computed(() =>
+  store.canBuildHotel(currentTile.value.index, activePlayerId.value),
+);
+const canSellImprovementOnTile = computed(() =>
+  store.canSellImprovement(currentTile.value.index, activePlayerId.value),
+);
+const canMortgageTile = computed(() =>
+  store.canMortgageProperty(currentTile.value.index, activePlayerId.value),
+);
+const canUnmortgageTile = computed(() =>
+  store.canUnmortgageProperty(currentTile.value.index, activePlayerId.value),
+);
 
 const auctionStartBidder = computed(() => {
   const alive = store.activePlayers;
@@ -220,7 +298,12 @@ watch(
     if (tile.type === "property" || tile.type === "railroad" || tile.type === "utility") {
       const ownerId = store.propertyOwners[tile.index];
       if (ownerId !== undefined && ownerId !== activeId) {
-        store.collectRent(activeId, ownerId, computeRent(tile, ownerId));
+        const rent = computeRent(tile, ownerId);
+        if (rent > 0) {
+          store.collectRent(activeId, ownerId, rent);
+        } else {
+          store.setStatusMessage(`${tile.name} está hipotecada: no se paga alquiler`);
+        }
       }
     }
 
@@ -260,10 +343,31 @@ function onSkipTile() {
   }
 }
 
+function onBuildHouse() {
+  store.buildHouse(currentTile.value.index, activePlayerId.value);
+}
+
+function onBuildHotel() {
+  store.buildHotel(currentTile.value.index, activePlayerId.value);
+}
+
+function onSellImprovement() {
+  store.sellImprovement(currentTile.value.index, activePlayerId.value);
+}
+
+function onMortgageTile() {
+  store.mortgageProperty(currentTile.value.index, activePlayerId.value);
+}
+
+function onUnmortgageTile() {
+  store.unmortgageProperty(currentTile.value.index, activePlayerId.value);
+}
+
 function onAuctionSold(winnerId: number, amount: number) {
   const tile = currentTile.value;
+  store.buyAuctionedProperty(tile.index, winnerId, amount);
   const winner = store.players.find((p) => p.id === winnerId);
-  if (winner) {
+  if (false && winner) {
     winner.cash -= amount;
     store.propertyOwners[tile.index] = winnerId;
     store._checkBankruptcy(winnerId);
@@ -325,6 +429,9 @@ async function onCardAccept() {
 
 const tableroScene = shallowRef<Group | null>(null);
 const playerScenes = shallowRef<(Group | null)[]>([]);
+const boardHouseScenes = shallowRef<{ key: string; scene: Group }[]>([]);
+const boardHouseModels = shallowRef<Map<string, Group>>(new Map());
+let boardHouseSceneVersion = 0;
 
 const cameraRef = shallowRef();
 const controlsRef = shallowRef();
@@ -354,8 +461,69 @@ if (playerCount > 0) {
 }
 
 const { getCameraPosition } = useCameraOrbit();
-const { getCasillaCoordinates } = useBoardGeometry();
+const { getCasillaCoordinates, getPropertyBuildSlot, getPropertyBuildingSlots } = useBoardGeometry();
 const tileLabels = useTileLabels();
+
+function getConfiguredBoardHousePlacements(): BoardHouseAssetPlacement[] {
+  if (runtimeConfig.public.hideAllHouses) return [];
+  if (runtimeConfig.public.showAllHouses) {
+    return getAllPropertyHousePlacements(BOARD_TILES);
+  }
+  return getPropertyDevelopmentPlacements(store.propertyDevelopments);
+}
+
+const boardHousePlacements = computed(() => getConfiguredBoardHousePlacements());
+const boardHouseTransforms = computed(() => boardHousePlacements.value.map((placement) => {
+  const definition = BOARD_HOUSE_ASSET_DEFINITIONS[placement.type];
+  const buildSlots = placement.buildCount
+    ? getPropertyBuildingSlots(placement.tileIndex, placement.buildCount)
+    : [];
+  const buildSlot = placement.buildCount
+    ? buildSlots[placement.buildIndex ?? 0]
+    : getPropertyBuildSlot(placement.tileIndex);
+  const position = buildSlot?.position ?? getCasillaCoordinates(placement.tileIndex);
+  const rotation = buildSlot?.rotation ?? { x: 0, y: 0, z: 0 };
+
+  return {
+    position: {
+      x: position.x,
+      y: position.y + (placement.yOffset ?? definition.defaultYOffset),
+      z: position.z,
+    },
+    rotation: {
+      x: rotation.x,
+      y: rotation.y + (placement.rotationYOffset ?? 0),
+      z: rotation.z,
+    },
+    scale: placement.scale ?? definition.defaultScale,
+  };
+}));
+
+function refreshBoardHouseScenes() {
+  const models = boardHouseModels.value;
+  boardHouseSceneVersion += 1;
+  boardHouseScenes.value = boardHousePlacements.value
+    .map((placement, idx) => {
+      const scene = models.get(placement.type)?.clone(true);
+      if (!scene) return null;
+
+      return {
+        key: [
+          "board-house",
+          boardHouseSceneVersion,
+          placement.type,
+          placement.tileIndex,
+          placement.buildIndex ?? 0,
+          placement.buildCount ?? 1,
+          idx,
+        ].join("-"),
+        scene,
+      };
+    })
+    .filter((item): item is { key: string; scene: Group } => Boolean(item));
+}
+
+watch(boardHousePlacements, refreshBoardHouseScenes, { deep: true });
 
 const prevAnimating: boolean[] = Array(playerCount).fill(false);
 const prevShared: boolean[] = Array(playerCount).fill(false);
@@ -454,6 +622,16 @@ onMounted(async () => {
     tableroScene.value = (await loader.loadAsync("/models/tablero.glb"))
       .scene as Group;
 
+    const houseModels = new Map<string, Group>();
+    for (const definition of Object.values(BOARD_HOUSE_ASSET_DEFINITIONS)) {
+      houseModels.set(
+        definition.type,
+        (await loader.loadAsync(definition.modelPath)).scene as Group,
+      );
+    }
+    boardHouseModels.value = houseModels;
+    refreshBoardHouseScenes();
+
     playerScenes.value = loadResults.map((gltf) => gltf.scene as Group);
 
     for (let i = 0; i < playerCount; i++) {
@@ -534,5 +712,35 @@ function onPayBail() {
   const player = store.activePlayer;
   if (!player || !player.inJail) return;
   store.payJailBail(player.id);
+}
+
+function onOpenExchange() {
+  showExchange.value = true;
+  exchangeIsResponding.value = false;
+}
+
+function onExchangePropose(proposal: ExchangeProposal) {
+  store.startExchange(proposal);
+  exchangeIsResponding.value = true;
+}
+
+function onExchangeAccept() {
+  store.respondExchange(true);
+  showExchange.value = false;
+  exchangeIsResponding.value = false;
+}
+
+function onExchangeReject() {
+  store.respondExchange(false);
+  showExchange.value = false;
+  exchangeIsResponding.value = false;
+}
+
+function onExchangeCancel() {
+  if (store.exchangeProposal) {
+    store.cancelExchange();
+  }
+  showExchange.value = false;
+  exchangeIsResponding.value = false;
 }
 </script>

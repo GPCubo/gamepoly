@@ -26,11 +26,9 @@
       <span v-if="store.isDoubles" class="doubles-badge">DOBLES</span>
     </div>
 
-    <div
-      v-if="activePlayerInJail && !store.isTurnComplete"
-      class="jail-actions"
-    >
+    <div class="action-buttons">
       <button
+        v-if="activePlayerInJail && !isTurnDone"
         ref="bailBtnRef"
         @click="onPayBailClick"
         :disabled="activePlayerCash < store.jailBailCost"
@@ -39,61 +37,37 @@
       >
         🔓 Pagar fianza (${{ store.jailBailCost }})
       </button>
-    </div>
 
-    <button
-      v-if="store.isTurnComplete"
-      ref="nextBtnRef"
-      @click="onNextTurnClick"
-      tabindex="0"
-      class="action-btn next-btn"
-    >
-      Siguiente ↪
-    </button>
-
-    <div class="action-buttons">
       <button
         ref="rollBtnRef"
-        @click="onRollClick"
-        :disabled="
-          isMoving ||
-          store.isDiceRolling ||
-          store.isTurnComplete ||
-          (activePlayerInJail && activePlayerJailRolling)
-        "
+        @click="onPrimaryBtnClick"
+        :disabled="primaryBtnDisabled"
         tabindex="0"
-        class="action-btn roll-btn"
-        :class="{
-          'disabled-btn':
-            isMoving ||
-            store.isDiceRolling ||
-            store.isTurnComplete ||
-            (activePlayerInJail && activePlayerJailRolling),
-          'jail-roll-btn': activePlayerInJail,
-        }"
+        class="action-btn"
+        :class="primaryBtnClass"
       >
-        {{
-          activePlayerInJail
-            ? "🎲 Tirar por dobles"
-            : store.isDiceRolling
-              ? "Rodando..."
-              : isMoving
-                ? "Moviendo..."
-                : "🎲 Tirar Dados"
-        }}
+        {{ primaryBtnLabel }}
       </button>
 
       <button
-        ref="camBtnRef"
-        @click="store.toggleCameraFollow()"
+        ref="configBtnRef"
+        @click="toggleSidebar"
         tabindex="0"
-        class="action-btn cam-btn"
-        :class="{ 'cam-active': store.isCamFollowActive }"
+        class="action-btn config-btn"
+        :class="{ 'config-active': sidebarOpen }"
       >
-        {{ store.isCamFollowActive ? "🎥 Cámara: Fija" : "🎥 Cámara: Libre" }}
+        ⚙ Configuración
       </button>
     </div>
   </div>
+
+  <SidebarConfig
+    :open="sidebarOpen"
+    :is-moving="isMoving"
+    @close="sidebarOpen = false"
+    @open-exchange="onSidebarExchange"
+    @toggle-camera="onSidebarCamera"
+  />
 
   <div
     class="dado-wrapper"
@@ -123,9 +97,18 @@
 
 <script setup lang="ts">
 import { useGameStore } from "~/stores/gameStore";
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from "vue";
+import {
+  ref,
+  computed,
+  onMounted,
+  onUnmounted,
+  watch,
+  nextTick,
+  type Ref,
+} from "vue";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
+import SidebarConfig from "~/components/SidebarConfig.vue";
 
 const store = useGameStore();
 
@@ -148,34 +131,30 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: "roll", value: number): void;
-  (e: "toggle-camera"): void;
   (e: "next-turn"): void;
-  (e: "pay-bail"): void;
+  (e: "open-exchange"): void;
 }>();
 
 const isSliding = ref(false);
 const isRolling = ref(false);
+const sidebarOpen = ref(false);
 
 const activePlayerInJail = computed(() => store.activePlayer?.inJail ?? false);
 const activePlayerCash = computed(() => store.activePlayer?.cash ?? 0);
 const activePlayerJailRolling = ref(false);
 
 const rollBtnRef = ref<HTMLElement | null>(null);
+const configBtnRef = ref<HTMLElement | null>(null);
 const bailBtnRef = ref<HTMLElement | null>(null);
-const nextBtnRef = ref<HTMLElement | null>(null);
-const camBtnRef = ref<HTMLElement | null>(null);
 
-const shouldAutoFocus = computed(() => !props.cardOpen);
-const overlayEnabled = computed(() => !props.cardOpen);
+const shouldAutoFocus = computed(() => !props.cardOpen && !sidebarOpen.value);
+const overlayEnabled = computed(() => !props.cardOpen && !sidebarOpen.value);
 
 const actionRefs = computed(() => {
-  if (store.isTurnComplete) {
-    return [nextBtnRef, camBtnRef];
-  }
-  if (activePlayerInJail.value) {
-    return [bailBtnRef, rollBtnRef, camBtnRef];
-  }
-  return [rollBtnRef, camBtnRef];
+  const refs: Ref<HTMLElement | null>[] = [];
+  if (activePlayerInJail.value && !isTurnDone.value) refs.push(bailBtnRef);
+  refs.push(rollBtnRef, configBtnRef);
+  return refs;
 });
 
 const { focusButton, autoFocus } = useKeyboardNavigation(actionRefs, {
@@ -187,23 +166,24 @@ const { focusButton, autoFocus } = useKeyboardNavigation(actionRefs, {
 
 function focusPrimaryButton() {
   nextTick(() => {
-    if (props.cardOpen) return;
-    if (store.isTurnComplete) {
-      nextBtnRef.value?.focus();
-    } else if (activePlayerInJail.value) {
-      const btn =
-        bailBtnRef.value && !(bailBtnRef.value as HTMLButtonElement).disabled
-          ? bailBtnRef.value
-          : null;
-      if (btn) {
-        btn.focus();
-      } else {
-        rollBtnRef.value?.focus();
-      }
-    } else {
-      rollBtnRef.value?.focus();
-    }
+    if (props.cardOpen || sidebarOpen.value) return;
+    rollBtnRef.value?.focus();
   });
+}
+
+function toggleSidebar() {
+  sidebarOpen.value = !sidebarOpen.value;
+  if (!sidebarOpen.value) {
+    nextTick(() => rollBtnRef.value?.focus());
+  }
+}
+
+function onSidebarExchange() {
+  emit("open-exchange");
+}
+
+function onSidebarCamera() {
+  // Camera toggle is already handled inside SidebarConfig via store.toggleCameraFollow()
 }
 
 watch(
@@ -217,7 +197,18 @@ watch(
 watch(
   () => props.cardOpen,
   (val) => {
+    if (val) {
+      sidebarOpen.value = false;
+    }
     if (!val) focusPrimaryButton();
+  },
+);
+watch(
+  () => sidebarOpen.value,
+  (val) => {
+    if (!val) {
+      nextTick(() => rollBtnRef.value?.focus());
+    }
   },
 );
 
@@ -257,8 +248,43 @@ const facePositions: Record<number, Record<string, string>[]> = {
   ],
 };
 
-function onNextTurnClick() {
-  emit("next-turn");
+const isTurnDone = computed(() => store.isTurnComplete);
+
+const primaryBtnLabel = computed(() => {
+  if (isTurnDone.value) return "Siguiente ↪";
+  if (activePlayerInJail.value) return "🎲 Tirar por dobles";
+  if (store.isDiceRolling) return "Rodando...";
+  if (props.isMoving) return "Moviendo...";
+  return "🎲 Tirar Dados";
+});
+
+const primaryBtnDisabled = computed(() => {
+  if (isTurnDone.value) return false;
+  return (
+    props.isMoving ||
+    store.isDiceRolling ||
+    (activePlayerInJail.value && activePlayerJailRolling.value)
+  );
+});
+
+const primaryBtnClass = computed(() => {
+  if (isTurnDone.value) return { "next-btn": true };
+  return {
+    "roll-btn": true,
+    "disabled-btn":
+      props.isMoving ||
+      store.isDiceRolling ||
+      (activePlayerInJail.value && activePlayerJailRolling.value),
+    "jail-roll-btn": activePlayerInJail.value,
+  };
+});
+
+function onPrimaryBtnClick() {
+  if (isTurnDone.value) {
+    emit("next-turn");
+  } else {
+    onRollClick();
+  }
 }
 
 function onPayBailClick() {
@@ -290,14 +316,6 @@ async function onRollClick() {
     }, 1500);
   });
 }
-
-const canRoll = computed(
-  () =>
-    !props.isMoving &&
-    !store.isDiceRolling &&
-    !store.isTurnComplete &&
-    !isRolling.value,
-);
 </script>
 
 <style scoped>
@@ -421,7 +439,8 @@ const canRoll = computed(
 
 .next-btn {
   background: #3b82f6;
-  pointer-events: auto;
+  padding: 14px 32px;
+  font-size: 18px;
   box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4);
 }
 
@@ -430,19 +449,35 @@ const canRoll = computed(
   transform: translateY(-2px);
 }
 
-.cam-btn {
+.bail-btn {
+  background: #f59e0b;
+  color: #1a1a2e;
+  box-shadow: 0 8px 16px rgba(245, 158, 11, 0.3);
+}
+
+.bail-btn:hover:not(:disabled) {
+  background: #d97706;
+  transform: translateY(-2px);
+}
+
+.bail-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.config-btn {
   background: #4b5563;
   box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
 }
 
-.cam-btn:hover:not(.cam-active) {
+.config-btn:hover:not(.config-active) {
   background: #374151;
   transform: translateY(-2px);
 }
 
-.cam-active {
-  background: #3b82f6;
-  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4);
+.config-active {
+  background: #6366f1;
+  box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
 }
 
 .disabled-btn {
@@ -539,28 +574,6 @@ const canRoll = computed(
   margin-left: 6px;
 }
 
-.jail-actions {
-  display: flex;
-  gap: 8px;
-  pointer-events: auto;
-}
-
-.bail-btn {
-  background: #f59e0b;
-  color: #1a1a2e;
-  box-shadow: 0 8px 16px rgba(245, 158, 11, 0.3);
-}
-
-.bail-btn:hover:not(:disabled) {
-  background: #d97706;
-  transform: translateY(-2px);
-}
-
-.bail-btn:disabled {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
 .jail-roll-btn {
   background: #6366f1 !important;
   box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4) !important;
@@ -598,11 +611,11 @@ const canRoll = computed(
     0 0 0 4px rgba(245, 158, 11, 0.25);
 }
 
-.cam-btn:focus-visible {
-  outline: 2px solid #9ca3af;
+.config-btn:focus-visible {
+  outline: 2px solid #818cf8;
   outline-offset: 3px;
   box-shadow:
     0 8px 15px rgba(0, 0, 0, 0.2),
-    0 0 0 4px rgba(156, 163, 175, 0.25);
+    0 0 0 4px rgba(129, 140, 248, 0.25);
 }
 </style>
