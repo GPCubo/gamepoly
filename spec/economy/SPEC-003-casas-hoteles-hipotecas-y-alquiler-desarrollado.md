@@ -9,7 +9,7 @@ status: done
 
 ## Description
 
-Agregar la logica economica para que un jugador pueda construir casas al completar un grupo de propiedades, ampliar una propiedad a hotel cuando tenga 3 casas, vender mejoras y manejar hipotecas. Las propiedades hipotecadas no cobran alquiler cuando otro jugador cae en ellas.
+Agregar la logica economica para que un jugador pueda construir casas al completar un grupo de propiedades, ampliar una propiedad a hotel cuando tenga 4 casas, vender mejoras y manejar hipotecas. Las propiedades hipotecadas no cobran alquiler cuando otro jugador cae en ellas.
 
 La hipoteca de propiedades puede hacerse aunque el jugador no tenga el grupo completo. Si una propiedad tiene casas u hotel, primero deben venderse todas las mejoras antes de poder hipotecarla. La construccion de casas y hoteles si requiere poseer el grupo completo de color.
 
@@ -25,8 +25,8 @@ Esta funcionalidad tambien alimenta el tablero visual de board/SPEC-003, porque 
 - `GameState` agrega `propertyDevelopments: Record<number, PropertyDevelopmentState>`.
 - Las propiedades compradas o ganadas en subasta inicializan su desarrollo con `_ensurePropertyDevelopment`.
 - `ownsFullPropertyGroup(tileIndex, playerId)` valida que el jugador tenga todas las propiedades de un grupo de color.
-- `canBuildHouse` requiere propiedad de color, grupo completo, no hipotecada, sin hotel, menos de 3 casas y fondos suficientes.
-- `canBuildHotel` requiere propiedad de color, grupo completo, no hipotecada, exactamente el estado previo de 3 casas y fondos suficientes.
+- `canBuildHouse` requiere propiedad de color, grupo completo, no hipotecada, sin hotel, menos de 4 casas y fondos suficientes.
+- `canBuildHotel` requiere propiedad de color, grupo completo, no hipotecada, exactamente el estado previo de 4 casas y fondos suficientes.
 - `sellImprovement` vende hotel o casa y devuelve la mitad del costo.
 - `mortgageProperty` marca una propiedad como hipotecada y suma efectivo al jugador, pero `canMortgageProperty` bloquea propiedades con casas u hotel.
 - `unmortgageProperty` cobra el costo de deshipoteca y vuelve a activar alquiler.
@@ -79,8 +79,8 @@ Alquiler definido:
 ## Acceptance Criteria
 
 - [x] El jugador puede construir casas solo si posee el grupo completo.
-- [x] Una propiedad acepta hasta 3 casas.
-- [x] Con 3 casas, el jugador puede ampliar a hotel pagando costo adicional.
+- [x] Una propiedad acepta hasta 4 casas.
+- [x] Con 4 casas, el jugador puede ampliar a hotel pagando costo adicional.
 - [x] Al ampliar a hotel, las casas se reemplazan por el hotel.
 - [x] El jugador puede vender hotel o casas y recibir reembolso.
 - [x] La hipoteca se puede hacer sin tener el grupo completo.

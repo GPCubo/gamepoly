@@ -11,11 +11,11 @@ status: done
 
 Permitir configurar escenarios de prueba al iniciar una partida usando semillas reutilizables activadas por parametros en la URL, solo cuando la app corre en local. Cada semilla debe declararse en un registro central para que futuras pruebas se agreguen sin duplicar condicionales en la pantalla de inicio.
 
-La primera semilla implementada es `onegroupproperty=true`, que asigna a cada jugador activo al menos un grupo completo de propiedades al iniciar la partida.
+La primera semilla implementada es `allproperties=true`, que asigna todas las propiedades al jugador activo y fija su dinero en `$100000` al iniciar la partida.
 
 Ejemplo:
 
-`http://localhost:3000/?onegroupproperty=true`
+`http://localhost:3000/?allproperties=true`
 
 ## Context and Motivation
 
@@ -42,16 +42,8 @@ Esta spec complementa settings/SPEC-001, que configura variables de partida ante
   - `::1`
   - `[::1]`
 - `applyLocalScenarioSeeds(params, store)` recorre todas las semillas registradas y aplica las que esten habilitadas.
-- `store.seedOneGroupPerPlayer()` reparte grupos completos usando un orden deterministico:
-  - brown
-  - lightBlue
-  - pink
-  - orange
-  - red
-  - yellow
-  - green
-  - darkBlue
-- La asignacion no descuenta dinero porque el objetivo es crear un estado de prueba rapido.
+- `store.seedAllPropertiesForActivePlayer(100000)` asigna todas las propiedades comprables al jugador activo.
+- La semilla fija el dinero del jugador activo exactamente en `$100000`.
 - Cada propiedad asignada inicializa su `PropertyDevelopmentState`.
 
 ## Implementation Plan
@@ -63,29 +55,30 @@ Esta spec complementa settings/SPEC-001, que configura variables de partida ante
 ### Files to modify
 
 - `pages/index.vue` - Leer parametros de URL local antes de navegar a `/game`.
-- `stores/gameStore.ts` - Agregar `seedOneGroupPerPlayer` y orden deterministico de grupos.
+- `stores/gameStore.ts` - Agregar `seedAllPropertiesForActivePlayer` para asignar propiedades y dinero de prueba.
 
 ### Ordered Steps
 
-1. Agregar `PROPERTY_SCENARIO_GROUP_ORDER` al store.
-2. Agregar accion `seedOneGroupPerPlayer`.
-3. En la accion, recorrer jugadores activos y asignar un grupo completo por jugador.
-4. Inicializar desarrollo para cada propiedad asignada.
-5. Crear `config/localScenarioSeeds.ts`.
-6. Declarar `LocalScenarioSeed`, `LocalScenarioSeedContext` y `LOCAL_SCENARIO_SEEDS`.
-7. Registrar la semilla `one-group-property` para el parametro `onegroupproperty=true`.
-8. Agregar `applyLocalScenarioSeeds` para aplicar cualquier semilla habilitada.
-9. En `pages/index.vue`, agregar `isLocalGameUrl`.
-10. Despues de `store.setupGame`, ejecutar `applyLocalScenarioSeeds` solo si la URL es local.
-11. Navegar a `/game` como flujo normal.
-12. Verificar manualmente la ruta local con `?onegroupproperty=true`.
+1. Agregar accion `seedAllPropertiesForActivePlayer`.
+2. En la accion, tomar el jugador activo.
+3. Fijar el dinero del jugador activo en `$100000`.
+4. Asignar todas las propiedades comprables al jugador activo.
+5. Inicializar desarrollo para cada propiedad asignada.
+6. Crear `config/localScenarioSeeds.ts`.
+7. Declarar `LocalScenarioSeed`, `LocalScenarioSeedContext` y `LOCAL_SCENARIO_SEEDS`.
+8. Registrar la semilla `all-properties` para el parametro `allproperties=true`.
+9. Agregar `applyLocalScenarioSeeds` para aplicar cualquier semilla habilitada.
+10. En `pages/index.vue`, agregar `isLocalGameUrl`.
+11. Despues de `store.setupGame`, ejecutar `applyLocalScenarioSeeds` solo si la URL es local.
+12. Navegar a `/game` como flujo normal.
+13. Verificar manualmente la ruta local con `?allproperties=true`.
 
 ## Acceptance Criteria
 
-- [x] El parametro `onegroupproperty=true` solo se aplica en entorno local.
+- [x] El parametro `allproperties=true` solo se aplica en entorno local.
 - [x] Sin el parametro, la partida inicia normal.
-- [x] Con el parametro, cada jugador activo recibe un grupo completo de propiedades.
-- [x] La asignacion no descuenta dinero inicial.
+- [x] Con el parametro, el jugador activo recibe todas las propiedades comprables.
+- [x] Con el parametro, el jugador activo queda con `$100000`.
 - [x] Las propiedades asignadas quedan disponibles para construir casas.
 - [x] Las propiedades asignadas aparecen en el sidebar de gestion.
 - [x] Las semillas se declaran en un registro reusable.

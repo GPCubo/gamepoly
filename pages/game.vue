@@ -90,7 +90,9 @@
     <GameOverlay
       :current-position="store.casillaActual"
       :is-moving="store.isAnyMoving"
-      :card-open="showTileCard || showAuction || showCardOverlay || showExchange"
+      :card-open="
+        showTileCard || showAuction || showCardOverlay || showExchange
+      "
       @roll="onDiceRoll"
       @next-turn="onNextTurn"
       @open-exchange="onOpenExchange"
@@ -145,10 +147,7 @@
       @unsold="onAuctionUnsold"
     />
 
-    <WinnerOverlay
-      v-if="store.winner"
-      :player="store.winner"
-    />
+    <WinnerOverlay v-if="store.winner" :player="store.winner" />
 
     <ExchangeModal
       v-if="showExchange && !store.winner"
@@ -205,7 +204,9 @@ const showAuction = ref(false);
 const showCardOverlay = ref(false);
 const showExchange = ref(false);
 const exchangeIsResponding = ref(false);
-const currentTile = computed(() => BOARD_TILES[(store.casillaActual - 1 + 40) % 40]);
+const currentTile = computed(
+  () => BOARD_TILES[(store.casillaActual - 1 + 40) % 40],
+);
 
 const TAX_AMOUNTS: Record<number, number> = { 4: 200, 38: 100 };
 
@@ -215,7 +216,8 @@ function computeRent(tile: BoardTile, ownerId: number): number {
 
 const tileOwnerId = computed<number | undefined>(() => {
   const t = currentTile.value;
-  if (t.type !== "property" && t.type !== "railroad" && t.type !== "utility") return undefined;
+  if (t.type !== "property" && t.type !== "railroad" && t.type !== "utility")
+    return undefined;
   return store.propertyOwners[t.index];
 });
 
@@ -227,7 +229,9 @@ const tileOwnerColor = computed<string | undefined>(() => {
   if (tileOwnerId.value === undefined) return undefined;
   const owner = store.players.find((p) => p.id === tileOwnerId.value);
   if (!owner) return undefined;
-  const token = GAME_CONFIG.TOKEN_MODELS.find((t) => t.file === owner.tokenModel);
+  const token = GAME_CONFIG.TOKEN_MODELS.find(
+    (t) => t.file === owner.tokenModel,
+  );
   return token?.color;
 });
 
@@ -240,10 +244,18 @@ const tileDevelopment = computed(() =>
   store.getPropertyDevelopment(currentTile.value.index),
 );
 const activePlayerId = computed(() => store.activePlayer?.id ?? -1);
-const tileHouseCost = computed(() => store.getHouseCost(currentTile.value.index));
-const tileHotelCost = computed(() => store.getHotelCost(currentTile.value.index));
-const tileMortgageValue = computed(() => store.getMortgageValue(currentTile.value.index));
-const tileUnmortgageCost = computed(() => store.getUnmortgageCost(currentTile.value.index));
+const tileHouseCost = computed(() =>
+  store.getHouseCost(currentTile.value.index),
+);
+const tileHotelCost = computed(() =>
+  store.getHotelCost(currentTile.value.index),
+);
+const tileMortgageValue = computed(() =>
+  store.getMortgageValue(currentTile.value.index),
+);
+const tileUnmortgageCost = computed(() =>
+  store.getUnmortgageCost(currentTile.value.index),
+);
 const canBuildHouseOnTile = computed(() =>
   store.canBuildHouse(currentTile.value.index, activePlayerId.value),
 );
@@ -295,14 +307,20 @@ watch(
       store.payTax(activeId, TAX_AMOUNTS[tile.index] ?? 100);
     }
 
-    if (tile.type === "property" || tile.type === "railroad" || tile.type === "utility") {
+    if (
+      tile.type === "property" ||
+      tile.type === "railroad" ||
+      tile.type === "utility"
+    ) {
       const ownerId = store.propertyOwners[tile.index];
       if (ownerId !== undefined && ownerId !== activeId) {
         const rent = computeRent(tile, ownerId);
         if (rent > 0) {
           store.collectRent(activeId, ownerId, rent);
         } else {
-          store.setStatusMessage(`${tile.name} está hipotecada: no se paga alquiler`);
+          store.setStatusMessage(
+            `${tile.name} está hipotecada: no se paga alquiler`,
+          );
         }
       }
     }
@@ -313,7 +331,9 @@ watch(
 
 watch(
   () => store.winner,
-  (w) => { if (w) showTileCard.value = false; },
+  (w) => {
+    if (w) showTileCard.value = false;
+  },
 );
 
 function onBuyTile() {
@@ -366,13 +386,6 @@ function onUnmortgageTile() {
 function onAuctionSold(winnerId: number, amount: number) {
   const tile = currentTile.value;
   store.buyAuctionedProperty(tile.index, winnerId, amount);
-  const winner = store.players.find((p) => p.id === winnerId);
-  if (false && winner) {
-    winner.cash -= amount;
-    store.propertyOwners[tile.index] = winnerId;
-    store._checkBankruptcy(winnerId);
-    store.statusMessage = `${winner.name} ganó la subasta de ${tile.name} por $${amount}`;
-  }
   showAuction.value = false;
   if (pendingDoublesTurn) {
     pendingDoublesTurn = false;
@@ -415,7 +428,11 @@ async function onCardAccept() {
     return;
   }
   const tile = currentTile.value;
-  if (tile.type === "property" || tile.type === "railroad" || tile.type === "utility") {
+  if (
+    tile.type === "property" ||
+    tile.type === "railroad" ||
+    tile.type === "utility"
+  ) {
     showTileCard.value = true;
   } else {
     if (pendingDoublesTurn) {
@@ -461,7 +478,12 @@ if (playerCount > 0) {
 }
 
 const { getCameraPosition } = useCameraOrbit();
-const { getCasillaCoordinates, getPropertyBuildSlot, getPropertyBuildingSlots } = useBoardGeometry();
+const {
+  getCasillaCoordinates,
+  getPropertyBuildSlot,
+  getPropertyBuildingSlots,
+  getBoardLocalOffset,
+} = useBoardGeometry();
 const tileLabels = useTileLabels();
 
 function getConfiguredBoardHousePlacements(): BoardHouseAssetPlacement[] {
@@ -472,32 +494,48 @@ function getConfiguredBoardHousePlacements(): BoardHouseAssetPlacement[] {
   return getPropertyDevelopmentPlacements(store.propertyDevelopments);
 }
 
-const boardHousePlacements = computed(() => getConfiguredBoardHousePlacements());
-const boardHouseTransforms = computed(() => boardHousePlacements.value.map((placement) => {
-  const definition = BOARD_HOUSE_ASSET_DEFINITIONS[placement.type];
-  const buildSlots = placement.buildCount
-    ? getPropertyBuildingSlots(placement.tileIndex, placement.buildCount)
-    : [];
-  const buildSlot = placement.buildCount
-    ? buildSlots[placement.buildIndex ?? 0]
-    : getPropertyBuildSlot(placement.tileIndex);
-  const position = buildSlot?.position ?? getCasillaCoordinates(placement.tileIndex);
-  const rotation = buildSlot?.rotation ?? { x: 0, y: 0, z: 0 };
+const boardHousePlacements = computed(() =>
+  getConfiguredBoardHousePlacements(),
+);
+const boardHouseTransforms = computed(() =>
+  boardHousePlacements.value.map((placement) => {
+    const definition = BOARD_HOUSE_ASSET_DEFINITIONS[placement.type];
+    const buildSlots = placement.buildCount
+      ? getPropertyBuildingSlots(placement.tileIndex, placement.buildCount)
+      : [];
+    const buildSlot = placement.buildCount
+      ? buildSlots[placement.buildIndex ?? 0]
+      : getPropertyBuildSlot(placement.tileIndex);
+    const position =
+      buildSlot?.position ?? getCasillaCoordinates(placement.tileIndex);
+    const rotation = buildSlot?.rotation ?? { x: 0, y: 0, z: 0 };
+    const localOffset = getBoardLocalOffset(
+      placement.tileIndex,
+      placement.inwardOffset ?? definition.defaultInwardOffset,
+      placement.alongOffset ?? definition.defaultAlongOffset,
+    );
 
-  return {
-    position: {
-      x: position.x,
-      y: position.y + (placement.yOffset ?? definition.defaultYOffset),
-      z: position.z,
-    },
-    rotation: {
-      x: rotation.x,
-      y: rotation.y + (placement.rotationYOffset ?? 0),
-      z: rotation.z,
-    },
-    scale: placement.scale ?? definition.defaultScale,
-  };
-}));
+    return {
+      position: {
+        x:
+          position.x +
+          localOffset.x +
+          (placement.xOffset ?? definition.defaultXOffset),
+        y: position.y + (placement.yOffset ?? definition.defaultYOffset),
+        z:
+          position.z +
+          localOffset.z +
+          (placement.zOffset ?? definition.defaultZOffset),
+      },
+      rotation: {
+        x: rotation.x,
+        y: rotation.y + (placement.rotationYOffset ?? 0),
+        z: rotation.z,
+      },
+      scale: placement.scale ?? definition.defaultScale,
+    };
+  }),
+);
 
 function refreshBoardHouseScenes() {
   const models = boardHouseModels.value;

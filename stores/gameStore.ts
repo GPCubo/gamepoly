@@ -86,17 +86,6 @@ const PROPERTY_COLOR_GROUPS = new Set<TileGroup>([
   "darkBlue",
 ]);
 
-const PROPERTY_SCENARIO_GROUP_ORDER: TileGroup[] = [
-  "brown",
-  "lightBlue",
-  "pink",
-  "orange",
-  "red",
-  "yellow",
-  "green",
-  "darkBlue",
-];
-
 function roundToNearest10(value: number): number {
   return Math.round(value / 10) * 10;
 }
@@ -369,30 +358,19 @@ export const useGameStore = defineStore("game", {
       this._checkBankruptcy(playerId);
     },
 
-    seedOneGroupPerPlayer() {
-      const availableGroups = PROPERTY_SCENARIO_GROUP_ORDER.filter(
-        (group) => getPropertyGroupTiles(group).length > 0,
-      );
-      if (availableGroups.length === 0) return;
+    seedAllPropertiesForActivePlayer(cash: number) {
+      const player = this.activePlayer;
+      if (!player) return;
 
-      const seededGroups: string[] = [];
-      this.activePlayers.forEach((player, playerIndex) => {
-        const group = availableGroups[playerIndex % availableGroups.length];
-        const groupTiles = getPropertyGroupTiles(group);
+      player.cash = cash;
 
-        for (const tile of groupTiles) {
-          this.propertyOwners[tile.index] = player.id;
-          this._ensurePropertyDevelopment(tile.index);
-        }
+      for (const tile of BOARD_TILES) {
+        if (tile.price === undefined) continue;
+        this.propertyOwners[tile.index] = player.id;
+        this._ensurePropertyDevelopment(tile.index);
+      }
 
-        seededGroups.push(
-          `${player.name}: ${groupTiles
-            .map((tile) => tile.shortName ?? tile.name)
-            .join(", ")}`,
-        );
-      });
-
-      this.statusMessage = `Escenario local activado. ${seededGroups.join(" | ")}`;
+      this.statusMessage = `Escenario local activado. ${player.name} inicia con todas las propiedades y $${cash}`;
     },
 
     getPropertyDevelopment(tileIndex: number): PropertyDevelopmentState {
@@ -442,7 +420,7 @@ export const useGameStore = defineStore("game", {
       if (!this.ownsFullPropertyGroup(tileIndex, playerId)) return false;
 
       const development = this.getPropertyDevelopment(tileIndex);
-      if (development.mortgaged || development.hotel || development.houses >= 3) return false;
+      if (development.mortgaged || development.hotel || development.houses >= 4) return false;
       return player.cash >= this.getHouseCost(tileIndex);
     },
 
@@ -454,7 +432,7 @@ export const useGameStore = defineStore("game", {
       if (!this.ownsFullPropertyGroup(tileIndex, playerId)) return false;
 
       const development = this.getPropertyDevelopment(tileIndex);
-      if (development.mortgaged || development.hotel || development.houses < 3) return false;
+      if (development.mortgaged || development.hotel || development.houses < 4) return false;
       return player.cash >= this.getHotelCost(tileIndex);
     },
 
@@ -494,7 +472,7 @@ export const useGameStore = defineStore("game", {
       const cost = this.getHouseCost(tileIndex);
       const development = this._ensurePropertyDevelopment(tileIndex);
       player.cash -= cost;
-      development.houses = Math.min(3, development.houses + 1);
+      development.houses = Math.min(4, development.houses + 1);
       development.hotel = false;
       this.statusMessage = `${player.name} construyó una casa en ${tile.name} por $${cost}`;
       this._checkBankruptcy(playerId);
@@ -525,7 +503,7 @@ export const useGameStore = defineStore("game", {
       if (development.hotel) {
         const refund = Math.round(this.getHotelCost(tileIndex) / 2);
         development.hotel = false;
-        development.houses = 3;
+        development.houses = 4;
         player.cash += refund;
         this.statusMessage = `${player.name} vendió el hotel de ${tile.name} por $${refund}`;
         return;

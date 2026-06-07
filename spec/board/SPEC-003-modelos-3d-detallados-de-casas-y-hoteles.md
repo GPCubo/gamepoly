@@ -25,7 +25,8 @@ El tablero ya tenia casillas y etiquetas visibles (board/SPEC-002), pero las con
 - `public/models/casa_detallada.glb` y `public/models/hotel_detallado.glb` son los assets exportados que consume el juego.
 - `config/boardHouseAssets.ts` centraliza las definiciones de asset (`casa`, `hotel`), rutas, escalas, offsets y la conversion desde estado de desarrollo a placements.
 - `pages/game.vue` carga ambos modelos GLB y clona escenas segun los placements computados.
-- `composables/useBoardGeometry.ts` expone slots multiples para que hasta 3 casas se distribuyan dentro de una propiedad sin ocupar el mismo punto.
+- `composables/useBoardGeometry.ts` expone slots multiples para que hasta 4 casas se distribuyan dentro de una propiedad sin ocupar el mismo punto.
+- Las construcciones deben apoyarse visualmente sobre el tablero; no deben heredar padding vertical de etiquetas ni flotar sobre las propiedades.
 
 Riesgos considerados:
 
@@ -63,7 +64,8 @@ Riesgos considerados:
 8. Exportar ambos modelos a GLB dentro de `public/models`.
 9. Crear `boardHouseAssets.ts` para centralizar rutas, escalas y conversion desde casas/hotel a placements.
 10. Actualizar el render del tablero para cargar y clonar modelos segun el desarrollo de propiedades.
-11. Agregar slots multiples para distribuir hasta 3 casas en una misma casilla.
+11. Agregar slots multiples para distribuir hasta 4 casas en una misma casilla.
+12. Ajustar offsets verticales y profundidad local para que casas/hoteles queden pegados al tablero y a la zona de propiedad.
 
 ## Acceptance Criteria
 
@@ -77,10 +79,11 @@ Riesgos considerados:
 - [x] Las tejas del hotel estan acomodadas para no atravesar otros objetos.
 - [x] Existen GLB exportados para casa y hotel en `public/models`.
 - [x] El tablero puede renderizar casas y hoteles desde el estado de desarrollo.
+- [x] Las casas/hoteles se posicionan pegados al tablero y no flotan visualmente.
 
 ## Notes
 
-- La escala de la casa se ajusto menor cuando hay multiples casas (`scale: 0.12`) para que tres unidades entren en una casilla.
+- La escala de la casa se ajusta menor cuando hay multiples casas para que cuatro unidades entren en una casilla.
 - El hotel usa una escala distinta a la casa porque su volumen es mayor.
 - Los previews PNG sirven como validacion visual rapida de los scripts Blender.
 - Esta spec se conecta directamente con economy/SPEC-003, donde se define cuando una propiedad muestra casas u hotel.

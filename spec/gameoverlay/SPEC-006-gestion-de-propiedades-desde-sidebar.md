@@ -47,13 +47,13 @@ El sidebar fue creado para reducir botones visibles durante la partida (gameover
 3. Mostrar contador y estado vacio si el jugador activo no tiene propiedades.
 4. Renderizar tarjetas compactas para propiedades, ferrocarriles y servicios propios.
 5. Mostrar estado: hipotecada, activa, grupo completo, casas u hotel.
-6. Mostrar accion de casa si la propiedad permite construir y tiene menos de 3 casas.
-7. Mostrar accion de hotel cuando la propiedad tiene 3 casas.
+6. Mostrar accion de casa si la propiedad permite construir y tiene menos de 4 casas.
+7. Mostrar accion de hotel cuando la propiedad tiene 4 casas.
 8. Mostrar accion de vender mejora si hay casas u hotel.
 9. Mostrar accion de hipotecar o levantar hipoteca segun estado actual.
 10. Reutilizar validadores del store para habilitar/deshabilitar acciones.
 11. Agregar estilos compactos para que el panel funcione dentro del ancho del sidebar.
-12. Verificar el flujo con `?onegroupproperty=true`.
+12. Verificar el flujo con `?allproperties=true`.
 
 ## Acceptance Criteria
 
@@ -74,4 +74,4 @@ El sidebar fue creado para reducir botones visibles durante la partida (gameover
 - Esta spec complementa economy/SPEC-003; el sidebar no duplica reglas, solo llama al store.
 - El ancho del sidebar se amplio a `min(320px, 88vw)` para que las acciones quepan mejor.
 - Los iconos usan `material-symbols-outlined`, consistente con el resto de la interfaz actual.
-- La prueba manual confirmo que con `?onegroupproperty=true` el jugador activo ve el grupo asignado y puede comprar una casa desde el sidebar.
+- La prueba manual debe confirmar que con `?allproperties=true` el jugador activo ve todas las propiedades asignadas y puede comprar una casa desde el sidebar.

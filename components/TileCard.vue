@@ -62,7 +62,7 @@
               </div>
               <div class="action-stack management-actions">
                 <button
-                  v-if="!hasHotel && (houses ?? 0) < 3"
+                  v-if="!hasHotel && (houses ?? 0) < 4"
                   ref="buildHouseBtnRef"
                   class="action-btn manage-btn"
                   :class="{ 'disabled-btn': !canBuildHouse }"
@@ -74,7 +74,7 @@
                   <span>Construir casa ${{ houseCost }}</span>
                 </button>
                 <button
-                  v-if="!hasHotel && (houses ?? 0) >= 3"
+                  v-if="!hasHotel && (houses ?? 0) >= 4"
                   ref="buildHotelBtnRef"
                   class="action-btn manage-btn hotel-btn"
                   :class="{ 'disabled-btn': !canBuildHotel }"

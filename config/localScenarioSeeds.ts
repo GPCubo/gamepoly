@@ -1,5 +1,5 @@
 export interface LocalScenarioSeedContext {
-  seedOneGroupPerPlayer(): void;
+  seedAllPropertiesForActivePlayer(cash: number): void;
 }
 
 export interface LocalScenarioSeed {
@@ -16,11 +16,11 @@ function isTrueParam(params: URLSearchParams, key: string) {
 
 export const LOCAL_SCENARIO_SEEDS: LocalScenarioSeed[] = [
   {
-    key: "one-group-property",
-    queryParam: "onegroupproperty",
-    description: "Asigna un grupo completo de propiedades a cada jugador activo.",
-    isEnabled: (params) => isTrueParam(params, "onegroupproperty"),
-    apply: (context) => context.seedOneGroupPerPlayer(),
+    key: "all-properties",
+    queryParam: "allproperties",
+    description: "Asigna todas las propiedades al jugador activo y fija su dinero.",
+    isEnabled: (params) => isTrueParam(params, "allproperties"),
+    apply: (context) => context.seedAllPropertiesForActivePlayer(100000),
   },
 ];
 

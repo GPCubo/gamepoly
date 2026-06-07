@@ -8,7 +8,11 @@ export interface BoardHouseAssetPlacement {
   buildIndex?: number;
   buildCount?: number;
   scale?: number;
+  xOffset?: number;
   yOffset?: number;
+  zOffset?: number;
+  inwardOffset?: number;
+  alongOffset?: number;
   rotationYOffset?: number;
 }
 
@@ -16,7 +20,11 @@ export interface BoardHouseAssetDefinition {
   type: BoardHouseAssetType;
   modelPath: string;
   defaultScale: number;
+  defaultXOffset: number;
   defaultYOffset: number;
+  defaultZOffset: number;
+  defaultInwardOffset: number;
+  defaultAlongOffset: number;
 }
 
 export const BOARD_HOUSE_ASSET_DEFINITIONS: Record<
@@ -26,14 +34,22 @@ export const BOARD_HOUSE_ASSET_DEFINITIONS: Record<
   casa: {
     type: "casa",
     modelPath: "/models/casa_detallada.glb",
-    defaultScale: 0.18,
-    defaultYOffset: 0.015,
+    defaultScale: 0.1,
+    defaultXOffset: 0,
+    defaultYOffset: -0.005,
+    defaultZOffset: -0,
+    defaultInwardOffset: 0.4,
+    defaultAlongOffset: 0,
   },
   hotel: {
     type: "hotel",
     modelPath: "/models/hotel_detallado.glb",
-    defaultScale: 0.105,
-    defaultYOffset: 0.02,
+    defaultScale: 0.1,
+    defaultXOffset: 0,
+    defaultYOffset: -0.005,
+    defaultZOffset: -0,
+    defaultInwardOffset: 0.4,
+    defaultAlongOffset: 0,
   },
 };
 
@@ -47,7 +63,7 @@ export function getAllPropertyHousePlacements(
 ): BoardHouseAssetPlacement[] {
   return tiles
     .filter((tile) => tile.type === "property")
-    .map((tile) => ({
+    .map<BoardHouseAssetPlacement>((tile) => ({
       tileIndex: tile.index,
       type: "casa",
     }));
@@ -61,21 +77,23 @@ export interface BoardPropertyDevelopment {
 export function getPropertyDevelopmentPlacements(
   developments: Record<number, BoardPropertyDevelopment | undefined>,
 ): BoardHouseAssetPlacement[] {
-  return Object.entries(developments).flatMap(([tileIndexRaw, development]) => {
-    const tileIndex = Number(tileIndexRaw);
-    if (!development) return [];
+  return Object.entries(developments).flatMap<BoardHouseAssetPlacement>(
+    ([tileIndexRaw, development]) => {
+      const tileIndex = Number(tileIndexRaw);
+      if (!development) return [];
 
-    if (development.hotel) {
-      return [{ tileIndex, type: "hotel" }];
-    }
+      if (development.hotel) {
+        return [{ tileIndex, type: "hotel" }];
+      }
 
-    const houses = Math.max(0, Math.min(3, development.houses ?? 0));
-    return Array.from({ length: houses }, (_, buildIndex) => ({
-      tileIndex,
-      type: "casa",
-      buildIndex,
-      buildCount: houses,
-      scale: 0.12,
-    }));
-  });
+      const houses = Math.max(0, Math.min(4, development.houses ?? 0));
+      return Array.from({ length: houses }, (_, buildIndex) => ({
+        tileIndex,
+        type: "casa",
+        buildIndex,
+        buildCount: houses,
+        scale: 0.095,
+      }));
+    },
+  );
 }

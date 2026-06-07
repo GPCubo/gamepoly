@@ -59,7 +59,7 @@
 
               <div class="property-actions">
                 <button
-                  v-if="tile.type === 'property' && !developmentFor(tile).hotel && developmentFor(tile).houses < 3"
+                  v-if="tile.type === 'property' && !developmentFor(tile).hotel && developmentFor(tile).houses < 4"
                   class="mini-action build-action"
                   :class="{ 'disabled-btn': !canBuildHouse(tile) }"
                   :disabled="!canBuildHouse(tile)"
@@ -70,7 +70,7 @@
                 </button>
 
                 <button
-                  v-if="tile.type === 'property' && !developmentFor(tile).hotel && developmentFor(tile).houses >= 3"
+                  v-if="tile.type === 'property' && !developmentFor(tile).hotel && developmentFor(tile).houses >= 4"
                   class="mini-action hotel-action"
                   :class="{ 'disabled-btn': !canBuildHotel(tile) }"
                   :disabled="!canBuildHotel(tile)"
@@ -189,7 +189,7 @@ function developmentLabel(tile: BoardTile) {
   if (tile.type === "railroad") return "Activa";
   if (tile.type === "utility") return "Activa";
   if (development.hotel) return "Hotel";
-  if (development.houses > 0) return `${development.houses}/3 casas`;
+  if (development.houses > 0) return `${development.houses}/4 casas`;
   if (store.ownsFullPropertyGroup(tile.index, activePlayerId.value)) return "Grupo completo";
   return "Sin mejoras";
 }

@@ -93,9 +93,9 @@ export function useBoardGeometry() {
   const CORNER_SIZE = 0.45;
   const TILE_WIDTH = (BOARD_SIZE - CORNER_SIZE * 2) / 9;
   const TILE_DEPTH = 0.45;
-  const BAND_DEPTH = 0.10;
+  const BAND_DEPTH = 0.1;
   const WHITE_RELIEF_DEPTH = TILE_DEPTH - BAND_DEPTH;
-  const BUILD_Y_OFFSET = GAME_CONFIG.LABEL_Y_OFFSET + 0.015;
+  const BUILD_Y_OFFSET = 0;
 
   const getTileCenter = (idx: number): { x: number; z: number } => {
     const H = BOARD_HALF;
@@ -152,7 +152,9 @@ export function useBoardGeometry() {
     "darkBlue",
   ]);
 
-  const isPropertyColorGroup = (group: TileGroup): group is PropertyColorGroup =>
+  const isPropertyColorGroup = (
+    group: TileGroup,
+  ): group is PropertyColorGroup =>
     PROPERTY_COLOR_GROUPS.has(group as PropertyColorGroup);
 
   const getTileSide = (idx: number): 0 | 1 | 2 | 3 =>
@@ -160,9 +162,9 @@ export function useBoardGeometry() {
 
   const getBuildYaw = (side: 0 | 1 | 2 | 3): number => {
     if (side === 0) return 0;
-    if (side === 1) return -Math.PI / 2;
+    if (side === 1) return Math.PI / 2;
     if (side === 2) return Math.PI;
-    return Math.PI / 2;
+    return -Math.PI / 2;
   };
 
   const applyTileDepthOffset = (
@@ -219,8 +221,12 @@ export function useBoardGeometry() {
     // En create_monopoly_table.py, la franja blanca de cada propiedad queda
     // entre el borde exterior y la banda de color. Este centro local apunta a
     // esa franja completa, no al centro de una casilla individual.
-    const whiteReliefCenterLocalY = -BAND_DEPTH / 2;
-    const areaCenter = applyTileDepthOffset(baseCenter, side, whiteReliefCenterLocalY);
+    const whiteReliefCenterLocalY = -BAND_DEPTH;
+    const areaCenter = applyTileDepthOffset(
+      baseCenter,
+      side,
+      whiteReliefCenterLocalY,
+    );
 
     return {
       group,
@@ -274,13 +280,42 @@ export function useBoardGeometry() {
     tiles: BoardTile[] = BOARD_TILES,
   ): BoardBuildSlot | null => {
     const tile = tiles.find((candidate) => candidate.index === tileIndex);
-    if (!tile || tile.type !== "property" || !isPropertyColorGroup(tile.group)) return null;
+    if (!tile || tile.type !== "property" || !isPropertyColorGroup(tile.group))
+      return null;
 
-    const groupTiles = getPropertyTilesByGroup(tile.group, tiles);
-    const slotIndex = groupTiles.findIndex((candidate) => candidate.index === tileIndex);
-    const slots = getPropertyGroupBuildSlots(tile.group, groupTiles.length, tiles);
+    const side = getTileSide(tileIndex);
+    const tileCenter = getTileCenter(tileIndex);
+    const whiteReliefCenterLocalY = -BAND_DEPTH;
+    const slotCenter = applyTileDepthOffset(
+      tileCenter,
+      side,
+      whiteReliefCenterLocalY,
+    );
 
-    return slots[slotIndex] ?? null;
+    return {
+      group: tile.group,
+      tileIndex,
+      slotIndex: 0,
+      slotCount: 1,
+      area: {
+        group: tile.group,
+        tileIndexes: [tileIndex],
+        position: {
+          x: slotCenter.x,
+          y: ySuelo + BUILD_Y_OFFSET,
+          z: slotCenter.z,
+        },
+        rotation: { x: 0, y: getBuildYaw(side), z: 0 },
+        width: TILE_WIDTH,
+        depth: WHITE_RELIEF_DEPTH,
+      },
+      position: {
+        x: slotCenter.x,
+        y: ySuelo + BUILD_Y_OFFSET,
+        z: slotCenter.z,
+      },
+      rotation: { x: 0, y: getBuildYaw(side), z: 0 },
+    };
   };
 
   const getPropertyBuildingSlots = (
@@ -292,7 +327,7 @@ export function useBoardGeometry() {
     if (!baseSlot || slotCount <= 0) return [];
 
     const side = getTileSide(tileIndex);
-    const spacing = Math.min(TILE_WIDTH * 0.24, 0.08);
+    const spacing = Math.min(TILE_WIDTH * 0.28, 0.11);
     const start = -((slotCount - 1) * spacing) / 2;
 
     return Array.from({ length: slotCount }, (_, slotIndex) => {
@@ -310,6 +345,22 @@ export function useBoardGeometry() {
         },
       };
     });
+  };
+
+  const getBoardLocalOffset = (
+    tileIndex: number,
+    inwardOffset = 0,
+    alongOffset = 0,
+  ): { x: number; z: number } => {
+    const side = getTileSide(tileIndex);
+    const origin = { x: 0, z: 0 };
+    const inwardXZ = applyTileDepthOffset(origin, side, inwardOffset);
+    const alongXZ = applySideLengthOffset(origin, side, alongOffset);
+
+    return {
+      x: inwardXZ.x + alongXZ.x,
+      z: inwardXZ.z + alongXZ.z,
+    };
   };
 
   const getTileLabelTransform = (
@@ -394,6 +445,7 @@ export function useBoardGeometry() {
     getPropertyBuildingSlots,
     getPropertyGroupBuildArea,
     getPropertyGroupBuildSlots,
+    getBoardLocalOffset,
     getTileLabelTransform,
   };
 }
