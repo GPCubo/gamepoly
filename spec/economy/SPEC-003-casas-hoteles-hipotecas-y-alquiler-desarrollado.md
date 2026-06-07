@@ -25,10 +25,10 @@ Esta funcionalidad tambien alimenta el tablero visual de board/SPEC-003, porque 
 - `GameState` agrega `propertyDevelopments: Record<number, PropertyDevelopmentState>`.
 - Las propiedades compradas o ganadas en subasta inicializan su desarrollo con `_ensurePropertyDevelopment`.
 - `ownsFullPropertyGroup(tileIndex, playerId)` valida que el jugador tenga todas las propiedades de un grupo de color.
-- `canBuildHouse` requiere propiedad de color, grupo completo, no hipotecada, sin hotel, menos de 4 casas y fondos suficientes.
-- `canBuildHotel` requiere propiedad de color, grupo completo, no hipotecada, exactamente el estado previo de 4 casas y fondos suficientes.
-- `sellImprovement` vende hotel o casa y devuelve la mitad del costo.
-- `mortgageProperty` marca una propiedad como hipotecada y suma efectivo al jugador, pero `canMortgageProperty` bloquea propiedades con casas u hotel.
+- `canBuildHouse` requiere propiedad de color, grupo completo, sin propiedades hipotecadas en ese grupo, sin hotel, menos de 4 casas, fondos suficientes y construccion balanceada: para subir una propiedad al nivel N de casas, las demas propiedades del color deben estar al menos en nivel N-1.
+- `canBuildHotel` requiere propiedad de color, grupo completo, sin propiedades hipotecadas en ese grupo, 4 casas en la propiedad objetivo, fondos suficientes y que las demas propiedades del color tengan 4 casas u hotel.
+- `sellImprovement` vende hotel o casa y devuelve la mitad del costo. La venta tambien es balanceada: no se puede vender una mejora si al hacerlo otra propiedad del mismo color queda mas de un nivel por encima.
+- `mortgageProperty` marca una propiedad como hipotecada y suma efectivo al jugador, pero `canMortgageProperty` bloquea hipotecas en propiedades de color si cualquier propiedad de ese grupo tiene casas u hotel.
 - `unmortgageProperty` cobra el costo de deshipoteca y vuelve a activar alquiler.
 - `calculateRent` centraliza alquiler de propiedades, ferrocarriles y servicios considerando hipotecas y mejoras.
 - `pages/game.vue` usa `store.calculateRent` para cobrar o mostrar que la propiedad hipotecada no paga alquiler.
@@ -80,11 +80,15 @@ Alquiler definido:
 
 - [x] El jugador puede construir casas solo si posee el grupo completo.
 - [x] Una propiedad acepta hasta 4 casas.
+- [x] La construccion de casas respeta niveles balanceados dentro del grupo de color.
 - [x] Con 4 casas, el jugador puede ampliar a hotel pagando costo adicional.
+- [x] El hotel solo se puede construir si las demas propiedades del color tienen 4 casas u hotel.
 - [x] Al ampliar a hotel, las casas se reemplazan por el hotel.
 - [x] El jugador puede vender hotel o casas y recibir reembolso.
+- [x] La venta de mejoras respeta niveles balanceados dentro del grupo de color.
 - [x] La hipoteca se puede hacer sin tener el grupo completo.
 - [x] Una propiedad con casas u hotel no se puede hipotecar hasta vender todas sus mejoras.
+- [x] Una propiedad de color no se puede hipotecar si otra propiedad del mismo color tiene casas u hotel.
 - [x] Al vender la ultima casa, el conteo queda en 0 y desaparece el modelo visual del tablero.
 - [x] Una propiedad hipotecada no cobra alquiler.
 - [x] Ferrocarriles y servicios hipotecados no cuentan para calculo de renta.

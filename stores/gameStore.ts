@@ -412,15 +412,44 @@ export const useGameStore = defineStore("game", {
       return groupTiles.every((candidate) => this.propertyOwners[candidate.index] === playerId);
     },
 
+    hasMortgagedPropertyInColorGroup(tileIndex: number): boolean {
+      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      if (!tile || tile.type !== "property") return false;
+
+      return getPropertyGroupTiles(tile.group).some(
+        (candidate) => this.getPropertyDevelopment(candidate.index).mortgaged,
+      );
+    },
+
+    hasImprovementInColorGroup(tileIndex: number): boolean {
+      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      if (!tile || tile.type !== "property") return false;
+
+      return getPropertyGroupTiles(tile.group).some((candidate) => {
+        const development = this.getPropertyDevelopment(candidate.index);
+        return development.hotel || development.houses > 0;
+      });
+    },
+
     canBuildHouse(tileIndex: number, playerId: number): boolean {
       const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
       const player = this.players.find((candidate) => candidate.id === playerId);
       if (!tile || tile.type !== "property" || !player) return false;
       if (this.propertyOwners[tileIndex] !== playerId) return false;
       if (!this.ownsFullPropertyGroup(tileIndex, playerId)) return false;
+      if (this.hasMortgagedPropertyInColorGroup(tileIndex)) return false;
 
       const development = this.getPropertyDevelopment(tileIndex);
       if (development.mortgaged || development.hotel || development.houses >= 4) return false;
+      const nextHouseLevel = development.houses + 1;
+      const groupTiles = getPropertyGroupTiles(tile.group);
+      const canBuildEvenly = groupTiles.every((candidate) => {
+        if (candidate.index === tileIndex) return true;
+        const candidateDevelopment = this.getPropertyDevelopment(candidate.index);
+        const candidateLevel = candidateDevelopment.hotel ? 5 : candidateDevelopment.houses;
+        return candidateLevel >= nextHouseLevel - 1;
+      });
+      if (!canBuildEvenly) return false;
       return player.cash >= this.getHouseCost(tileIndex);
     },
 
@@ -430,16 +459,38 @@ export const useGameStore = defineStore("game", {
       if (!tile || tile.type !== "property" || !player) return false;
       if (this.propertyOwners[tileIndex] !== playerId) return false;
       if (!this.ownsFullPropertyGroup(tileIndex, playerId)) return false;
+      if (this.hasMortgagedPropertyInColorGroup(tileIndex)) return false;
 
       const development = this.getPropertyDevelopment(tileIndex);
       if (development.mortgaged || development.hotel || development.houses < 4) return false;
+      const groupTiles = getPropertyGroupTiles(tile.group);
+      const canBuildEvenly = groupTiles.every((candidate) => {
+        if (candidate.index === tileIndex) return true;
+        const candidateDevelopment = this.getPropertyDevelopment(candidate.index);
+        return candidateDevelopment.hotel || candidateDevelopment.houses >= 4;
+      });
+      if (!canBuildEvenly) return false;
       return player.cash >= this.getHotelCost(tileIndex);
     },
 
     canSellImprovement(tileIndex: number, playerId: number): boolean {
       if (this.propertyOwners[tileIndex] !== playerId) return false;
+      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      if (!tile || tile.type !== "property") return false;
       const development = this.getPropertyDevelopment(tileIndex);
-      return development.hotel || development.houses > 0;
+      if (!development.hotel && development.houses <= 0) return false;
+
+      const currentLevel = development.hotel ? 5 : development.houses;
+      const nextLevel = development.hotel ? 4 : development.houses - 1;
+      const groupTiles = getPropertyGroupTiles(tile.group);
+      return groupTiles.every((candidate) => {
+        if (candidate.index === tileIndex) return true;
+        const candidateDevelopment = this.getPropertyDevelopment(candidate.index);
+        const candidateLevel = candidateDevelopment.hotel
+          ? 5
+          : candidateDevelopment.houses;
+        return candidateLevel <= currentLevel && candidateLevel <= nextLevel + 1;
+      });
     },
 
     canMortgageProperty(tileIndex: number, playerId: number): boolean {
@@ -448,9 +499,7 @@ export const useGameStore = defineStore("game", {
       if (this.propertyOwners[tileIndex] !== playerId) return false;
       const development = this.getPropertyDevelopment(tileIndex);
       if (development.mortgaged) return false;
-      if (tile.type === "property" && (development.hotel || development.houses > 0)) {
-        return false;
-      }
+      if (tile.type === "property" && this.hasImprovementInColorGroup(tileIndex)) return false;
       return true;
     },
 

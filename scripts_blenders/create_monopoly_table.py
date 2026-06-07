@@ -56,7 +56,12 @@ TILE_COLORS = {
     "wood":         (0.180, 0.100, 0.050, 1),    # Mesa contenedora
     "frame":        (0.280, 0.150, 0.070, 1),    # Marco de madera
     "board_center": (0.918, 0.933, 0.890, 1),    # Fondo claro del tablero
-    "center_panel": (0.870, 0.895, 0.850, 1),    # Area central de dados
+    "plaza_grass":  (0.650, 0.820, 0.690, 1),    # Jardin central
+    "plaza_path":   (0.760, 0.720, 0.640, 1),    # Caminos de piedra
+    "plaza_tile":   (0.820, 0.790, 0.700, 1),    # Plaza principal
+    "plaza_edge":   (0.560, 0.500, 0.430, 1),    # Bordes de plaza/caminos
+    "tree_trunk":   (0.420, 0.240, 0.110, 1),
+    "tree_leaf":    (0.130, 0.480, 0.220, 1),
 }
 
 PROPERTY_GROUPS = ["brown", "lightBlue", "pink", "orange", "red", "yellow", "green", "darkBlue"]
@@ -155,6 +160,29 @@ def add_box(name, dims, location, material):
     bpy.ops.object.transform_apply(location=False, rotation=False, scale=True)
     return obj
 
+def add_cylinder(name, radius, depth, location, material, vertices=24):
+    bpy.ops.mesh.primitive_cylinder_add(
+        vertices=vertices,
+        radius=radius,
+        depth=depth,
+        location=location)
+    obj = bpy.context.active_object
+    obj.name = name
+    obj.data.materials.append(material)
+    return obj
+
+def add_cone(name, radius1, radius2, depth, location, material, vertices=24):
+    bpy.ops.mesh.primitive_cone_add(
+        vertices=vertices,
+        radius1=radius1,
+        radius2=radius2,
+        depth=depth,
+        location=location)
+    obj = bpy.context.active_object
+    obj.name = name
+    obj.data.materials.append(material)
+    return obj
+
 def bevel_mesh(obj, width=0.004, segments=2):
     """Redondea los cantos del objeto (footprint intacto -> no afecta alineación)."""
     if not ENABLE_BEVEL or width <= 0:
@@ -236,6 +264,87 @@ def build_frame(frame_mat):
 # ─────────────────────────────────────────────────────────────────────────
 # CONSTRUCCIÓN DEL MODELO 3D
 # ─────────────────────────────────────────────────────────────────────────
+def build_center_plaza(grass_mat, path_mat, plaza_mat, edge_mat, trunk_mat, leaf_mat):
+    board_top_z = BOARD_Z + BOARD_THICKNESS / 2
+    inner_half = BOARD_SIZE / 2 - TILE_DEPTH - 0.08
+    inner_span = inner_half * 2
+
+    grass_height = 0.012
+    path_height = 0.018
+    plaza_height = 0.024
+    plaza_size = 1.28
+    path_width = 0.38
+
+    grass = add_box(
+        "Central_Plaza_Garden",
+        (inner_span, inner_span, grass_height),
+        (0, 0, board_top_z + grass_height / 2),
+        grass_mat)
+    bevel_mesh(grass, width=0.01, segments=2)
+
+    vertical_path = add_box(
+        "Central_Plaza_Path_Vertical",
+        (path_width, inner_span, path_height),
+        (0, 0, board_top_z + path_height / 2 + 0.002),
+        path_mat)
+    bevel_mesh(vertical_path, width=0.006, segments=2)
+
+    horizontal_path = add_box(
+        "Central_Plaza_Path_Horizontal",
+        (inner_span, path_width, path_height),
+        (0, 0, board_top_z + path_height / 2 + 0.003),
+        path_mat)
+    bevel_mesh(horizontal_path, width=0.006, segments=2)
+
+    plaza = add_box(
+        "Central_Plaza_Main",
+        (plaza_size, plaza_size, plaza_height),
+        (0, 0, board_top_z + plaza_height / 2 + 0.006),
+        plaza_mat)
+    bevel_mesh(plaza, width=0.012, segments=3)
+
+    edge_height = plaza_height + 0.008
+    edge_width = 0.045
+    edge_z = board_top_z + edge_height / 2 + 0.008
+    edge_half = plaza_size / 2 + edge_width / 2
+    edges = [
+        ("Central_Plaza_Edge_N", (plaza_size + edge_width * 2, edge_width, edge_height), (0, edge_half, edge_z)),
+        ("Central_Plaza_Edge_S", (plaza_size + edge_width * 2, edge_width, edge_height), (0, -edge_half, edge_z)),
+        ("Central_Plaza_Edge_E", (edge_width, plaza_size, edge_height), (edge_half, 0, edge_z)),
+        ("Central_Plaza_Edge_W", (edge_width, plaza_size, edge_height), (-edge_half, 0, edge_z)),
+    ]
+    for name, dims, loc in edges:
+        edge = add_box(name, dims, loc, edge_mat)
+        bevel_mesh(edge, width=0.006, segments=2)
+
+    tree_positions = [
+        (-1.45, -1.45), (-1.05, -1.25), (-1.35, -0.82),
+        (1.45, -1.45), (1.05, -1.25), (1.35, -0.82),
+        (-1.45, 1.45), (-1.05, 1.25), (-1.35, 0.82),
+        (1.45, 1.45), (1.05, 1.25), (1.35, 0.82),
+    ]
+    trunk_depth = 0.12
+    crown_depth = 0.18
+    for idx, (x, y) in enumerate(tree_positions, start=1):
+        trunk = add_cylinder(
+            f"Central_Plaza_Tree_{idx:02d}_Trunk",
+            0.025,
+            trunk_depth,
+            (x, y, board_top_z + grass_height + trunk_depth / 2),
+            trunk_mat,
+            vertices=12)
+        bevel_mesh(trunk, width=0.002, segments=1)
+
+        crown = add_cone(
+            f"Central_Plaza_Tree_{idx:02d}_Crown",
+            0.12,
+            0.025,
+            crown_depth,
+            (x, y, board_top_z + grass_height + trunk_depth + crown_depth / 2 - 0.015),
+            leaf_mat,
+            vertices=18)
+        bevel_mesh(crown, width=0.004, segments=1)
+
 def build_gamepoly():
     safe_clear_scene()
 
@@ -243,7 +352,12 @@ def build_gamepoly():
     wood_mat = get_or_create_material("WoodTable", TILE_COLORS["wood"], roughness=0.55)
     frame_mat = get_or_create_material("WoodFrame", TILE_COLORS["frame"], roughness=0.4)
     center_mat = get_or_create_material("BoardCenter", TILE_COLORS["board_center"], roughness=0.6)
-    panel_mat = get_or_create_material("CenterPanel", TILE_COLORS["center_panel"], roughness=0.55)
+    plaza_grass_mat = get_or_create_material("PlazaGrass", TILE_COLORS["plaza_grass"], roughness=0.55)
+    plaza_path_mat = get_or_create_material("PlazaPath", TILE_COLORS["plaza_path"], roughness=0.45)
+    plaza_tile_mat = get_or_create_material("PlazaTile", TILE_COLORS["plaza_tile"], roughness=0.42)
+    plaza_edge_mat = get_or_create_material("PlazaEdge", TILE_COLORS["plaza_edge"], roughness=0.48)
+    tree_trunk_mat = get_or_create_material("TreeTrunk", TILE_COLORS["tree_trunk"], roughness=0.55)
+    tree_leaf_mat = get_or_create_material("TreeLeaf", TILE_COLORS["tree_leaf"], roughness=0.5)
     white_tile_mat = get_or_create_material("TileWhite", TILE_COLORS["white"], roughness=0.45)
     text_mat = get_or_create_material("TileText", (0.06, 0.06, 0.06, 1), roughness=0.3)
     text_mat_white = get_or_create_material("TileTextWhite", (0.95, 0.95, 0.92, 1), roughness=0.3)
@@ -259,10 +373,13 @@ def build_gamepoly():
     bevel_mesh(board, width=0.008, segments=2)
 
     # 2b. Panel central sutil (queda dentro del anillo de casillas: ±1.7 < ±1.8)
-    inner = BOARD_SIZE / 2 - TILE_DEPTH - 0.1
-    panel = add_box("Center_Panel", (inner * 2, inner * 2, BOARD_THICKNESS * 0.5),
-                    (0, 0, BOARD_Z + BOARD_THICKNESS / 2), panel_mat)
-    bevel_mesh(panel, width=0.01, segments=2)
+    build_center_plaza(
+        plaza_grass_mat,
+        plaza_path_mat,
+        plaza_tile_mat,
+        plaza_edge_mat,
+        tree_trunk_mat,
+        tree_leaf_mat)
 
     # 3. Marco de madera
     build_frame(frame_mat)
