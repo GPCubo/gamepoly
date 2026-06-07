@@ -7,12 +7,12 @@ import os
 #   IMPORTANTE: NO cambiar dimensiones ni get_tile_transform(). De ahí salen
 #   las posiciones que usan las etiquetas del tablero (useBoardGeometry.ts).
 # ─────────────────────────────────────────────────────────────────────────
-TABLE_WIDTH       = 6.0
-TABLE_DEPTH       = 6.0
+TABLE_WIDTH       = 6.4
+TABLE_DEPTH       = 6.4
 TABLE_TOP_Z       = 0.75
 TABLE_THICKNESS   = 0.08
 
-BOARD_SIZE        = 4.5
+BOARD_SIZE        = 4.8
 BOARD_Z           = TABLE_TOP_Z + 0.01
 BOARD_THICKNESS   = 0.04
 
@@ -20,11 +20,8 @@ TILE_HEIGHT       = 0.02
 CORNER_SIZE       = 0.45
 TILE_WIDTH        = (BOARD_SIZE - (CORNER_SIZE * 2)) / 9
 TILE_DEPTH        = 0.45
-BAND_DEPTH        = 0.10
+BAND_DEPTH        = 0.18
 PRICE_BOTTOM_MARGIN = 0.05
-ENABLE_BUILD_ZONES = True
-BUILD_ZONE_HEIGHT  = 0.006
-BUILD_ZONE_INSET   = 0.03
 
 # Marco decorativo (queda FUERA del anillo de casillas: no afecta alineación)
 FRAME_WIDTH       = 0.18
@@ -60,7 +57,6 @@ TILE_COLORS = {
     "frame":        (0.280, 0.150, 0.070, 1),    # Marco de madera
     "board_center": (0.918, 0.933, 0.890, 1),    # Fondo claro del tablero
     "center_panel": (0.870, 0.895, 0.850, 1),    # Area central de dados
-    "build_zone":   (0.940, 0.905, 0.720, 1),    # Zona comun casas/hoteles
 }
 
 PROPERTY_GROUPS = ["brown", "lightBlue", "pink", "orange", "red", "yellow", "green", "darkBlue"]
@@ -240,63 +236,6 @@ def build_frame(frame_mat):
 # ─────────────────────────────────────────────────────────────────────────
 # CONSTRUCCIÓN DEL MODELO 3D
 # ─────────────────────────────────────────────────────────────────────────
-def get_property_indexes(group):
-    return [i for i, tile_group in enumerate(TILE_GROUPS) if tile_group == group]
-
-def build_property_zone(group, zone_mat):
-    indexes = get_property_indexes(group)
-    if not indexes:
-        return
-
-    first_idx = indexes[0]
-    last_idx = indexes[-1]
-    first_rem = first_idx % 10
-    last_rem = last_idx % 10
-    span_slots = last_rem - first_rem + 1
-
-    first_x, first_y, rot = get_tile_transform(first_idx)
-    last_x, last_y, _ = get_tile_transform(last_idx)
-
-    center_x = (first_x + last_x) / 2
-    center_y = (first_y + last_y) / 2
-    z = BOARD_Z + BOARD_THICKNESS / 2 + TILE_HEIGHT + BUILD_ZONE_HEIGHT / 2
-
-    zone_width = (span_slots * TILE_WIDTH) - (BUILD_ZONE_INSET * 2)
-    zone_depth = (TILE_DEPTH - BAND_DEPTH) - (BUILD_ZONE_INSET * 2)
-    local_y = -(BAND_DEPTH / 2)
-
-    container = bpy.data.objects.new(f"BuildZone_{group}_Container", None)
-    container.location = (center_x, center_y, z)
-    container.rotation_euler = (0, 0, rot)
-    bpy.context.scene.collection.objects.link(container)
-
-    zone = add_box(
-        f"BuildZone_{group}",
-        (zone_width, zone_depth, BUILD_ZONE_HEIGHT),
-        (0, local_y, 0),
-        zone_mat)
-    bevel_mesh(zone, width=0.006, segments=2)
-    zone.parent = container
-    zone.location = (0, local_y, 0)
-
-    slot_mat = get_or_create_material(f"BuildSlotMat_{group}", TILE_COLORS[group], roughness=0.25)
-    for slot, tile_idx in enumerate(indexes):
-        slot_x = -zone_width / 2 + ((slot + 0.5) * zone_width / len(indexes))
-        marker = add_box(
-            f"BuildSlot_{group}_{tile_idx:02d}",
-            (0.035, 0.035, BUILD_ZONE_HEIGHT * 1.4),
-            (slot_x, local_y, BUILD_ZONE_HEIGHT * 0.7),
-            slot_mat)
-        bevel_mesh(marker, width=0.003, segments=1)
-        marker.parent = container
-        marker.location = (slot_x, local_y, BUILD_ZONE_HEIGHT * 0.7)
-
-def build_property_zones(zone_mat):
-    if not ENABLE_BUILD_ZONES:
-        return
-    for group in PROPERTY_GROUPS:
-        build_property_zone(group, zone_mat)
-
 def build_gamepoly():
     safe_clear_scene()
 
@@ -306,7 +245,6 @@ def build_gamepoly():
     center_mat = get_or_create_material("BoardCenter", TILE_COLORS["board_center"], roughness=0.6)
     panel_mat = get_or_create_material("CenterPanel", TILE_COLORS["center_panel"], roughness=0.55)
     white_tile_mat = get_or_create_material("TileWhite", TILE_COLORS["white"], roughness=0.45)
-    build_zone_mat = get_or_create_material("BuildZoneCommon", TILE_COLORS["build_zone"], roughness=0.5)
     text_mat = get_or_create_material("TileText", (0.06, 0.06, 0.06, 1), roughness=0.3)
     text_mat_white = get_or_create_material("TileTextWhite", (0.95, 0.95, 0.92, 1), roughness=0.3)
 
@@ -417,7 +355,7 @@ def build_gamepoly():
                 parent=tile_container)
         elif is_band:
             # Nombre del property: va en la banda de color (texto blanco o claro)
-            name_y = (TILE_DEPTH / 2) - (BAND_DEPTH / 2)
+            name_y = (TILE_DEPTH / 2) - BAND_DEPTH + (BAND_DEPTH * 0.28)
             add_text_line(
                 f"Tile_{i:02d}_Name", info["short"],
                 (0, name_y, z_text), 0.038, text_on_band, extrude=0.002,
@@ -451,8 +389,6 @@ def build_gamepoly():
                 parent=tile_container)
 
     # Activar sombreado de materiales en el viewport dinámicamente
-    build_property_zones(build_zone_mat)
-
     for area in bpy.context.screen.areas:
         if area.type == 'VIEW_3D':
             for space in area.spaces:

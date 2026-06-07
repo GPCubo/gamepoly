@@ -1,7 +1,6 @@
-export const BOARD_CENTER_X = 2.1;
-export const BOARD_CENTER_Z = -2.1;
-export const CAM_DISTANCE = 6.0;
-export const CAM_DISTANCE_SIDE2 = 1.5;
+export const BOARD_CENTER_X = 0;
+export const BOARD_CENTER_Z = 0;
+export const CAM_DISTANCE = 4.0;
 export const CAM_HEIGHT = 3;
 export const CAM_LERP = 0.04;
 
@@ -38,7 +37,7 @@ export function useCameraOrbit() {
         return {
           x: playerPos.x,
           y: CAM_HEIGHT,
-          z: BOARD_CENTER_Z - CAM_DISTANCE_SIDE2,
+          z: BOARD_CENTER_Z - CAM_DISTANCE,
         };
       case 3:
         return {

@@ -34,21 +34,21 @@ export const BOARD_HOUSE_ASSET_DEFINITIONS: Record<
   casa: {
     type: "casa",
     modelPath: "/models/casa_detallada.glb",
-    defaultScale: 0.1,
+    defaultScale: 0.09,
     defaultXOffset: 0,
-    defaultYOffset: -0.005,
+    defaultYOffset: -0,
     defaultZOffset: -0,
-    defaultInwardOffset: 0.4,
+    defaultInwardOffset: 0.01,
     defaultAlongOffset: 0,
   },
   hotel: {
     type: "hotel",
     modelPath: "/models/hotel_detallado.glb",
-    defaultScale: 0.1,
+    defaultScale: 0.15,
     defaultXOffset: 0,
-    defaultYOffset: -0.005,
+    defaultYOffset: -0,
     defaultZOffset: -0,
-    defaultInwardOffset: 0.4,
+    defaultInwardOffset: 0.1,
     defaultAlongOffset: 0,
   },
 };
@@ -92,7 +92,6 @@ export function getPropertyDevelopmentPlacements(
         type: "casa",
         buildIndex,
         buildCount: houses,
-        scale: 0.095,
       }));
     },
   );

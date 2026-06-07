@@ -37,65 +37,31 @@ export interface BoardBuildSlot {
 
 export function useBoardGeometry() {
   const ySuelo = Y_SUELO;
-  const inicioX = 0.1;
-  const inicioZ = -0.1;
-  const pasoCasilla = 0.4;
 
   const getCasillaCoordinates = (casillaIndex: number) => {
-    const indexNormalizado = casillaIndex % 40;
+    const indexNormalizado = ((casillaIndex % 40) + 40) % 40;
+    const center = getTileCenter(indexNormalizado);
 
-    let coords: { x: number; y: number; z: number };
-
-    if (indexNormalizado === 0) {
-      coords = { x: inicioX, y: ySuelo, z: inicioZ };
-    } else if (indexNormalizado < 10) {
-      coords = {
-        x: inicioX + indexNormalizado * pasoCasilla,
-        y: ySuelo,
-        z: inicioZ + 0.05,
-      };
-    } else if (indexNormalizado < 20) {
-      const esquina1X = inicioX + 10 * pasoCasilla;
-      coords = {
-        x: esquina1X + 0.1,
-        y: ySuelo,
-        z: inicioZ - (indexNormalizado - 10) * pasoCasilla,
-      };
-    } else if (indexNormalizado < 30) {
-      const esquina1X = inicioX + 10 * pasoCasilla;
-      const esquina2Z = inicioZ - 10 * pasoCasilla;
-      coords = {
-        x: esquina1X - (indexNormalizado - 20) * pasoCasilla,
-        y: ySuelo,
-        z: esquina2Z - 0.1,
-      };
-    } else {
-      const esquina2Z = inicioZ - 10 * pasoCasilla;
-      coords = {
-        x: inicioX - 0.05,
-        y: ySuelo,
-        z: esquina2Z + (indexNormalizado - 30) * pasoCasilla,
-      };
-    }
-
-    coords.x += GAME_CONFIG.PIECE_ORIGIN_OFFSET.x;
-    coords.z += GAME_CONFIG.PIECE_ORIGIN_OFFSET.z;
-
-    return coords;
+    return {
+      x: center.x,
+      y: ySuelo,
+      z: center.z,
+    };
   };
 
   // Centro geometrico REAL de cada casilla, derivado del modelo de Blender
   // (scripts_blenders/create_monopoly_table.py). El tablero esta centrado en
   // (0,0) y mide BOARD_SIZE. Se calcula en coordenadas de Blender (Z-up) y se
   // convierte a three.js (Y-up) con: x = bx, z = -by.
-  const BOARD_SIZE = 4.5;
+  const BOARD_SIZE = 4.8;
   const BOARD_HALF = BOARD_SIZE / 2;
   const CORNER_SIZE = 0.45;
   const TILE_WIDTH = (BOARD_SIZE - CORNER_SIZE * 2) / 9;
   const TILE_DEPTH = 0.45;
-  const BAND_DEPTH = 0.1;
+  const BAND_DEPTH = 0.18;
   const WHITE_RELIEF_DEPTH = TILE_DEPTH - BAND_DEPTH;
   const BUILD_Y_OFFSET = 0;
+  const COLOR_BAND_BUILD_LOCAL_Y = TILE_DEPTH / 2 - BAND_DEPTH * 0.32;
 
   const getTileCenter = (idx: number): { x: number; z: number } => {
     const H = BOARD_HALF;
@@ -218,14 +184,14 @@ export function useBoardGeometry() {
       z: (firstCenter.z + lastCenter.z) / 2,
     };
 
-    // En create_monopoly_table.py, la franja blanca de cada propiedad queda
-    // entre el borde exterior y la banda de color. Este centro local apunta a
-    // esa franja completa, no al centro de una casilla individual.
-    const whiteReliefCenterLocalY = -BAND_DEPTH;
+    // Las construcciones usan la barra de color como lote visual.
+    // El nombre de la propiedad queda abajo; esta posicion usa el espacio
+    // superior sobrante de la banda.
+    const colorBuildLocalY = COLOR_BAND_BUILD_LOCAL_Y;
     const areaCenter = applyTileDepthOffset(
       baseCenter,
       side,
-      whiteReliefCenterLocalY,
+      colorBuildLocalY,
     );
 
     return {
@@ -285,11 +251,11 @@ export function useBoardGeometry() {
 
     const side = getTileSide(tileIndex);
     const tileCenter = getTileCenter(tileIndex);
-    const whiteReliefCenterLocalY = -BAND_DEPTH;
+    const colorBuildLocalY = COLOR_BAND_BUILD_LOCAL_Y;
     const slotCenter = applyTileDepthOffset(
       tileCenter,
       side,
-      whiteReliefCenterLocalY,
+      colorBuildLocalY,
     );
 
     return {
