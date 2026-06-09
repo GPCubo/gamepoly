@@ -127,7 +127,12 @@ colorLines.push('    "white":        (0.965, 0.965, 0.945, 1),   # Base de casil
 colorLines.push('    "wood":         (0.180, 0.100, 0.050, 1),    # Mesa contenedora');
 colorLines.push('    "frame":        (0.280, 0.150, 0.070, 1),    # Marco de madera');
 colorLines.push('    "board_center": (0.918, 0.933, 0.890, 1),    # Fondo claro del tablero');
-colorLines.push('    "center_panel": (0.870, 0.895, 0.850, 1),    # Area central de dados');
+colorLines.push('    "plaza_grass":  (0.650, 0.820, 0.690, 1),    # Jardin central');
+colorLines.push('    "plaza_path":   (0.760, 0.720, 0.640, 1),    # Caminos de piedra');
+colorLines.push('    "plaza_tile":   (0.820, 0.790, 0.700, 1),    # Plaza principal');
+colorLines.push('    "plaza_edge":   (0.560, 0.500, 0.430, 1),    # Bordes de plaza/caminos');
+colorLines.push('    "tree_trunk":   (0.420, 0.240, 0.110, 1),');
+colorLines.push('    "tree_leaf":    (0.130, 0.480, 0.220, 1),');
 
 const tileColorsBlock = "TILE_COLORS = {\n" + colorLines.join("\n") + "\n}";
 

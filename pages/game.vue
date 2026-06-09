@@ -178,11 +178,18 @@ import { GAME_CONFIG } from "~/config/gameConfig";
 import { BOARD_TILES } from "~/config/boardTilesConfig";
 import type { BoardTile } from "~/config/boardTilesConfig";
 import {
+  BOARD_HOUSE_ASSET_GROUPS,
   BOARD_HOUSE_ASSET_DEFINITIONS,
+  getBoardHouseAssetGroup,
+  getBoardHouseAssetKey,
+  getBoardHouseGroupModelPath,
   getPropertyDevelopmentPlacements,
   getAllPropertyHousePlacements,
 } from "~/config/boardHouseAssets";
-import type { BoardHouseAssetPlacement } from "~/config/boardHouseAssets";
+import type {
+  BoardHouseAssetPlacement,
+  BoardHouseAssetType,
+} from "~/config/boardHouseAssets";
 import GameOverlay from "~/components/GameOverlay.vue";
 import TileCard from "~/components/TileCard.vue";
 import AuctionModal from "~/components/AuctionModal.vue";
@@ -236,7 +243,7 @@ const tileOwnerColor = computed<string | undefined>(() => {
 });
 
 const tileRentAmount = computed(() => {
-  if (tileOwnerId.value === undefined) return 0;
+  if (tileOwnerId.value === undefined) return undefined;
   return computeRent(currentTile.value, tileOwnerId.value);
 });
 
@@ -450,6 +457,21 @@ const boardHouseScenes = shallowRef<{ key: string; scene: Group }[]>([]);
 const boardHouseModels = shallowRef<Map<string, Group>>(new Map());
 let boardHouseSceneVersion = 0;
 
+const boardHouseModelVariantFiles = import.meta.glob(
+  "../public/models/{casa_detallada,hotel_detallado}_*.glb",
+  {
+    eager: true,
+    import: "default",
+    query: "?url",
+  },
+) as Record<string, string>;
+
+const availableBoardHouseModelPaths = new Set(
+  Object.keys(boardHouseModelVariantFiles).map(
+    (path) => `/models/${path.split("/").pop()}`,
+  ),
+);
+
 const cameraRef = shallowRef();
 const controlsRef = shallowRef();
 
@@ -542,7 +564,11 @@ function refreshBoardHouseScenes() {
   boardHouseSceneVersion += 1;
   boardHouseScenes.value = boardHousePlacements.value
     .map((placement, idx) => {
-      const scene = models.get(placement.type)?.clone(true);
+      const group = getBoardHouseAssetGroup(placement.tileIndex, BOARD_TILES);
+      const modelKey = getBoardHouseAssetKey(placement.type, group);
+      const scene = (
+        models.get(modelKey) ?? models.get(placement.type)
+      )?.clone(true);
       if (!scene) return null;
 
       return {
@@ -550,6 +576,7 @@ function refreshBoardHouseScenes() {
           "board-house",
           boardHouseSceneVersion,
           placement.type,
+          group ?? "default",
           placement.tileIndex,
           placement.buildIndex ?? 0,
           placement.buildCount ?? 1,
@@ -562,6 +589,46 @@ function refreshBoardHouseScenes() {
 }
 
 watch(boardHousePlacements, refreshBoardHouseScenes, { deep: true });
+
+async function loadGltfScene(
+  loader: GLTFLoader,
+  modelPath: string,
+): Promise<Group> {
+  return (await loader.loadAsync(modelPath)).scene as Group;
+}
+
+async function loadOptionalGltfScene(
+  loader: GLTFLoader,
+  modelPath: string,
+): Promise<Group | null> {
+  if (!availableBoardHouseModelPaths.has(modelPath)) return null;
+  return await loadGltfScene(loader, modelPath);
+}
+
+async function loadBoardHouseModels(loader: GLTFLoader): Promise<Map<string, Group>> {
+  const models = new Map<string, Group>();
+  const types = Object.keys(
+    BOARD_HOUSE_ASSET_DEFINITIONS,
+  ) as BoardHouseAssetType[];
+
+  for (const type of types) {
+    const definition = BOARD_HOUSE_ASSET_DEFINITIONS[type];
+    const fallbackScene = await loadGltfScene(loader, definition.modelPath);
+    models.set(getBoardHouseAssetKey(type), fallbackScene);
+
+    for (const group of BOARD_HOUSE_ASSET_GROUPS) {
+      const groupScene =
+        (await loadOptionalGltfScene(
+          loader,
+          getBoardHouseGroupModelPath(type, group),
+        )) ?? fallbackScene;
+
+      models.set(getBoardHouseAssetKey(type, group), groupScene);
+    }
+  }
+
+  return models;
+}
 
 const prevAnimating: boolean[] = Array(playerCount).fill(false);
 const prevShared: boolean[] = Array(playerCount).fill(false);
@@ -660,14 +727,7 @@ onMounted(async () => {
     tableroScene.value = (await loader.loadAsync("/models/tablero.glb"))
       .scene as Group;
 
-    const houseModels = new Map<string, Group>();
-    for (const definition of Object.values(BOARD_HOUSE_ASSET_DEFINITIONS)) {
-      houseModels.set(
-        definition.type,
-        (await loader.loadAsync(definition.modelPath)).scene as Group,
-      );
-    }
-    boardHouseModels.value = houseModels;
+    boardHouseModels.value = await loadBoardHouseModels(loader);
     refreshBoardHouseScenes();
 
     playerScenes.value = loadResults.map((gltf) => gltf.scene as Group);

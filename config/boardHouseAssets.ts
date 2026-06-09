@@ -1,6 +1,26 @@
 import type { BoardTile } from "~/config/boardTilesConfig";
 
 export type BoardHouseAssetType = "casa" | "hotel";
+export type BoardHouseAssetGroup =
+  | "brown"
+  | "lightBlue"
+  | "pink"
+  | "orange"
+  | "red"
+  | "yellow"
+  | "green"
+  | "darkBlue";
+
+export const BOARD_HOUSE_ASSET_GROUPS: BoardHouseAssetGroup[] = [
+  "brown",
+  "lightBlue",
+  "pink",
+  "orange",
+  "red",
+  "yellow",
+  "green",
+  "darkBlue",
+];
 
 export interface BoardHouseAssetPlacement {
   tileIndex: number;
@@ -19,6 +39,7 @@ export interface BoardHouseAssetPlacement {
 export interface BoardHouseAssetDefinition {
   type: BoardHouseAssetType;
   modelPath: string;
+  groupModelPrefix: string;
   defaultScale: number;
   defaultXOffset: number;
   defaultYOffset: number;
@@ -34,6 +55,7 @@ export const BOARD_HOUSE_ASSET_DEFINITIONS: Record<
   casa: {
     type: "casa",
     modelPath: "/models/casa_detallada.glb",
+    groupModelPrefix: "casa_detallada",
     defaultScale: 0.09,
     defaultXOffset: 0,
     defaultYOffset: -0,
@@ -44,6 +66,7 @@ export const BOARD_HOUSE_ASSET_DEFINITIONS: Record<
   hotel: {
     type: "hotel",
     modelPath: "/models/hotel_detallado.glb",
+    groupModelPrefix: "hotel_detallado",
     defaultScale: 0.15,
     defaultXOffset: 0,
     defaultYOffset: -0,
@@ -57,6 +80,36 @@ export const BOARD_HOUSE_ASSET_PLACEMENTS: BoardHouseAssetPlacement[] = [
   { tileIndex: 1, type: "casa" },
   { tileIndex: 3, type: "casa" },
 ];
+
+export function isBoardHouseAssetGroup(
+  group: BoardTile["group"],
+): group is BoardHouseAssetGroup {
+  return BOARD_HOUSE_ASSET_GROUPS.includes(group as BoardHouseAssetGroup);
+}
+
+export function getBoardHouseAssetGroup(
+  tileIndex: number,
+  tiles: BoardTile[],
+): BoardHouseAssetGroup | undefined {
+  const tile = tiles[tileIndex];
+  if (!tile || tile.type !== "property") return undefined;
+  return isBoardHouseAssetGroup(tile.group) ? tile.group : undefined;
+}
+
+export function getBoardHouseAssetKey(
+  type: BoardHouseAssetType,
+  group?: BoardHouseAssetGroup,
+): string {
+  return group ? `${type}:${group}` : type;
+}
+
+export function getBoardHouseGroupModelPath(
+  type: BoardHouseAssetType,
+  group: BoardHouseAssetGroup,
+): string {
+  const definition = BOARD_HOUSE_ASSET_DEFINITIONS[type];
+  return `/models/${definition.groupModelPrefix}_${group}.glb`;
+}
 
 export function getAllPropertyHousePlacements(
   tiles: BoardTile[],

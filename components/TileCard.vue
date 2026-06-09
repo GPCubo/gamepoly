@@ -44,8 +44,33 @@
               <div class="metric-card">
                 <span class="metric-label">HIPOTECA</span>
                 <span class="metric-value"
-                  >${{ mortgageValue ?? Math.round((tile.price ?? 0) / 2) }}</span
+                  >${{
+                    mortgageValue ?? Math.round((tile.price ?? 0) / 2)
+                  }}</span
                 >
+              </div>
+            </div>
+            <div class="development-rates">
+              <div class="development-rates-top">
+                <div>
+                  <span class="rates-kicker">MEJORAS</span>
+                  <strong>Casas y hotel</strong>
+                </div>
+                <div class="rates-costs">
+                  <span>Casa ${{ houseCost ?? 0 }}</span>
+                  <span>Hotel ${{ hotelCost ?? 0 }}</span>
+                </div>
+              </div>
+              <div class="rates-grid">
+                <div
+                  v-for="item in propertyRentSchedule"
+                  :key="item.label"
+                  class="rate-item"
+                  :class="{ active: item.active }"
+                >
+                  <span class="rate-label">{{ item.label }}</span>
+                  <span class="rate-value">${{ item.rent }}</span>
+                </div>
               </div>
             </div>
             <template v-if="ownerState === 'own'">
@@ -53,12 +78,21 @@
                 <span class="material-symbols-outlined filled">home</span>
                 <span>Es tuya</span>
               </div>
-              <div class="development-panel" :class="{ mortgaged: isMortgaged }">
+              <div
+                class="development-panel"
+                :class="{ mortgaged: isMortgaged }"
+              >
                 <span class="development-label">DESARROLLO</span>
                 <strong>{{ developmentLabel }}</strong>
-                <span v-if="isMortgaged" class="development-note">No cobra alquiler</span>
-                <span v-else-if="canBuildHouse" class="development-note">Casa: ${{ houseCost }}</span>
-                <span v-else-if="canBuildHotel" class="development-note">Hotel: ${{ hotelCost }}</span>
+                <span v-if="isMortgaged" class="development-note"
+                  >No cobra alquiler</span
+                >
+                <span v-else-if="canBuildHouse" class="development-note"
+                  >Casa: ${{ houseCost }}</span
+                >
+                <span v-else-if="canBuildHotel" class="development-note"
+                  >Hotel: ${{ hotelCost }}</span
+                >
               </div>
               <div class="action-stack management-actions">
                 <button
@@ -70,7 +104,9 @@
                   tabindex="0"
                   @click="canBuildHouse && emit('build-house')"
                 >
-                  <span class="material-symbols-outlined filled">home_work</span>
+                  <span class="material-symbols-outlined filled"
+                    >home_work</span
+                  >
                   <span>Construir casa ${{ houseCost }}</span>
                 </button>
                 <button
@@ -82,7 +118,9 @@
                   tabindex="0"
                   @click="canBuildHotel && emit('build-hotel')"
                 >
-                  <span class="material-symbols-outlined filled">apartment</span>
+                  <span class="material-symbols-outlined filled"
+                    >apartment</span
+                  >
                   <span>Ampliar a hotel ${{ hotelCost }}</span>
                 </button>
                 <button
@@ -122,7 +160,12 @@
                   <span>Levantar hipoteca ${{ unmortgageCost }}</span>
                 </button>
               </div>
-              <button ref="closeActionBtnRef" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+              <button
+                ref="closeActionBtnRef"
+                class="action-btn next-action-btn"
+                tabindex="0"
+                @click="emit('close')"
+              >
                 <span class="material-symbols-outlined">arrow_forward</span>
                 <span>Siguiente</span>
               </button>
@@ -138,7 +181,12 @@
                   >Alquiler pagado a {{ ownerName }}</span
                 >
               </div>
-              <button ref="closeActionBtnRef2" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+              <button
+                ref="closeActionBtnRef2"
+                class="action-btn next-action-btn"
+                tabindex="0"
+                @click="emit('close')"
+              >
                 <span class="material-symbols-outlined">arrow_forward</span>
                 <span>Siguiente</span>
               </button>
@@ -154,9 +202,14 @@
                   @click="canAfford && emit('buy')"
                 >
                   <span class="material-symbols-outlined filled">payments</span>
-                  <span>{{ canAfford ? 'Comprar' : 'Sin fondos' }}</span>
+                  <span>{{ canAfford ? "Comprar" : "Sin fondos" }}</span>
                 </button>
-                <button ref="auctionBtnRef" class="action-btn auction-btn" tabindex="0" @click="emit('auction')">
+                <button
+                  ref="auctionBtnRef"
+                  class="action-btn auction-btn"
+                  tabindex="0"
+                  @click="emit('auction')"
+                >
                   <span class="material-symbols-outlined">gavel</span>
                   <span>Subastar</span>
                 </button>
@@ -200,19 +253,26 @@
               <div class="metric-card">
                 <span class="metric-label">HIPOTECA</span>
                 <span class="metric-value"
-                  >${{ mortgageValue ?? Math.round((tile.price ?? 0) / 2) }}</span
+                  >${{
+                    mortgageValue ?? Math.round((tile.price ?? 0) / 2)
+                  }}</span
                 >
               </div>
-</div>
-             <template v-if="ownerState === 'own'">
+            </div>
+            <template v-if="ownerState === 'own'">
               <div class="own-banner">
                 <span class="material-symbols-outlined filled">home</span>
                 <span>Es tuyo</span>
               </div>
-              <div class="development-panel" :class="{ mortgaged: isMortgaged }">
+              <div
+                class="development-panel"
+                :class="{ mortgaged: isMortgaged }"
+              >
                 <span class="development-label">ESTADO</span>
                 <strong>{{ developmentLabel }}</strong>
-                <span v-if="isMortgaged" class="development-note">No cobra alquiler</span>
+                <span v-if="isMortgaged" class="development-note"
+                  >No cobra alquiler</span
+                >
               </div>
               <div class="action-stack management-actions">
                 <button
@@ -240,7 +300,12 @@
                   <span>Levantar hipoteca ${{ unmortgageCost }}</span>
                 </button>
               </div>
-              <button ref="closeActionBtnRef3" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+              <button
+                ref="closeActionBtnRef3"
+                class="action-btn next-action-btn"
+                tabindex="0"
+                @click="emit('close')"
+              >
                 <span class="material-symbols-outlined">arrow_forward</span>
                 <span>Siguiente</span>
               </button>
@@ -256,7 +321,12 @@
                   >Alquiler pagado a {{ ownerName }}</span
                 >
               </div>
-              <button ref="closeActionBtnRef4" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+              <button
+                ref="closeActionBtnRef4"
+                class="action-btn next-action-btn"
+                tabindex="0"
+                @click="emit('close')"
+              >
                 <span class="material-symbols-outlined">arrow_forward</span>
                 <span>Siguiente</span>
               </button>
@@ -272,9 +342,14 @@
                   @click="canAfford && emit('buy')"
                 >
                   <span class="material-symbols-outlined filled">payments</span>
-                  <span>{{ canAfford ? 'Comprar' : 'Sin fondos' }}</span>
+                  <span>{{ canAfford ? "Comprar" : "Sin fondos" }}</span>
                 </button>
-                <button ref="auctionBtnRailRef" class="action-btn auction-btn" tabindex="0" @click="emit('auction')">
+                <button
+                  ref="auctionBtnRailRef"
+                  class="action-btn auction-btn"
+                  tabindex="0"
+                  @click="emit('auction')"
+                >
                   <span class="material-symbols-outlined">gavel</span>
                   <span>Subastar</span>
                 </button>
@@ -320,7 +395,9 @@
               <div class="metric-card">
                 <span class="metric-label">HIPOTECA</span>
                 <span class="metric-value"
-                  >${{ mortgageValue ?? Math.round((tile.price ?? 0) / 2) }}</span
+                  >${{
+                    mortgageValue ?? Math.round((tile.price ?? 0) / 2)
+                  }}</span
                 >
               </div>
             </div>
@@ -329,10 +406,15 @@
                 <span class="material-symbols-outlined filled">home</span>
                 <span>Es tuyo</span>
               </div>
-              <div class="development-panel" :class="{ mortgaged: isMortgaged }">
+              <div
+                class="development-panel"
+                :class="{ mortgaged: isMortgaged }"
+              >
                 <span class="development-label">ESTADO</span>
                 <strong>{{ developmentLabel }}</strong>
-                <span v-if="isMortgaged" class="development-note">No cobra alquiler</span>
+                <span v-if="isMortgaged" class="development-note"
+                  >No cobra alquiler</span
+                >
               </div>
               <div class="action-stack management-actions">
                 <button
@@ -360,7 +442,12 @@
                   <span>Levantar hipoteca ${{ unmortgageCost }}</span>
                 </button>
               </div>
-              <button ref="closeActionBtnRef5" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+              <button
+                ref="closeActionBtnRef5"
+                class="action-btn next-action-btn"
+                tabindex="0"
+                @click="emit('close')"
+              >
                 <span class="material-symbols-outlined">arrow_forward</span>
                 <span>Siguiente</span>
               </button>
@@ -376,7 +463,12 @@
                   >Alquiler pagado a {{ ownerName }}</span
                 >
               </div>
-              <button ref="closeActionBtnRef6" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+              <button
+                ref="closeActionBtnRef6"
+                class="action-btn next-action-btn"
+                tabindex="0"
+                @click="emit('close')"
+              >
                 <span class="material-symbols-outlined">arrow_forward</span>
                 <span>Siguiente</span>
               </button>
@@ -392,9 +484,14 @@
                   @click="canAfford && emit('buy')"
                 >
                   <span class="material-symbols-outlined filled">payments</span>
-                  <span>{{ canAfford ? 'Comprar' : 'Sin fondos' }}</span>
+                  <span>{{ canAfford ? "Comprar" : "Sin fondos" }}</span>
                 </button>
-                <button ref="auctionBtnUtilRef" class="action-btn auction-btn" tabindex="0" @click="emit('auction')">
+                <button
+                  ref="auctionBtnUtilRef"
+                  class="action-btn auction-btn"
+                  tabindex="0"
+                  @click="emit('auction')"
+                >
                   <span class="material-symbols-outlined">gavel</span>
                   <span>Subastar</span>
                 </button>
@@ -430,7 +527,12 @@
               <span class="penalty-label">Pagado al banco</span>
             </div>
             <p class="auto-deduct">Descontado automáticamente</p>
-            <button ref="closeActionBtnRefTax" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+            <button
+              ref="closeActionBtnRefTax"
+              class="action-btn next-action-btn"
+              tabindex="0"
+              @click="emit('close')"
+            >
               <span class="material-symbols-outlined">arrow_forward</span>
               <span>Siguiente</span>
             </button>
@@ -453,7 +555,12 @@
           <div class="card-body">
             <p class="card-hint">¡Roba una carta!</p>
             <p class="auto-deduct">Sigue las instrucciones de la carta</p>
-            <button ref="closeActionBtnRefCard" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+            <button
+              ref="closeActionBtnRefCard"
+              class="action-btn next-action-btn"
+              tabindex="0"
+              @click="emit('close')"
+            >
               <span class="material-symbols-outlined">arrow_forward</span>
               <span>Siguiente</span>
             </button>
@@ -476,14 +583,24 @@
           </div>
           <div class="card-body">
             <p class="corner-msg">{{ CORNER_META[tile.group]?.msg }}</p>
-            <button ref="closeActionBtnRefCorner" class="action-btn next-action-btn" tabindex="0" @click="emit('close')">
+            <button
+              ref="closeActionBtnRefCorner"
+              class="action-btn next-action-btn"
+              tabindex="0"
+              @click="emit('close')"
+            >
               <span class="material-symbols-outlined">arrow_forward</span>
               <span>Siguiente</span>
             </button>
           </div>
         </template>
         <div
-          v-if="ownerColor && (tile.type === 'property' || tile.type === 'railroad' || tile.type === 'utility')"
+          v-if="
+            ownerColor &&
+            (tile.type === 'property' ||
+              tile.type === 'railroad' ||
+              tile.type === 'utility')
+          "
           class="currency-badge"
           :style="{ background: ownerColor }"
         >
@@ -496,7 +613,11 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from "vue";
-import { BOARD_TILES, type BoardTile, type TileGroup } from "~/config/boardTilesConfig";
+import {
+  BOARD_TILES,
+  type BoardTile,
+  type TileGroup,
+} from "~/config/boardTilesConfig";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
 
@@ -567,7 +688,9 @@ const ownerState = computed<"own" | "other" | "free">(() => {
   return "other";
 });
 
-const canAfford = computed(() => (props.tile.price ?? 0) <= props.activePlayerCash);
+const canAfford = computed(
+  () => (props.tile.price ?? 0) <= props.activePlayerCash,
+);
 
 const tileType = computed(() => props.tile.type);
 
@@ -627,7 +750,7 @@ const { focusedIndex, focusButton, autoFocus } = useKeyboardNavigation(
     autoFocusIndex: 0,
     autoFocusOn: canAutoFocus,
     loop: true,
-  }
+  },
 );
 
 function autoFocusFirstEnabled() {
@@ -646,7 +769,7 @@ function autoFocusFirstEnabled() {
 onMounted(() => autoFocusFirstEnabled());
 
 const colorByGroup = (group: TileGroup): string =>
-  BOARD_TILES.find(t => t.group === group)?.color ?? "#374151";
+  BOARD_TILES.find((t) => t.group === group)?.color ?? "#374151";
 
 const GROUP_COLORS: Record<TileGroup, string> = {
   brown: colorByGroup("brown"),
@@ -712,7 +835,35 @@ const TAX_AMOUNTS: Record<number, number> = { 4: 200, 38: 100 };
 
 const groupColor = computed(() => GROUP_COLORS[props.tile.group] ?? "#374151");
 const groupLabel = computed(() => GROUP_LABELS[props.tile.group] ?? "");
-const rentBase = computed(() => Math.round((props.tile.price ?? 0) * 0.1));
+const rentBase = computed(() => Math.floor((props.tile.price ?? 0) * 0.1));
+const propertyRentSchedule = computed(() => {
+  const base = rentBase.value;
+  const houses = props.houses ?? 0;
+
+  return [
+    {
+      label: "1 casa",
+      rent: base * 3,
+      active: !props.hasHotel && houses === 1,
+    },
+    {
+      label: "2 casas",
+      rent: base * 5,
+      active: !props.hasHotel && houses === 2,
+    },
+    {
+      label: "3 casas",
+      rent: base * 7,
+      active: !props.hasHotel && houses === 3,
+    },
+    {
+      label: "4 casas",
+      rent: base * 9,
+      active: !props.hasHotel && houses === 4,
+    },
+    { label: "Hotel", rent: base * 10, active: Boolean(props.hasHotel) },
+  ];
+});
 const developmentLabel = computed(() => {
   if (props.isMortgaged) return "Hipotecada";
   if (props.hasHotel) return "Hotel";
@@ -761,15 +912,21 @@ const improvementSellLabel = computed(() =>
 
 .card-inner {
   position: relative;
-  width: 310px;
+  width: clamp(320px, 80vw, 600px);
+  max-height: min(92vh, 760px);
   border-radius: 2rem;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   background: rgba(29, 31, 41, 0.97);
   border: 1px solid rgba(74, 222, 128, 0.15);
   box-shadow:
     0 32px 64px -12px rgba(0, 0, 0, 0.6),
     inset 0 1px 0 0 rgba(255, 255, 255, 0.05);
   font-family: "Hanken Grotesk", sans-serif;
+}
+
+.card-inner::-webkit-scrollbar {
+  width: 0;
 }
 
 .close-btn {
@@ -968,6 +1125,100 @@ const improvementSellLabel = computed(() =>
   color: rgba(225, 225, 239, 0.95);
 }
 
+.development-rates {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: rgba(15, 17, 25, 0.78);
+  border: 1px solid rgba(148, 163, 184, 0.13);
+  border-radius: 14px;
+}
+
+.development-rates-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.development-rates-top > div:first-child {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rates-kicker {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgba(225, 225, 239, 0.42);
+}
+
+.development-rates strong {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 15px;
+  color: rgba(225, 225, 239, 0.94);
+}
+
+.rates-costs {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-end;
+  flex: 0 0 auto;
+}
+
+.rates-costs span {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  color: rgba(0, 227, 143, 0.9);
+}
+
+.rates-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rate-item {
+  min-height: 44px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: rgba(50, 52, 62, 0.62);
+  border: 1px solid rgba(255, 255, 255, 0.055);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+}
+
+.rate-item.active {
+  background: rgba(0, 227, 143, 0.12);
+  border-color: rgba(0, 227, 143, 0.32);
+}
+
+.rate-label {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  color: rgba(225, 225, 239, 0.46);
+}
+
+.rate-value {
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  color: rgba(225, 225, 239, 0.94);
+}
+
+.rate-item.active .rate-label,
+.rate-item.active .rate-value {
+  color: #00e38f;
+}
+
 .own-banner {
   display: flex;
   align-items: center;
@@ -1032,7 +1283,7 @@ const improvementSellLabel = computed(() =>
   font-size: 13px;
   background: rgba(50, 52, 62, 0.82);
   color: rgba(225, 225, 239, 0.88);
-  border: 1px solid rgba(74, 222, 128, 0.10);
+  border: 1px solid rgba(74, 222, 128, 0.1);
 }
 
 .manage-btn:hover:not(:disabled) {
@@ -1052,7 +1303,7 @@ const improvementSellLabel = computed(() =>
 
 .mortgage-btn {
   background: rgba(148, 163, 184, 0.12);
-  border-color: rgba(148, 163, 184, 0.20);
+  border-color: rgba(148, 163, 184, 0.2);
 }
 
 .penalty-banner {
@@ -1225,7 +1476,9 @@ const improvementSellLabel = computed(() =>
 
 .buy-btn:focus-visible {
   outline-color: #00f59b;
-  box-shadow: 0 8px 24px rgba(0, 245, 155, 0.2), 0 0 0 4px rgba(0, 245, 155, 0.25);
+  box-shadow:
+    0 8px 24px rgba(0, 245, 155, 0.2),
+    0 0 0 4px rgba(0, 245, 155, 0.25);
 }
 
 .auction-btn:focus-visible {
@@ -1257,7 +1510,9 @@ const improvementSellLabel = computed(() =>
 .next-action-btn:focus-visible {
   outline: 2px solid #3b82f6;
   outline-offset: 3px;
-  box-shadow: 0 8px 24px rgba(59, 130, 246, 0.25), 0 0 0 4px rgba(59, 130, 246, 0.2);
+  box-shadow:
+    0 8px 24px rgba(59, 130, 246, 0.25),
+    0 0 0 4px rgba(59, 130, 246, 0.2);
 }
 
 .card-enter-active {

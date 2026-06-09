@@ -1,5 +1,10 @@
 <template>
   <div class="players-hud">
+    <div class="players-hud-title">
+      <span>Jugadores</span>
+      <strong>{{ store.players.length }}</strong>
+    </div>
+
     <div
       v-for="p in store.players"
       :key="p.id"
@@ -11,19 +16,40 @@
       }"
     >
       <span class="hud-icon">{{ tokenIcon(p.tokenModel) }}</span>
-      <span class="hud-name">{{ p.name }}</span>
-      <span v-if="p.inJail" class="hud-jail-badge">🔓</span>
-      <span class="hud-cash" :class="{ 'hud-negative': p.cash < 0 }"
-        >${{ p.cash.toLocaleString() }}</span
-      >
+      <div class="hud-copy">
+        <span class="hud-name">{{ p.name }}</span>
+        <span class="hud-position">Casilla {{ playerTileNumber(p) }}/40</span>
+      </div>
+      <span v-if="p.inJail" class="hud-jail-badge material-symbols-outlined">lock</span>
+      <span class="hud-cash" :class="{ 'hud-negative': p.cash < 0 }">
+        ${{ p.cash.toLocaleString() }}
+      </span>
     </div>
   </div>
 
   <div class="overlay-container">
-    <div class="status-badge">
-      {{ statusText }} | Casilla: {{ currentPosition }}/40 |
-      {{ store.statusMessage }}
-      <span v-if="store.isDoubles" class="doubles-badge">DOBLES</span>
+    <div class="status-card">
+      <div class="status-player">
+        <span class="status-token">{{ activeTokenMeta.icon }}</span>
+        <div>
+          <span class="status-kicker">Turno actual</span>
+          <strong>{{ activePlayerName }}</strong>
+        </div>
+      </div>
+
+      <div class="status-details">
+        <span class="status-chip">
+          <span class="material-symbols-outlined">location_on</span>
+          Casilla {{ currentPosition }}/40
+        </span>
+        <span class="status-chip">
+          <span class="material-symbols-outlined">casino</span>
+          {{ activeTokenMeta.name }}
+        </span>
+        <span v-if="store.isDoubles" class="doubles-badge">DOBLES</span>
+      </div>
+
+      <p>{{ store.statusMessage }}</p>
     </div>
 
     <div class="action-buttons">
@@ -35,7 +61,8 @@
         tabindex="0"
         class="action-btn bail-btn"
       >
-        🔓 Pagar fianza (${{ store.jailBailCost }})
+        <span class="material-symbols-outlined">lock_open</span>
+        <span>Pagar fianza (${{ store.jailBailCost }})</span>
       </button>
 
       <button
@@ -46,7 +73,8 @@
         class="action-btn"
         :class="primaryBtnClass"
       >
-        {{ primaryBtnLabel }}
+        <span class="material-symbols-outlined">{{ primaryBtnIcon }}</span>
+        <span>{{ primaryBtnLabel }}</span>
       </button>
 
       <button
@@ -56,7 +84,8 @@
         class="action-btn config-btn"
         :class="{ 'config-active': sidebarOpen }"
       >
-        ⚙ Configuración
+        <span class="material-symbols-outlined">settings</span>
+        <span>Configuracion</span>
       </button>
     </div>
   </div>
@@ -70,19 +99,19 @@
   />
 
   <div
-    class="dado-wrapper"
     v-if="store.isDiceVisible"
+    class="dado-wrapper"
     :class="{ sliding: isSliding }"
   >
     <div class="dado-titulo">
-      Total: {{ store.diceTotal }} · Casilla: {{ currentPosition }}/40
-      <span v-if="store.isDoubles" class="doubles-text"> ¡DOBLES! </span>
+      Total: {{ store.diceTotal }} | Casilla: {{ currentPosition }}/40
+      <span v-if="store.isDoubles" class="doubles-text"> DOBLES </span>
     </div>
     <div class="dados-row">
       <div
-        class="dado-pequeño"
         v-for="(value, idx) in store.diceValues"
         :key="idx"
+        class="dado-pequeno"
       >
         <span
           v-for="(pos, i) in facePositions[value]"
@@ -96,32 +125,20 @@
 </template>
 
 <script setup lang="ts">
-import { useGameStore } from "~/stores/gameStore";
 import {
-  ref,
   computed,
-  onMounted,
-  onUnmounted,
-  watch,
   nextTick,
+  onMounted,
+  ref,
+  watch,
   type Ref,
 } from "vue";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
 import SidebarConfig from "~/components/SidebarConfig.vue";
+import { useGameStore, type PlayerState } from "~/stores/gameStore";
 
 const store = useGameStore();
-
-const statusText = computed(() => {
-  const ap = store.activePlayer;
-  if (!ap) return "Sin jugador";
-  const token = GAME_CONFIG.TOKEN_MODELS.find((t) => t.file === ap.tokenModel);
-  return `${token?.icon ?? "?"} ${ap.name} (${token?.name ?? "?"})`;
-});
-
-function tokenIcon(file: string) {
-  return GAME_CONFIG.TOKEN_MODELS.find((t) => t.file === file)?.icon ?? "?";
-}
 
 const props = defineProps<{
   currentPosition: number;
@@ -157,12 +174,30 @@ const actionRefs = computed(() => {
   return refs;
 });
 
-const { focusButton, autoFocus } = useKeyboardNavigation(actionRefs, {
+useKeyboardNavigation(actionRefs, {
   direction: "horizontal",
   autoFocusOn: shouldAutoFocus,
   enabled: overlayEnabled,
   loop: true,
 });
+
+const activeTokenMeta = computed(() => {
+  const player = store.activePlayer;
+  return GAME_CONFIG.TOKEN_MODELS.find((t) => t.file === player?.tokenModel) ?? {
+    icon: "?",
+    name: "Ficha",
+  };
+});
+
+const activePlayerName = computed(() => store.activePlayer?.name ?? "Sin jugador");
+
+function tokenIcon(file: string) {
+  return GAME_CONFIG.TOKEN_MODELS.find((t) => t.file === file)?.icon ?? "?";
+}
+
+function playerTileNumber(player: PlayerState) {
+  return (player.position % 40) + 1;
+}
 
 function focusPrimaryButton() {
   nextTick(() => {
@@ -183,7 +218,7 @@ function onSidebarExchange() {
 }
 
 function onSidebarCamera() {
-  // Camera toggle is already handled inside SidebarConfig via store.toggleCameraFollow()
+  // Camera toggle is handled inside SidebarConfig.
 }
 
 watch(
@@ -251,11 +286,19 @@ const facePositions: Record<number, Record<string, string>[]> = {
 const isTurnDone = computed(() => store.isTurnComplete);
 
 const primaryBtnLabel = computed(() => {
-  if (isTurnDone.value) return "Siguiente ↪";
-  if (activePlayerInJail.value) return "🎲 Tirar por dobles";
+  if (isTurnDone.value) return "Siguiente";
+  if (activePlayerInJail.value) return "Tirar por dobles";
   if (store.isDiceRolling) return "Rodando...";
   if (props.isMoving) return "Moviendo...";
-  return "🎲 Tirar Dados";
+  return "Tirar Dados";
+});
+
+const primaryBtnIcon = computed(() => {
+  if (isTurnDone.value) return "navigate_next";
+  if (activePlayerInJail.value) return "casino";
+  if (store.isDiceRolling) return "progress_activity";
+  if (props.isMoving) return "directions_walk";
+  return "casino";
 });
 
 const primaryBtnDisabled = computed(() => {
@@ -319,24 +362,26 @@ async function onRollClick() {
 </script>
 
 <style scoped>
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap");
+
 .dado-wrapper {
-  background: rgba(0, 0, 0, 0.8);
-  border-radius: 20px;
-  color: #4ade80;
-  font-family: monospace;
-  font-size: 12px;
-  border: 1px solid rgba(74, 222, 128, 0.2);
-  padding: 10px 20px;
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  z-index: 150;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 8px;
-  z-index: 150;
-  position: absolute;
-  top: 20px;
-  left: 50%;
+  padding: 10px 18px;
+  color: #ecfdf5;
+  background: rgba(10, 16, 25, 0.9);
+  border: 1px solid rgba(134, 239, 172, 0.24);
+  border-radius: 8px;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
   transform: translateX(-50%);
   pointer-events: auto;
+  font-family: "Inter", sans-serif;
 }
 
 .dados-row {
@@ -348,25 +393,27 @@ async function onRollClick() {
 }
 
 .dado-titulo {
+  color: #86efac;
   font-size: 11px;
-  opacity: 0.9;
+  font-weight: 600;
 }
 
-.dado-pequeño {
+.dado-pequeno {
+  position: relative;
   width: 40px;
   height: 40px;
-  background: white;
-  border: 1px solid #333;
-  border-radius: 6px;
-  position: relative;
+  background: #ffffff;
+  border: 1px solid rgba(15, 23, 42, 0.55);
+  border-radius: 8px;
+  box-shadow: inset 0 -3px 0 rgba(15, 23, 42, 0.12);
 }
 
 .circulo {
+  position: absolute;
   width: 8px;
   height: 8px;
-  background: #333;
+  background: #111827;
   border-radius: 50%;
-  position: absolute;
 }
 
 .sliding {
@@ -386,73 +433,164 @@ async function onRollClick() {
 
 .overlay-container {
   position: absolute;
-  bottom: 30px;
+  bottom: 26px;
   left: 50%;
-  transform: translateX(-50%);
   z-index: 100;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 15px;
+  gap: 12px;
+  width: min(760px, calc(100vw - 32px));
+  transform: translateX(-50%);
   pointer-events: none;
+  font-family: "Inter", sans-serif;
 }
 
-.status-badge {
-  background: rgba(0, 0, 0, 0.8);
-  padding: 8px 16px;
-  border-radius: 20px;
-  color: #4ade80;
-  font-family: monospace;
-  font-size: 12px;
-  border: 1px solid rgba(74, 222, 128, 0.2);
+.status-card {
+  width: min(680px, 100%);
+  display: grid;
+  grid-template-columns: minmax(190px, auto) minmax(0, 1fr);
+  gap: 10px 14px;
+  align-items: center;
+  padding: 10px 12px;
+  color: #ffffff;
+  background: rgba(10, 16, 25, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.13);
+  border-radius: 8px;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(12px);
   pointer-events: auto;
+}
+
+.status-player {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.status-token {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #facc15;
+  color: #111827;
+  font-size: 20px;
+  font-weight: 950;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.14);
+}
+
+.status-kicker {
+  display: block;
+  color: rgba(255, 255, 255, 0.52);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.status-player strong {
+  display: block;
+  color: #f8fafc;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.15;
+  overflow-wrap: anywhere;
+}
+
+.status-details {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 7px;
+}
+
+.status-chip,
+.doubles-badge {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.status-chip {
+  color: #dbeafe;
+  background: rgba(37, 99, 235, 0.16);
+  border: 1px solid rgba(147, 197, 253, 0.18);
+}
+
+.status-chip .material-symbols-outlined {
+  font-size: 15px;
+}
+
+.status-card p {
+  grid-column: 1 / -1;
+  margin: 0;
+  color: #86efac;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.35;
+  text-align: center;
 }
 
 .action-buttons {
   display: flex;
-  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
   pointer-events: auto;
 }
 
 .action-btn {
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 13px 20px;
   color: white;
-  border: none;
-  padding: 14px 24px;
-  font-size: 16px;
-  font-weight: bold;
-  border-radius: 16px;
+  border: 0;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.2s ease;
 }
 
-.roll-btn {
+.roll-btn,
+.next-btn {
+  min-width: 178px;
   background: #10b981;
-  padding: 14px 32px;
-  font-size: 18px;
-  box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.4);
+  box-shadow: 0 12px 22px rgba(16, 185, 129, 0.34);
 }
 
-.roll-btn:hover:not(.disabled-btn) {
+.roll-btn:hover:not(.disabled-btn),
+.next-btn:hover {
   background: #059669;
   transform: translateY(-2px);
 }
 
 .next-btn {
-  background: #3b82f6;
-  padding: 14px 32px;
-  font-size: 18px;
-  box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.4);
+  background: #2563eb;
+  box-shadow: 0 12px 22px rgba(37, 99, 235, 0.34);
 }
 
 .next-btn:hover {
-  background: #2563eb;
-  transform: translateY(-2px);
+  background: #1d4ed8;
 }
 
 .bail-btn {
   background: #f59e0b;
-  color: #1a1a2e;
-  box-shadow: 0 8px 16px rgba(245, 158, 11, 0.3);
+  color: #111827;
+  box-shadow: 0 10px 18px rgba(245, 158, 11, 0.28);
 }
 
 .bail-btn:hover:not(:disabled) {
@@ -466,18 +604,18 @@ async function onRollClick() {
 }
 
 .config-btn {
-  background: #4b5563;
-  box-shadow: 0 8px 15px rgba(0, 0, 0, 0.2);
+  background: #475569;
+  box-shadow: 0 10px 18px rgba(0, 0, 0, 0.22);
 }
 
 .config-btn:hover:not(.config-active) {
-  background: #374151;
+  background: #334155;
   transform: translateY(-2px);
 }
 
 .config-active {
-  background: #6366f1;
-  box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4);
+  background: #2563eb;
+  box-shadow: 0 12px 22px rgba(37, 99, 235, 0.3);
 }
 
 .disabled-btn {
@@ -490,55 +628,106 @@ async function onRollClick() {
   position: absolute;
   top: 16px;
   right: 16px;
+  z-index: 100;
+  width: min(300px, calc(100vw - 32px));
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  z-index: 100;
+  gap: 7px;
   pointer-events: none;
+  font-family: "Inter", sans-serif;
+}
+
+.players-hud-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px 2px;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.players-hud-title strong {
+  min-width: 24px;
+  padding: 3px 7px;
+  border-radius: 8px;
+  color: #111827;
+  background: #facc15;
+  font-weight: 600;
+  text-align: center;
 }
 
 .hud-player {
-  display: flex;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  gap: 9px;
   align-items: center;
-  gap: 8px;
-  background: rgba(0, 0, 0, 0.7);
-  border: 1px solid rgba(74, 222, 128, 0.1);
-  border-radius: 10px;
-  padding: 6px 12px;
-  font-family: monospace;
-  font-size: 12px;
-  transition: all 0.2s;
+  padding: 8px 10px;
+  color: #ffffff;
+  background: rgba(10, 16, 25, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.11);
+  border-radius: 8px;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.24);
+  backdrop-filter: blur(10px);
+  transition: all 0.2s ease;
 }
 
 .hud-active {
-  border-color: rgba(74, 222, 128, 0.5);
-  background: rgba(74, 222, 128, 0.08);
+  border-color: rgba(134, 239, 172, 0.48);
+  background:
+    linear-gradient(90deg, rgba(22, 163, 74, 0.22), rgba(10, 16, 25, 0.84)),
+    rgba(10, 16, 25, 0.82);
 }
 
 .hud-bankrupt {
-  opacity: 0.35;
-  text-decoration: line-through;
+  opacity: 0.38;
+  filter: grayscale(0.7);
 }
 
 .hud-icon {
-  font-size: 14px;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  font-size: 16px;
+}
+
+.hud-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .hud-name {
-  color: rgba(255, 255, 255, 0.7);
-  min-width: 70px;
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.15;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hud-active .hud-name {
-  color: #4ade80;
-  font-weight: bold;
+  color: #86efac;
+}
+
+.hud-position {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 11px;
+  font-weight: 500;
 }
 
 .hud-cash {
-  color: #4ade80;
-  font-weight: bold;
-  margin-left: auto;
-  padding-left: 12px;
+  color: #86efac;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .hud-negative {
@@ -547,40 +736,36 @@ async function onRollClick() {
 
 .hud-jail {
   border-color: rgba(251, 191, 36, 0.5);
-  background: rgba(251, 191, 36, 0.08);
+  background:
+    linear-gradient(90deg, rgba(245, 158, 11, 0.18), rgba(10, 16, 25, 0.84)),
+    rgba(10, 16, 25, 0.82);
 }
 
 .hud-jail-badge {
-  font-size: 12px;
+  color: #fbbf24;
+  font-size: 16px;
 }
 
 .doubles-badge {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 2px 10px;
-  background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-  color: #1a1a2e;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  border-radius: 6px;
+  background: #f59e0b;
+  color: #111827;
+  border: 1px solid rgba(253, 230, 138, 0.36);
+  letter-spacing: 0;
 }
 
 .doubles-text {
   color: #fbbf24;
-  font-weight: 700;
+  font-weight: 600;
   margin-left: 6px;
 }
 
 .jail-roll-btn {
-  background: #6366f1 !important;
-  box-shadow: 0 10px 15px -3px rgba(99, 102, 241, 0.4) !important;
+  background: #7c3aed !important;
+  box-shadow: 0 12px 22px rgba(124, 58, 237, 0.32) !important;
 }
 
 .jail-roll-btn:hover:not(.disabled-btn) {
-  background: #4f46e5 !important;
+  background: #6d28d9 !important;
   transform: translateY(-2px);
 }
 
@@ -593,29 +778,57 @@ async function onRollClick() {
 .roll-btn:focus-visible {
   outline-color: #4ade80;
   box-shadow:
-    0 10px 15px -3px rgba(16, 185, 129, 0.4),
+    0 12px 22px rgba(16, 185, 129, 0.34),
     0 0 0 4px rgba(74, 222, 128, 0.25);
 }
 
-.next-btn:focus-visible {
-  outline-color: #3b82f6;
+.next-btn:focus-visible,
+.config-btn:focus-visible {
+  outline-color: #93c5fd;
   box-shadow:
-    0 10px 15px -3px rgba(59, 130, 246, 0.4),
-    0 0 0 4px rgba(59, 130, 246, 0.25);
+    0 12px 22px rgba(37, 99, 235, 0.3),
+    0 0 0 4px rgba(147, 197, 253, 0.25);
 }
 
 .bail-btn:focus-visible {
   outline-color: #f59e0b;
   box-shadow:
-    0 8px 16px rgba(245, 158, 11, 0.3),
+    0 10px 18px rgba(245, 158, 11, 0.28),
     0 0 0 4px rgba(245, 158, 11, 0.25);
 }
 
-.config-btn:focus-visible {
-  outline: 2px solid #818cf8;
-  outline-offset: 3px;
-  box-shadow:
-    0 8px 15px rgba(0, 0, 0, 0.2),
-    0 0 0 4px rgba(129, 140, 248, 0.25);
+.material-symbols-outlined {
+  font-size: 18px;
+  line-height: 1;
+}
+
+@media (max-width: 720px) {
+  .players-hud {
+    left: 12px;
+    right: 12px;
+    width: auto;
+  }
+
+  .overlay-container {
+    bottom: 16px;
+    width: calc(100vw - 24px);
+  }
+
+  .status-card {
+    grid-template-columns: 1fr;
+  }
+
+  .status-details {
+    justify-content: flex-start;
+  }
+
+  .action-buttons,
+  .action-btn {
+    width: 100%;
+  }
+
+  .action-btn {
+    min-width: 0;
+  }
 }
 </style>
