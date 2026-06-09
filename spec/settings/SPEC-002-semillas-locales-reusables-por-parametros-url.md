@@ -13,9 +13,13 @@ Permitir configurar escenarios de prueba al iniciar una partida usando semillas 
 
 La primera semilla implementada es `allproperties=true`, que asigna todas las propiedades al jugador activo y fija su dinero en `$100000` al iniciar la partida.
 
+La segunda semilla es `allhotels=true`, que asigna todas las propiedades al jugador activo, construye un hotel en cada propiedad de color y fija su dinero en `$100000`.
+
 Ejemplo:
 
 `http://localhost:3000/?allproperties=true`
+
+`http://localhost:3000/?allhotels=true`
 
 ## Context and Motivation
 
@@ -43,8 +47,10 @@ Esta spec complementa settings/SPEC-001, que configura variables de partida ante
   - `[::1]`
 - `applyLocalScenarioSeeds(params, store)` recorre todas las semillas registradas y aplica las que esten habilitadas.
 - `store.seedAllPropertiesForActivePlayer(100000)` asigna todas las propiedades comprables al jugador activo.
+- `store.seedAllPropertiesWithHotelsForActivePlayer(100000)` asigna todas las propiedades comprables al jugador activo y coloca un hotel en cada propiedad de tipo `property`.
 - La semilla fija el dinero del jugador activo exactamente en `$100000`.
 - Cada propiedad asignada inicializa su `PropertyDevelopmentState`.
+- Solo las casillas `type === "property"` reciben hotel; ferrocarriles y servicios solo cambian de dueño.
 
 ## Implementation Plan
 
@@ -79,6 +85,8 @@ Esta spec complementa settings/SPEC-001, que configura variables de partida ante
 - [x] Sin el parametro, la partida inicia normal.
 - [x] Con el parametro, el jugador activo recibe todas las propiedades comprables.
 - [x] Con el parametro, el jugador activo queda con `$100000`.
+- [x] El parametro `allhotels=true` asigna todas las propiedades con un hotel en cada propiedad de color.
+- [x] El parametro `allhotels=true` solo se aplica en entorno local.
 - [x] Las propiedades asignadas quedan disponibles para construir casas.
 - [x] Las propiedades asignadas aparecen en el sidebar de gestion.
 - [x] Las semillas se declaran en un registro reusable.

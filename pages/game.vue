@@ -455,7 +455,7 @@ const tableroScene = shallowRef<Group | null>(null);
 const playerScenes = shallowRef<(Group | null)[]>([]);
 const boardHouseScenes = shallowRef<{ key: string; scene: Group }[]>([]);
 const boardHouseModels = shallowRef<Map<string, Group>>(new Map());
-let boardHouseSceneVersion = 0;
+const boardHouseSceneCache = new Map<string, Group>();
 
 const boardHouseModelVariantFiles = import.meta.glob(
   "../public/models/{casa_detallada,hotel_detallado}_*.glb",
@@ -561,31 +561,42 @@ const boardHouseTransforms = computed(() =>
 
 function refreshBoardHouseScenes() {
   const models = boardHouseModels.value;
-  boardHouseSceneVersion += 1;
+  const activeSceneKeys = new Set<string>();
   boardHouseScenes.value = boardHousePlacements.value
-    .map((placement, idx) => {
+    .map((placement) => {
       const group = getBoardHouseAssetGroup(placement.tileIndex, BOARD_TILES);
       const modelKey = getBoardHouseAssetKey(placement.type, group);
-      const scene = (
-        models.get(modelKey) ?? models.get(placement.type)
-      )?.clone(true);
+      const sceneKey = [
+        "board-house",
+        placement.type,
+        group ?? "default",
+        placement.tileIndex,
+        placement.buildIndex ?? 0,
+      ].join("-");
+      const sourceScene = models.get(modelKey) ?? models.get(placement.type);
+      if (!sourceScene) return null;
+
+      let scene = boardHouseSceneCache.get(sceneKey);
+      if (!scene) {
+        scene = sourceScene.clone(true);
+        boardHouseSceneCache.set(sceneKey, scene);
+      }
       if (!scene) return null;
 
+      activeSceneKeys.add(sceneKey);
+
       return {
-        key: [
-          "board-house",
-          boardHouseSceneVersion,
-          placement.type,
-          group ?? "default",
-          placement.tileIndex,
-          placement.buildIndex ?? 0,
-          placement.buildCount ?? 1,
-          idx,
-        ].join("-"),
+        key: sceneKey,
         scene,
       };
     })
     .filter((item): item is { key: string; scene: Group } => Boolean(item));
+
+  for (const key of boardHouseSceneCache.keys()) {
+    if (!activeSceneKeys.has(key)) {
+      boardHouseSceneCache.delete(key);
+    }
+  }
 }
 
 watch(boardHousePlacements, refreshBoardHouseScenes, { deep: true });
@@ -727,6 +738,7 @@ onMounted(async () => {
     tableroScene.value = (await loader.loadAsync("/models/tablero.glb"))
       .scene as Group;
 
+    boardHouseSceneCache.clear();
     boardHouseModels.value = await loadBoardHouseModels(loader);
     refreshBoardHouseScenes();
 

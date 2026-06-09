@@ -1,5 +1,6 @@
 export interface LocalScenarioSeedContext {
   seedAllPropertiesForActivePlayer(cash: number): void;
+  seedAllPropertiesWithHotelsForActivePlayer(cash: number): void;
 }
 
 export interface LocalScenarioSeed {
@@ -21,6 +22,13 @@ export const LOCAL_SCENARIO_SEEDS: LocalScenarioSeed[] = [
     description: "Asigna todas las propiedades al jugador activo y fija su dinero.",
     isEnabled: (params) => isTrueParam(params, "allproperties"),
     apply: (context) => context.seedAllPropertiesForActivePlayer(100000),
+  },
+  {
+    key: "all-properties-hotels",
+    queryParam: "allhotels",
+    description: "Asigna todas las propiedades con hoteles al jugador activo y fija su dinero.",
+    isEnabled: (params) => isTrueParam(params, "allhotels"),
+    apply: (context) => context.seedAllPropertiesWithHotelsForActivePlayer(100000),
   },
 ];
 

@@ -373,6 +373,26 @@ export const useGameStore = defineStore("game", {
       this.statusMessage = `Escenario local activado. ${player.name} inicia con todas las propiedades y $${cash}`;
     },
 
+    seedAllPropertiesWithHotelsForActivePlayer(cash: number) {
+      const player = this.activePlayer;
+      if (!player) return;
+
+      player.cash = cash;
+
+      for (const tile of BOARD_TILES) {
+        if (tile.price === undefined) continue;
+        this.propertyOwners[tile.index] = player.id;
+        const development = this._ensurePropertyDevelopment(tile.index);
+        if (tile.type === "property") {
+          development.houses = 0;
+          development.hotel = true;
+          development.mortgaged = false;
+        }
+      }
+
+      this.statusMessage = `Escenario local activado. ${player.name} inicia con todas las propiedades, hoteles y $${cash}`;
+    },
+
     getPropertyDevelopment(tileIndex: number): PropertyDevelopmentState {
       return this.propertyDevelopments[tileIndex] ?? {
         houses: 0,
