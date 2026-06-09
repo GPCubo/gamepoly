@@ -10,6 +10,13 @@ import {
   type GameCard,
   type TileGroup,
 } from "~/config/boardTilesConfig";
+import {
+  houseCostForPrice,
+  hotelCostForPrice,
+  mortgageValueForPrice,
+  unmortgageCostForPrice,
+  rentForDevelopment,
+} from "~/config/economyConfig";
 
 export interface PlayerConfig {
   name: string;
@@ -85,10 +92,6 @@ const PROPERTY_COLOR_GROUPS = new Set<TileGroup>([
   "green",
   "darkBlue",
 ]);
-
-function roundToNearest10(value: number): number {
-  return Math.round(value / 10) * 10;
-}
 
 function getOwnableTile(tileIndex: number): BoardTile | undefined {
   const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
@@ -404,23 +407,25 @@ export const useGameStore = defineStore("game", {
     getHouseCost(tileIndex: number): number {
       const tile = getOwnableTile(tileIndex);
       if (!tile) return 0;
-      return roundToNearest10((tile.price ?? 0) * 0.5);
+      return houseCostForPrice(tile.price ?? 0);
     },
 
     getHotelCost(tileIndex: number): number {
       const tile = getOwnableTile(tileIndex);
       if (!tile) return 0;
-      return roundToNearest10((tile.price ?? 0) * 0.75);
+      return hotelCostForPrice(tile.price ?? 0);
     },
 
     getMortgageValue(tileIndex: number): number {
       const tile = getOwnableTile(tileIndex);
       if (!tile) return 0;
-      return Math.round((tile.price ?? 0) / 2);
+      return mortgageValueForPrice(tile.price ?? 0);
     },
 
     getUnmortgageCost(tileIndex: number): number {
-      return roundToNearest10(this.getMortgageValue(tileIndex) * 1.1);
+      const tile = getOwnableTile(tileIndex);
+      if (!tile) return 0;
+      return unmortgageCostForPrice(tile.price ?? 0);
     },
 
     ownsFullPropertyGroup(tileIndex: number, playerId: number): boolean {
@@ -640,10 +645,11 @@ export const useGameStore = defineStore("game", {
 
       if (tile.type !== "property") return 0;
 
-      const baseRent = Math.floor((tile.price ?? 0) * 0.1);
-      if (development.hotel) return baseRent * 10;
-      if (development.houses > 0) return baseRent * (1 + development.houses * 2);
-      return baseRent;
+      return rentForDevelopment(
+        tile.price ?? 0,
+        development.houses,
+        development.hotel,
+      );
     },
 
     collectRent(fromPlayerId: number, toPlayerId: number, amount: number) {

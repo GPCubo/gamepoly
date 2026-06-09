@@ -74,25 +74,27 @@
               </div>
             </div>
             <template v-if="ownerState === 'own'">
-              <div class="own-banner">
-                <span class="material-symbols-outlined filled">home</span>
-                <span>Es tuya</span>
-              </div>
-              <div
-                class="development-panel"
-                :class="{ mortgaged: isMortgaged }"
-              >
-                <span class="development-label">DESARROLLO</span>
-                <strong>{{ developmentLabel }}</strong>
-                <span v-if="isMortgaged" class="development-note"
-                  >No cobra alquiler</span
+              <div class="own-status-row">
+                <div class="own-banner">
+                  <span class="material-symbols-outlined filled">home</span>
+                  <span>Es tuya</span>
+                </div>
+                <div
+                  class="development-panel"
+                  :class="{ mortgaged: isMortgaged }"
                 >
-                <span v-else-if="canBuildHouse" class="development-note"
-                  >Casa: ${{ houseCost }}</span
-                >
-                <span v-else-if="canBuildHotel" class="development-note"
-                  >Hotel: ${{ hotelCost }}</span
-                >
+                  <span class="development-label">DESARROLLO</span>
+                  <strong>{{ developmentLabel }}</strong>
+                  <span v-if="isMortgaged" class="development-note"
+                    >No cobra alquiler</span
+                  >
+                  <span v-else-if="canBuildHouse" class="development-note"
+                    >Casa: ${{ houseCost }}</span
+                  >
+                  <span v-else-if="canBuildHotel" class="development-note"
+                    >Hotel: ${{ hotelCost }}</span
+                  >
+                </div>
               </div>
               <div class="action-stack management-actions">
                 <button
@@ -619,6 +621,10 @@ import {
   type TileGroup,
 } from "~/config/boardTilesConfig";
 import { GAME_CONFIG } from "~/config/gameConfig";
+import {
+  rentBaseForPrice,
+  rentForDevelopment,
+} from "~/config/economyConfig";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
 
 const CURRENCY_SYMBOL = GAME_CONFIG.CURRENCY_SYMBOL;
@@ -699,23 +705,23 @@ const activeRefs = computed(() => {
     if (tileType.value === "property") {
       return ownerState.value === "own"
         ? [
+            closeActionBtnRef,
             buildHouseBtnRef,
             buildHotelBtnRef,
             sellImprovementBtnRef,
             mortgageBtnRef,
             unmortgageBtnRef,
-            closeActionBtnRef,
           ]
         : [closeActionBtnRef2];
     }
     if (tileType.value === "railroad") {
       return ownerState.value === "own"
-        ? [mortgageBtnRef, unmortgageBtnRef, closeActionBtnRef3]
+        ? [closeActionBtnRef3, mortgageBtnRef, unmortgageBtnRef]
         : [closeActionBtnRef4];
     }
     if (tileType.value === "utility") {
       return ownerState.value === "own"
-        ? [mortgageBtnRef, unmortgageBtnRef, closeActionBtnRef5]
+        ? [closeActionBtnRef5, mortgageBtnRef, unmortgageBtnRef]
         : [closeActionBtnRef6];
     }
     return [];
@@ -835,33 +841,37 @@ const TAX_AMOUNTS: Record<number, number> = { 4: 200, 38: 100 };
 
 const groupColor = computed(() => GROUP_COLORS[props.tile.group] ?? "#374151");
 const groupLabel = computed(() => GROUP_LABELS[props.tile.group] ?? "");
-const rentBase = computed(() => Math.floor((props.tile.price ?? 0) * 0.1));
+const rentBase = computed(() => rentBaseForPrice(props.tile.price ?? 0));
 const propertyRentSchedule = computed(() => {
-  const base = rentBase.value;
+  const price = props.tile.price ?? 0;
   const houses = props.houses ?? 0;
 
   return [
     {
       label: "1 casa",
-      rent: base * 3,
+      rent: rentForDevelopment(price, 1, false),
       active: !props.hasHotel && houses === 1,
     },
     {
       label: "2 casas",
-      rent: base * 5,
+      rent: rentForDevelopment(price, 2, false),
       active: !props.hasHotel && houses === 2,
     },
     {
       label: "3 casas",
-      rent: base * 7,
+      rent: rentForDevelopment(price, 3, false),
       active: !props.hasHotel && houses === 3,
     },
     {
       label: "4 casas",
-      rent: base * 9,
+      rent: rentForDevelopment(price, 4, false),
       active: !props.hasHotel && houses === 4,
     },
-    { label: "Hotel", rent: base * 10, active: Boolean(props.hasHotel) },
+    {
+      label: "Hotel",
+      rent: rentForDevelopment(price, 0, true),
+      active: Boolean(props.hasHotel),
+    },
   ];
 });
 const developmentLabel = computed(() => {
@@ -984,11 +994,11 @@ const improvementSellLabel = computed(() =>
 }
 
 .color-band {
-  min-height: 128px;
+  min-height: 92px;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 24px 28px 20px;
+  padding: 16px 26px 14px;
   position: relative;
   transition: filter 0.2s;
 }
@@ -1027,9 +1037,9 @@ const improvementSellLabel = computed(() =>
 
 .band-title {
   font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 24px;
+  font-size: 21px;
   font-weight: 800;
-  line-height: 1.3;
+  line-height: 1.25;
   color: #ffffff;
   margin: 0;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
@@ -1046,17 +1056,17 @@ const improvementSellLabel = computed(() =>
 }
 
 .card-body {
-  padding: 24px 28px 28px;
+  padding: 16px 26px 20px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
 }
 
 .price-section {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  padding-bottom: 16px;
+  padding-bottom: 10px;
   border-bottom: 1px solid rgba(74, 222, 128, 0.1);
 }
 
@@ -1086,7 +1096,7 @@ const improvementSellLabel = computed(() =>
 
 .price-value {
   font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 28px;
+  font-size: 25px;
   font-weight: 800;
   color: #00e38f;
   line-height: 1;
@@ -1096,17 +1106,17 @@ const improvementSellLabel = computed(() =>
 .metrics-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 8px;
 }
 
 .metric-card {
   background: rgba(25, 27, 36, 0.8);
   border: 1px solid rgba(74, 222, 128, 0.06);
-  border-radius: 16px;
-  padding: 14px;
+  border-radius: 14px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 3px;
 }
 
 .metric-label {
@@ -1120,7 +1130,7 @@ const improvementSellLabel = computed(() =>
 
 .metric-value {
   font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   color: rgba(225, 225, 239, 0.95);
 }
@@ -1128,8 +1138,8 @@ const improvementSellLabel = computed(() =>
 .development-rates {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 14px;
+  gap: 9px;
+  padding: 11px;
   background: rgba(15, 17, 25, 0.78);
   border: 1px solid rgba(148, 163, 184, 0.13);
   border-radius: 14px;
@@ -1179,20 +1189,22 @@ const improvementSellLabel = computed(() =>
 
 .rates-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
+  gap: 6px;
 }
 
 .rate-item {
-  min-height: 44px;
-  padding: 8px 10px;
-  border-radius: 10px;
+  min-height: 34px;
+  padding: 6px 5px;
+  border-radius: 9px;
   background: rgba(50, 52, 62, 0.62);
   border: 1px solid rgba(255, 255, 255, 0.055);
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 2px;
+  align-items: center;
+  text-align: center;
+  gap: 1px;
 }
 
 .rate-item.active {
@@ -1209,7 +1221,7 @@ const improvementSellLabel = computed(() =>
 
 .rate-value {
   font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 800;
   color: rgba(225, 225, 239, 0.94);
 }
@@ -1219,17 +1231,28 @@ const improvementSellLabel = computed(() =>
   color: #00e38f;
 }
 
+.own-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.own-status-row > * {
+  flex: 1 1 170px;
+  margin: 0;
+}
+
 .own-banner {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 14px 16px;
+  padding: 10px 14px;
   background: rgba(0, 227, 143, 0.1);
   border: 1px solid rgba(0, 227, 143, 0.2);
   border-radius: 12px;
   color: #00e38f;
   font-weight: 700;
-  font-size: 15px;
+  font-size: 14px;
 }
 
 .own-banner .material-symbols-outlined {
@@ -1240,8 +1263,8 @@ const improvementSellLabel = computed(() =>
 .development-panel {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 12px 14px;
+  gap: 3px;
+  padding: 9px 12px;
   background: rgba(59, 130, 246, 0.08);
   border: 1px solid rgba(59, 130, 246, 0.16);
   border-radius: 12px;
@@ -1277,10 +1300,10 @@ const improvementSellLabel = computed(() =>
 }
 
 .manage-btn {
-  min-height: 42px;
-  padding: 10px 14px;
+  min-height: 38px;
+  padding: 8px 13px;
   border-radius: 12px;
-  font-size: 13px;
+  font-size: 12.5px;
   background: rgba(50, 52, 62, 0.82);
   color: rgba(225, 225, 239, 0.88);
   border: 1px solid rgba(74, 222, 128, 0.1);
@@ -1379,8 +1402,8 @@ const improvementSellLabel = computed(() =>
 .action-stack {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding-top: 4px;
+  gap: 8px;
+  padding-top: 2px;
 }
 
 .action-btn {
@@ -1389,11 +1412,11 @@ const improvementSellLabel = computed(() =>
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 14px 20px;
-  border-radius: 16px;
+  padding: 12px 18px;
+  border-radius: 14px;
   border: none;
   font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s;
@@ -1547,6 +1570,47 @@ const improvementSellLabel = computed(() =>
     opacity: 0;
     transform: perspective(900px) rotateY(-6deg) rotateX(-3deg) scale(0.93)
       translateY(-14px);
+  }
+}
+
+/* Pantallas bajas: apretar el contenido para evitar scroll en la tarjeta */
+@media (max-height: 760px) {
+  .card-inner {
+    max-height: 96vh;
+  }
+  .color-band {
+    min-height: 72px;
+    padding: 12px 24px 10px;
+  }
+  .band-title {
+    font-size: 19px;
+  }
+  .card-body {
+    padding: 12px 24px 16px;
+    gap: 9px;
+  }
+  .price-section {
+    padding-bottom: 8px;
+  }
+  .price-value {
+    font-size: 22px;
+  }
+  .metric-card {
+    padding: 8px 11px;
+  }
+  .development-rates {
+    gap: 7px;
+    padding: 9px;
+  }
+  .own-banner,
+  .development-panel {
+    padding: 8px 12px;
+  }
+  .manage-btn {
+    min-height: 34px;
+  }
+  .action-btn {
+    padding: 10px 16px;
   }
 }
 

@@ -5,16 +5,17 @@ Blender (Scripting > Run) o por linea de comandos:
 
     blender --background --python scripts_blenders/tacon_user.py
 
-Tecnica: el zapato NO se construye apilando elipsoides. La suela y el empeine
-son curvas BARRIDAS (sweep) que siguen el perfil del pie con su arco natural;
-cada una es una sola pieza continua. El stiletto es un cono y la tapa/correa
-son detalles dorados.
+Tecnica: el cuerpo del zapato se modela a partir de su SILUETA LATERAL (un
+poligono en el plano Y-Z con punta afilada, escote y contrafuerte alto) que se
+rellena, se le da grosor con Solidify y se redondea con Bevel. El stiletto es un
+cono fino. Acabado: charol negro brillante (como la referencia), sin dorados.
 """
 
 import math
 from pathlib import Path
 
 import bpy
+import bmesh
 
 
 # --------------------------------------------------------------------------- #
@@ -158,19 +159,43 @@ def _ellipse_profile(name, half_w, half_h, points=24):
     return obj
 
 
-def swept(name, col, mat, points, half_w, half_h, resolution=16):
+def _taper_curve(name, scales):
+    """Curva de taper: escala el grosor del barrido a lo largo del recorrido.
+
+    scales[0] aplica en el inicio del spline (la punta) y scales[-1] al final
+    (el talon). Un valor cercano a 0 en la punta produce el filo del zapato.
+    """
+    cu = bpy.data.curves.new(name, type="CURVE")
+    cu.dimensions = "2D"
+    sp = cu.splines.new("NURBS")
+    sp.points.add(len(scales) - 1)
+    n = len(scales)
+    for i, s in enumerate(scales):
+        sp.points[i].co = (i / (n - 1), s, 0, 1)
+    sp.order_u = min(4, n)
+    sp.use_endpoint_u = True
+    obj = bpy.data.objects.new(name, cu)
+    bpy.context.scene.collection.objects.link(obj)
+    return obj
+
+
+def swept(name, col, mat, points, half_w, half_h, resolution=24, taper=None):
     """Barre una seccion eliptica a lo largo de un spline NURBS suave.
 
     Produce UNA pieza continua (suela o empeine) que sigue el perfil del pie,
-    en lugar de varias esferas/elipsoides apilados.
+    en lugar de varias esferas/elipsoides apilados. `taper` (lista de escalas)
+    estrecha el barrido para lograr la punta afilada del stiletto.
     """
     profile = _ellipse_profile(name + "_Prof", half_w, half_h)
+    taper_obj = _taper_curve(name + "_Taper", taper) if taper else None
 
     cu = bpy.data.curves.new(name, type="CURVE")
     cu.dimensions = "3D"
     cu.resolution_u = resolution
     cu.bevel_mode = "OBJECT"
     cu.bevel_object = profile
+    if taper_obj:
+        cu.taper_object = taper_obj
     cu.use_fill_caps = True
     sp = cu.splines.new("NURBS")
     sp.points.add(len(points) - 1)
@@ -191,6 +216,8 @@ def swept(name, col, mat, points, half_w, half_h, resolution=16):
     shade_smooth(obj)
 
     bpy.data.objects.remove(profile, do_unlink=True)
+    if taper_obj:
+        bpy.data.objects.remove(taper_obj, do_unlink=True)
     return obj
 
 
@@ -216,46 +243,115 @@ def export_token(filename, build_fn):
 # --------------------------------------------------------------------------- #
 # Modelo: zapato de tacon (mira hacia -Y, talon en +Y)
 # --------------------------------------------------------------------------- #
+def smooth_closed(points, samples_per_seg=12):
+    """Interpola un lazo cerrado de puntos 2D con Catmull-Rom.
+
+    Convierte la silueta poligonal (con esquinas) en una curva continua y suave
+    que pasa por los puntos de control, eliminando las facetas angulares.
+    """
+    n = len(points)
+    out = []
+    for i in range(n):
+        p0, p1, p2, p3 = (
+            points[(i - 1) % n],
+            points[i],
+            points[(i + 1) % n],
+            points[(i + 2) % n],
+        )
+        for s in range(samples_per_seg):
+            t = s / samples_per_seg
+            t2, t3 = t * t, t * t * t
+            y = 0.5 * (
+                (2 * p1[0])
+                + (-p0[0] + p2[0]) * t
+                + (2 * p0[0] - 5 * p1[0] + 4 * p2[0] - p3[0]) * t2
+                + (-p0[0] + 3 * p1[0] - 3 * p2[0] + p3[0]) * t3
+            )
+            z = 0.5 * (
+                (2 * p1[1])
+                + (-p0[1] + p2[1]) * t
+                + (2 * p0[1] - 5 * p1[1] + 4 * p2[1] - p3[1]) * t2
+                + (-p0[1] + 3 * p1[1] - 3 * p2[1] + p3[1]) * t3
+            )
+            out.append((y, z))
+    return out
+
+
+def profile_solid(name, col, mat, outline, width, bevel=0.006, bevel_seg=2, subsurf=1):
+    """Crea un cuerpo solido suave a partir de un perfil lateral (plano Y-Z).
+
+    Rellena el poligono, le da grosor con Solidify (centrado en x=0), redondea
+    los cantos con Bevel y suaviza la superficie con Subdivision Surface.
+    """
+    mesh = bpy.data.meshes.new(name)
+    obj = bpy.data.objects.new(name, mesh)
+    col.objects.link(obj)
+
+    bm = bmesh.new()
+    verts = [bm.verts.new((0.0, y, z)) for (y, z) in outline]
+    face = bm.faces.new(verts)
+    bmesh.ops.recalc_face_normals(bm, faces=[face])
+    bm.to_mesh(mesh)
+    bm.free()
+
+    solid = obj.modifiers.new("Solidify", "SOLIDIFY")
+    solid.thickness = width
+    solid.offset = 0.0
+    solid.use_even_offset = True
+
+    bev = obj.modifiers.new("Bevel", "BEVEL")
+    bev.width = bevel
+    bev.segments = bevel_seg
+    bev.limit_method = "ANGLE"
+    bev.angle_limit = math.radians(30)
+    bev.use_clamp_overlap = True
+
+    if subsurf:
+        sub = obj.modifiers.new("Subsurf", "SUBSURF")
+        sub.levels = subsurf
+        sub.render_levels = subsurf
+
+    apply_mat(obj, mat)
+    shade_smooth(obj)
+    return obj
+
+
 def build_high_heel(col):
     root = root_object("Piece_HighHeel", col)
 
-    red = make_material("Heel_Ruby_Patent", (0.86, 0.02, 0.11, 1), roughness=0.11, coat=0.8)
-    dark = make_material("Heel_Black_Gloss", (0.015, 0.012, 0.014, 1), roughness=0.08, coat=0.75)
-    gold = make_material("Heel_Gold_Accent", (0.95, 0.72, 0.18, 1), roughness=0.16, metallic=0.9, coat=0.35)
+    # Charol negro brillante, como la referencia: muy reflejante, casi sin
+    # rugosidad y con clearcoat al maximo.
+    patent = make_material("Heel_Black_Patent", (0.018, 0.018, 0.022, 1), roughness=0.05, coat=1.0)
 
-    # Suela: una sola pieza barrida, plana y ancha, que se arquea desde la punta
-    # (apoyada en el suelo) hasta el asiento del talon (elevado).
-    sole_path = [
-        (0, -0.082, 0.011),  # punta
-        (0, -0.052, 0.005),  # planta delantera (contacto con el suelo)
-        (0, -0.018, 0.008),
-        (0,  0.012, 0.030),  # arco
-        (0,  0.038, 0.058),
-        (0,  0.054, 0.082),  # asiento del talon
+    # Silueta lateral del stiletto (plano Y-Z). Recorrido cerrado:
+    # empeine (punta -> talon) por arriba, baja por el contrafuerte, y vuelve
+    # por la suela (asiento del talon -> arco -> punta).
+    outline = [
+        (-0.115, 0.010),  # 1  punta afilada (en el suelo)
+        (-0.085, 0.042),  # 2  caja de la punta (arriba)
+        (-0.045, 0.058),  # 3  empeine / pala
+        (-0.008, 0.054),  # 4  escote (abertura)
+        ( 0.022, 0.078),  # 5  subida del empeine
+        ( 0.052, 0.125),  # 6  contrafuerte (parte alta del talon)
+        ( 0.070, 0.118),  # 7  remate trasero
+        ( 0.066, 0.080),  # 8  espalda del contrafuerte
+        ( 0.060, 0.064),  # 9  asiento del talon (atras)
+        ( 0.052, 0.060),  # 10 asiento del talon (abajo) - sale el stiletto
+        ( 0.012, 0.030),  # 11 arco (suela elevada)
+        (-0.035, 0.006),  # 12 planta (apoyo en el suelo)
     ]
 
-    # Empeine/pala: una sola pieza barrida que envuelve el pie desde la punta,
-    # baja en el escote y sube al contrafuerte trasero.
-    upper_path = [
-        (0, -0.074, 0.022),  # punta (sobre la suela)
-        (0, -0.052, 0.046),
-        (0, -0.028, 0.060),
-        (0, -0.004, 0.065),  # escote (parte mas baja de la abertura)
-        (0,  0.022, 0.068),
-        (0,  0.042, 0.082),
-        (0,  0.054, 0.100),  # contrafuerte trasero
-    ]
+    smooth_outline = smooth_closed(outline, samples_per_seg=12)
+    body = profile_solid(
+        "Heel_Body", col, patent, smooth_outline, width=0.050, bevel=0.006, bevel_seg=2, subsurf=1
+    )
 
-    parts = [
-        swept("Heel_Sole", col, dark, sole_path, half_w=0.030, half_h=0.0085),
-        swept("Heel_Upper", col, red, upper_path, half_w=0.027, half_h=0.018),
-        cone("Heel_Stiletto", col, dark, 0.0055, 0.010, 0.082, (0, 0.054, 0.040)),
-        cylinder("Heel_Tip", col, gold, 0.0085, 0.004, (0, 0.054, 0.002)),
-        cylinder("Heel_AnkleBand", col, gold, 0.030, 0.004, (0, 0.046, 0.108),
-                 rotation=(math.radians(90), 0, 0), scale=(1, 0.6, 1)),
-    ]
+    # Stiletto fino y alto: ancho en el asiento (+Z) y casi en filo en el suelo (-Z).
+    stiletto = cone("Heel_Stiletto", col, patent, 0.0015, 0.0065, 0.062, (0, 0.056, 0.031))
+    # Tapa de tacon discreta, mismo charol negro.
+    tip = cylinder("Heel_Tip", col, patent, 0.004, 0.003, (0, 0.056, 0.0016))
 
-    for obj in parts:
+    for obj in (body, stiletto, tip):
         parent(obj, root)
     return root
 

@@ -10,6 +10,27 @@
       position: relative;
     "
   >
+    <div
+      style="
+        position: absolute;
+        top: 12px;
+        right: 3rem;
+        z-index: 50;
+        padding: 4px 10px;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.6);
+        color: #00e676;
+        font-family: monospace;
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: 0.5px;
+        pointer-events: none;
+        user-select: none;
+      "
+    >
+      {{ fps }} FPS
+    </div>
+
     <ClientOnly>
       <TresCanvas
         shadows
@@ -41,23 +62,10 @@
           :position="[0, 0, 0]"
           :scale="1.0"
         />
-        <template v-for="(item, idx) in boardHouseScenes" :key="item.key">
-          <primitive
-            v-if="item.scene"
-            :object="item.scene"
-            :position="[
-              boardHouseTransforms[idx].position.x,
-              boardHouseTransforms[idx].position.y,
-              boardHouseTransforms[idx].position.z,
-            ]"
-            :rotation="[
-              boardHouseTransforms[idx].rotation.x,
-              boardHouseTransforms[idx].rotation.y,
-              boardHouseTransforms[idx].rotation.z,
-            ]"
-            :scale="boardHouseTransforms[idx].scale"
-          />
-        </template>
+        <primitive
+          v-if="boardHouseInstancedGroup"
+          :object="boardHouseInstancedGroup"
+        />
         <template v-for="(scene, idx) in playerScenes" :key="idx">
           <primitive
             v-if="scene && !store.bankruptPlayers.includes(idx)"
@@ -196,7 +204,15 @@ import AuctionModal from "~/components/AuctionModal.vue";
 import WinnerOverlay from "~/components/WinnerOverlay.vue";
 import CardOverlay from "~/components/CardOverlay.vue";
 import ExchangeModal from "~/components/ExchangeModal.vue";
-import type { Group } from "three";
+import {
+  Group as ThreeGroup,
+  InstancedMesh,
+  Matrix4,
+  Euler,
+  Quaternion,
+  Vector3,
+} from "three";
+import type { Group, Mesh, BufferGeometry, Material } from "three";
 import type { ExchangeProposal } from "~/stores/gameStore";
 
 const store = useGameStore();
@@ -453,9 +469,12 @@ async function onCardAccept() {
 
 const tableroScene = shallowRef<Group | null>(null);
 const playerScenes = shallowRef<(Group | null)[]>([]);
-const boardHouseScenes = shallowRef<{ key: string; scene: Group }[]>([]);
+const boardHouseInstancedGroup = shallowRef<Group | null>(null);
 const boardHouseModels = shallowRef<Map<string, Group>>(new Map());
-const boardHouseSceneCache = new Map<string, Group>();
+
+const fps = ref(0);
+let fpsFrames = 0;
+let fpsElapsedMs = 0;
 
 const boardHouseModelVariantFiles = import.meta.glob(
   "../public/models/{casa_detallada,hotel_detallado}_*.glb",
@@ -559,47 +578,128 @@ const boardHouseTransforms = computed(() =>
   }),
 );
 
-function refreshBoardHouseScenes() {
+interface BoardHouseLeaf {
+  geometry: BufferGeometry;
+  material: Material | Material[];
+  matrix: Matrix4;
+}
+
+const boardHouseLeafCache = new Map<string, BoardHouseLeaf[]>();
+const _placementMatrix = new Matrix4();
+const _instanceMatrix = new Matrix4();
+const _instancePosition = new Vector3();
+const _instanceQuaternion = new Quaternion();
+const _instanceEuler = new Euler();
+const _instanceScale = new Vector3();
+
+// Extrae las mallas hoja del modelo fuente con su transform relativo a la raiz,
+// replicando lo que hacia `<primitive :object>` al clonar la escena.
+function getBoardHouseLeaves(
+  modelKey: string,
+  source: Group,
+): BoardHouseLeaf[] {
+  const cached = boardHouseLeafCache.get(modelKey);
+  if (cached) return cached;
+
+  source.position.set(0, 0, 0);
+  source.rotation.set(0, 0, 0);
+  source.scale.set(1, 1, 1);
+  source.updateMatrixWorld(true);
+
+  const leaves: BoardHouseLeaf[] = [];
+  source.traverse((child) => {
+    const mesh = child as Mesh;
+    if (!mesh.isMesh) return;
+    leaves.push({
+      geometry: mesh.geometry,
+      material: mesh.material,
+      matrix: mesh.matrixWorld.clone(),
+    });
+  });
+
+  boardHouseLeafCache.set(modelKey, leaves);
+  return leaves;
+}
+
+// Construye un unico grupo de InstancedMesh: todas las construcciones que comparten
+// modelo se dibujan en una sola draw call por malla, sin importar cuantas haya.
+function rebuildBoardHouseInstances() {
   const models = boardHouseModels.value;
-  const activeSceneKeys = new Set<string>();
-  boardHouseScenes.value = boardHousePlacements.value
-    .map((placement) => {
-      const group = getBoardHouseAssetGroup(placement.tileIndex, BOARD_TILES);
-      const modelKey = getBoardHouseAssetKey(placement.type, group);
-      const sceneKey = [
-        "board-house",
-        placement.type,
-        group ?? "default",
-        placement.tileIndex,
-        placement.buildIndex ?? 0,
-      ].join("-");
-      const sourceScene = models.get(modelKey) ?? models.get(placement.type);
-      if (!sourceScene) return null;
+  const placements = boardHousePlacements.value;
+  const transforms = boardHouseTransforms.value;
 
-      let scene = boardHouseSceneCache.get(sceneKey);
-      if (!scene) {
-        scene = sourceScene.clone(true);
-        boardHouseSceneCache.set(sceneKey, scene);
-      }
-      if (!scene) return null;
+  const groupedByModel = new Map<
+    string,
+    { source: Group; indices: number[] }
+  >();
 
-      activeSceneKeys.add(sceneKey);
+  placements.forEach((placement, idx) => {
+    const group = getBoardHouseAssetGroup(placement.tileIndex, BOARD_TILES);
+    const modelKey = getBoardHouseAssetKey(placement.type, group);
+    const source = models.get(modelKey) ?? models.get(placement.type);
+    if (!source) return;
 
-      return {
-        key: sceneKey,
-        scene,
-      };
-    })
-    .filter((item): item is { key: string; scene: Group } => Boolean(item));
-
-  for (const key of boardHouseSceneCache.keys()) {
-    if (!activeSceneKeys.has(key)) {
-      boardHouseSceneCache.delete(key);
+    const entry = groupedByModel.get(modelKey);
+    if (entry) {
+      entry.indices.push(idx);
+    } else {
+      groupedByModel.set(modelKey, { source, indices: [idx] });
     }
+  });
+
+  const container = new ThreeGroup();
+
+  for (const [modelKey, { source, indices }] of groupedByModel) {
+    const leaves = getBoardHouseLeaves(modelKey, source);
+
+    for (const leaf of leaves) {
+      const instanced = new InstancedMesh(
+        leaf.geometry,
+        leaf.material,
+        indices.length,
+      );
+      instanced.frustumCulled = false;
+
+      indices.forEach((placementIdx, i) => {
+        const transform = transforms[placementIdx];
+        _instancePosition.set(
+          transform.position.x,
+          transform.position.y,
+          transform.position.z,
+        );
+        _instanceEuler.set(
+          transform.rotation.x,
+          transform.rotation.y,
+          transform.rotation.z,
+        );
+        _instanceQuaternion.setFromEuler(_instanceEuler);
+        _instanceScale.setScalar(transform.scale);
+        _placementMatrix.compose(
+          _instancePosition,
+          _instanceQuaternion,
+          _instanceScale,
+        );
+        _instanceMatrix.multiplyMatrices(_placementMatrix, leaf.matrix);
+        instanced.setMatrixAt(i, _instanceMatrix);
+      });
+
+      instanced.instanceMatrix.needsUpdate = true;
+      container.add(instanced);
+    }
+  }
+
+  const previous = boardHouseInstancedGroup.value;
+  boardHouseInstancedGroup.value = container;
+
+  if (previous) {
+    previous.traverse((child) => {
+      const instanced = child as InstancedMesh;
+      if (instanced.isInstancedMesh) instanced.dispose();
+    });
   }
 }
 
-watch(boardHousePlacements, refreshBoardHouseScenes, { deep: true });
+watch(boardHousePlacements, rebuildBoardHouseInstances, { deep: true });
 
 async function loadGltfScene(
   loader: GLTFLoader,
@@ -616,7 +716,9 @@ async function loadOptionalGltfScene(
   return await loadGltfScene(loader, modelPath);
 }
 
-async function loadBoardHouseModels(loader: GLTFLoader): Promise<Map<string, Group>> {
+async function loadBoardHouseModels(
+  loader: GLTFLoader,
+): Promise<Map<string, Group>> {
   const models = new Map<string, Group>();
   const types = Object.keys(
     BOARD_HOUSE_ASSET_DEFINITIONS,
@@ -669,6 +771,14 @@ function getSharedOffset(idx: number): { x: number; z: number } {
 
 function onRenderTick({ delta }: { delta: number }) {
   const deltaMs = delta * 1000;
+
+  fpsFrames += 1;
+  fpsElapsedMs += deltaMs;
+  if (fpsElapsedMs >= 500) {
+    fps.value = Math.round((fpsFrames * 1000) / fpsElapsedMs);
+    fpsFrames = 0;
+    fpsElapsedMs = 0;
+  }
 
   tick(deltaMs);
 
@@ -738,9 +848,9 @@ onMounted(async () => {
     tableroScene.value = (await loader.loadAsync("/models/tablero.glb"))
       .scene as Group;
 
-    boardHouseSceneCache.clear();
+    boardHouseLeafCache.clear();
     boardHouseModels.value = await loadBoardHouseModels(loader);
-    refreshBoardHouseScenes();
+    rebuildBoardHouseInstances();
 
     playerScenes.value = loadResults.map((gltf) => gltf.scene as Group);
 
