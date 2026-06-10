@@ -22,6 +22,55 @@
       </div>
     </div>
 
+    <ClientOnly>
+      <TresCanvas
+        shadows
+        clear-color="#1a1a2e"
+        class="mp-board-canvas"
+      >
+        <TresPerspectiveCamera
+          :position="[12, 15, 12]"
+          :fov="45"
+          :near="0.1"
+          :far="1000"
+        />
+        <OrbitControls
+          :enable-damping="true"
+          :target="[0, 0, 0]"
+        />
+        <TresAmbientLight :intensity="1.8" />
+        <TresDirectionalLight
+          :position="[10, 20, 10]"
+          :intensity="2"
+          cast-shadow
+        />
+        <primitive
+          v-if="tableroScene"
+          :object="tableroScene"
+          :position="[0, 0, 0]"
+          :scale="1"
+        />
+        <template v-for="(scene, idx) in playerScenes" :key="playerSceneKeys[idx] ?? idx">
+          <primitive
+            v-if="scene && mpStore.players[idx] && !mpStore.bankruptPlayers.includes(mpStore.players[idx].id)"
+            :object="scene"
+            :position="[
+              playerBoardPositions[idx]?.x ?? 0,
+              playerBoardPositions[idx]?.y ?? 0,
+              playerBoardPositions[idx]?.z ?? 0,
+            ]"
+            :scale="playerBoardScales[idx] ?? GAME_CONFIG.DEFAULT_SCALE"
+          />
+        </template>
+      </TresCanvas>
+      <div v-if="mpStore.state && !tableroScene && !boardLoadError" class="board-loading">
+        Cargando mapa...
+      </div>
+      <div v-if="boardLoadError" class="board-loading board-error">
+        No se pudo cargar el mapa 3D.
+      </div>
+    </ClientOnly>
+
     <!-- Connected players HUD -->
     <div class="players-hud" v-if="mpStore.state">
       <div class="players-hud-title">
@@ -29,7 +78,7 @@
         <strong>{{ mpStore.players.length }}</strong>
       </div>
       <div
-        v-for="p in mpStore.players"
+        v-for="(p, idx) in mpStore.players"
         :key="p.id"
         class="hud-player"
         :class="{
@@ -38,7 +87,7 @@
           'hud-me': p.id === mpStore.myPlayerId,
         }"
       >
-        <span class="hud-icon">{{ tokenIcon(p.tokenModel) }}</span>
+        <span class="hud-icon">{{ tokenIcon(p.tokenModel, idx) }}</span>
         <div class="hud-copy">
           <span class="hud-name">
             {{ p.name }}
@@ -212,9 +261,14 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, shallowRef, computed, onMounted, onUnmounted, watch } from 'vue'
+import { TresCanvas } from '@tresjs/core'
+import { OrbitControls } from '@tresjs/cientos'
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
+import type { Group } from 'three'
 import { useMultiplayerStore } from '~/stores/multiplayerStore'
 import { useGameSocket } from '~/composables/useGameSocket'
+import { useBoardGeometry } from '~/composables/useBoardGeometry'
 import { GAME_CONFIG } from '~/config/gameConfig'
 import { BOARD_TILES } from '~/config/boardTilesConfig'
 
@@ -228,7 +282,37 @@ const playerId = route.query.playerId as string
 const showBuyPrompt = ref(false)
 const buyTileIndex = ref(0)
 const diceVisible = ref(false)
+const tableroScene = shallowRef<Group | null>(null)
+const playerScenes = shallowRef<(Group | null)[]>([])
+const boardLoadError = ref(false)
+const playerSceneKeys = computed(() => mpStore.players.map((p, idx) => `${p.id}:${normalizedTokenModel(p.tokenModel, idx)}`))
+const { getCasillaCoordinates } = useBoardGeometry()
 let diceHideTimer: ReturnType<typeof setTimeout> | null = null
+let loadedTokenSignature = ''
+let boardLoadRequestId = 0
+
+const normalizedPlayerTiles = computed(() =>
+  mpStore.players.map(player => ((player.position % 40) + 40) % 40)
+)
+
+const playerBoardPositions = computed(() =>
+  mpStore.players.map((player, idx) => {
+    const tile = ((player.position % 40) + 40) % 40
+    const base = getCasillaCoordinates(tile)
+    const offset = sharedBoardOffset(idx)
+    return {
+      x: base.x + offset.x,
+      y: base.y,
+      z: base.z + offset.z,
+    }
+  })
+)
+
+const playerBoardScales = computed(() =>
+  mpStore.players.map((_, idx) =>
+    playerSharesTile(idx) ? GAME_CONFIG.SHARED_TILE_SCALE : GAME_CONFIG.DEFAULT_SCALE
+  )
+)
 
 const currentPosition = computed(() => {
   const p = mpStore.activePlayer
@@ -241,11 +325,74 @@ const myPlayer = computed(() => mpStore.myPlayer)
 const activeTokenIcon = computed(() => {
   const p = mpStore.activePlayer
   if (!p) return '?'
-  return tokenIcon(p.tokenModel)
+  return tokenIcon(p.tokenModel, mpStore.activePlayerIndex)
 })
 
-function tokenIcon(file: string) {
-  return GAME_CONFIG.TOKEN_MODELS.find(t => t.file === file)?.icon ?? '?'
+function tokenConfig(file: string | undefined, idx = 0) {
+  return GAME_CONFIG.TOKEN_MODELS.find(t => t.file === file)
+    ?? GAME_CONFIG.TOKEN_MODELS[idx % GAME_CONFIG.TOKEN_MODELS.length]
+    ?? GAME_CONFIG.TOKEN_MODELS[0]
+}
+
+function normalizedTokenModel(file: string | undefined, idx = 0) {
+  return tokenConfig(file, idx)?.file ?? 'sombrero.glb'
+}
+
+function tokenIcon(file: string | undefined, idx = 0) {
+  return tokenConfig(file, idx)?.icon ?? '?'
+}
+
+function playerSharesTile(idx: number) {
+  const tile = normalizedPlayerTiles.value[idx]
+  return normalizedPlayerTiles.value.some((candidate, i) => i !== idx && candidate === tile)
+}
+
+function sharedBoardOffset(idx: number): { x: number; z: number } {
+  const tile = normalizedPlayerTiles.value[idx]
+  const group = normalizedPlayerTiles.value
+    .map((candidate, i) => ({ idx: i, tile: candidate }))
+    .filter(candidate => candidate.tile === tile)
+
+  if (group.length <= 1) return { x: 0, z: 0 }
+
+  const posInGroup = group.findIndex(candidate => candidate.idx === idx)
+  const angle = (posInGroup / group.length) * 2 * Math.PI
+  const radius = GAME_CONFIG.SAME_TILE_SPACING
+
+  return {
+    x: Math.cos(angle) * radius,
+    z: Math.sin(angle) * radius,
+  }
+}
+
+async function loadBoardAssets() {
+  if (typeof window === 'undefined') return
+
+  const tokenModels = mpStore.players.map((player, idx) => normalizedTokenModel(player.tokenModel, idx))
+  if (tokenModels.length === 0) return
+
+  const signature = tokenModels.join('|')
+  if (tableroScene.value && signature === loadedTokenSignature) return
+
+  const requestId = ++boardLoadRequestId
+  boardLoadError.value = false
+
+  try {
+    const loader = new GLTFLoader()
+    const [boardResult, tokenResults] = await Promise.all([
+      tableroScene.value ? Promise.resolve({ scene: tableroScene.value }) : loader.loadAsync('/models/tablero.glb'),
+      Promise.all(tokenModels.map(file => loader.loadAsync(`/models/users/${file}`))),
+    ])
+
+    if (requestId !== boardLoadRequestId) return
+
+    tableroScene.value = boardResult.scene as Group
+    playerScenes.value = tokenResults.map(gltf => gltf.scene as Group)
+    loadedTokenSignature = signature
+  } catch (error) {
+    boardLoadError.value = true
+    console.error('Error loading multiplayer board assets', error)
+  }
 }
 
 const buyTileName = computed(() => {
@@ -290,6 +437,9 @@ function passBuy() {
   showBuyPrompt.value = false
 }
 
+let unsubscribeSocket: (() => void) | null = null
+let stopBoardAssetWatch: (() => void) | null = null
+
 // Handle incoming socket events
 onMounted(() => {
   if (!tableId || !playerId) {
@@ -300,7 +450,13 @@ onMounted(() => {
   mpStore.setConnection(tableId, playerId)
   socket.connect(tableId, playerId)
 
-  const unsubscribe = socket.onMessage(msg => {
+  stopBoardAssetWatch = watch(
+    () => mpStore.players.map((player, idx) => normalizedTokenModel(player.tokenModel, idx)).join('|'),
+    () => { void loadBoardAssets() },
+    { immediate: true }
+  )
+
+  unsubscribeSocket = socket.onMessage(msg => {
     switch (msg.type) {
       case 'game_snapshot': {
         const payload = msg.payload as { state: any }
@@ -335,12 +491,14 @@ onMounted(() => {
       }
     }
   })
+})
 
-  onUnmounted(() => {
-    unsubscribe()
-    socket.disconnect()
-    mpStore.reset()
-  })
+onUnmounted(() => {
+  if (diceHideTimer) clearTimeout(diceHideTimer)
+  stopBoardAssetWatch?.()
+  unsubscribeSocket?.()
+  socket.disconnect()
+  mpStore.reset()
 })
 
 // Show buy prompt when landing on unowned buyable tile (only for this player)
@@ -369,10 +527,39 @@ watch(() => mpStore.state?.isTurnComplete, (done, prev) => {
   position: relative;
   width: 100vw;
   height: 100vh;
-  background: #0a0e17;
+  background: #1a1a2e;
   overflow: hidden;
   font-family: "Inter", sans-serif;
   color: #f8fafc;
+}
+
+.mp-board-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.board-loading {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 20;
+  transform: translate(-50%, -50%);
+  padding: 10px 14px;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 8px;
+  background: rgba(10,16,25,0.82);
+  color: rgba(255,255,255,0.78);
+  font-size: 13px;
+  font-weight: 700;
+  pointer-events: none;
+}
+
+.board-error {
+  color: #fecaca;
+  border-color: rgba(248,113,113,0.35);
 }
 
 .conn-overlay, .winner-overlay {
