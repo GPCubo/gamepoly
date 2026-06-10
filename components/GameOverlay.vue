@@ -20,9 +20,56 @@
         <span class="hud-name">{{ p.name }}</span>
         <span class="hud-position">Casilla {{ playerTileNumber(p) }}/40</span>
       </div>
-      <span v-if="p.inJail" class="hud-jail-badge material-symbols-outlined">lock</span>
+      <span v-if="p.inJail" class="hud-jail-badge material-symbols-outlined"
+        >lock</span
+      >
       <span class="hud-cash" :class="{ 'hud-negative': p.cash < 0 }">
         ${{ p.cash.toLocaleString() }}
+      </span>
+    </div>
+  </div>
+
+  <div class="board-minimap">
+    <div class="minimap-header">
+      <span>Mapa</span>
+      <strong>{{
+        store.activePlayer ? playerTileNumber(store.activePlayer) : 0
+      }}</strong>
+    </div>
+    <div class="minimap-board" aria-hidden="true">
+      <div class="minimap-center">
+        <div class="minimap-legend">
+          <span><i class="legend-swatch legend-house"></i> Casas</span>
+          <span><i class="legend-swatch legend-hotel"></i> Hotel</span>
+          <span><i class="legend-swatch legend-mortgage"></i> Hipoteca</span>
+        </div>
+      </div>
+      <span
+        v-for="tile in minimapTiles"
+        :key="tile.index"
+        class="minimap-tile"
+        :class="{
+          'minimap-tile-corner': tile.isCorner,
+          'minimap-tile-active': tile.hasActivePlayer,
+          'minimap-tile-dark': tile.isDark,
+        }"
+        :style="{
+          left: `${tile.x}%`,
+          top: `${tile.y}%`,
+          background: tile.background,
+        }"
+      >
+        {{ tile.label }}
+      </span>
+      <span
+        v-for="marker in minimapMarkers"
+        :key="marker.id"
+        class="minimap-marker"
+        :class="{ 'minimap-marker-active': marker.isActive }"
+        :style="{ left: `${marker.x}%`, top: `${marker.y}%` }"
+        :title="marker.title"
+      >
+        {{ marker.icon }}
       </span>
     </div>
   </div>
@@ -63,6 +110,17 @@
       >
         <span class="material-symbols-outlined">lock_open</span>
         <span>Pagar fianza (${{ store.jailBailCost }})</span>
+      </button>
+
+      <button
+        v-if="isMoving"
+        ref="skipMoveBtnRef"
+        @click="onSkipMoveClick"
+        tabindex="0"
+        class="action-btn skip-btn"
+      >
+        <span class="material-symbols-outlined">skip_next</span>
+        <span>Saltar</span>
       </button>
 
       <button
@@ -125,15 +183,9 @@
 </template>
 
 <script setup lang="ts">
-import {
-  computed,
-  nextTick,
-  onMounted,
-  ref,
-  watch,
-  type Ref,
-} from "vue";
+import { computed, nextTick, onMounted, ref, watch, type Ref } from "vue";
 import { GAME_CONFIG } from "~/config/gameConfig";
+import { BOARD_TILES } from "~/config/boardTilesConfig";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
 import SidebarConfig from "~/components/SidebarConfig.vue";
 import { useGameStore, type PlayerState } from "~/stores/gameStore";
@@ -150,6 +202,7 @@ const emit = defineEmits<{
   (e: "roll", value: number): void;
   (e: "next-turn"): void;
   (e: "open-exchange"): void;
+  (e: "skip-move"): void;
 }>();
 
 const isSliding = ref(false);
@@ -161,6 +214,7 @@ const activePlayerCash = computed(() => store.activePlayer?.cash ?? 0);
 const activePlayerJailRolling = ref(false);
 
 const rollBtnRef = ref<HTMLElement | null>(null);
+const skipMoveBtnRef = ref<HTMLElement | null>(null);
 const configBtnRef = ref<HTMLElement | null>(null);
 const bailBtnRef = ref<HTMLElement | null>(null);
 
@@ -170,6 +224,7 @@ const overlayEnabled = computed(() => !props.cardOpen && !sidebarOpen.value);
 const actionRefs = computed(() => {
   const refs: Ref<HTMLElement | null>[] = [];
   if (activePlayerInJail.value && !isTurnDone.value) refs.push(bailBtnRef);
+  if (props.isMoving) refs.push(skipMoveBtnRef);
   refs.push(rollBtnRef, configBtnRef);
   return refs;
 });
@@ -183,13 +238,17 @@ useKeyboardNavigation(actionRefs, {
 
 const activeTokenMeta = computed(() => {
   const player = store.activePlayer;
-  return GAME_CONFIG.TOKEN_MODELS.find((t) => t.file === player?.tokenModel) ?? {
-    icon: "?",
-    name: "Ficha",
-  };
+  return (
+    GAME_CONFIG.TOKEN_MODELS.find((t) => t.file === player?.tokenModel) ?? {
+      icon: "?",
+      name: "Ficha",
+    }
+  );
 });
 
-const activePlayerName = computed(() => store.activePlayer?.name ?? "Sin jugador");
+const activePlayerName = computed(
+  () => store.activePlayer?.name ?? "Sin jugador",
+);
 
 function tokenIcon(file: string) {
   return GAME_CONFIG.TOKEN_MODELS.find((t) => t.file === file)?.icon ?? "?";
@@ -199,9 +258,135 @@ function playerTileNumber(player: PlayerState) {
   return (player.position % 40) + 1;
 }
 
+const minimapMarkers = computed(() => {
+  const tileCounts = new Map<number, number>();
+
+  return store.players
+    .filter((player) => !store.bankruptPlayers.includes(player.id))
+    .map((player) => {
+      const tile = ((player.position % 40) + 40) % 40;
+      const count = tileCounts.get(tile) ?? 0;
+      tileCounts.set(tile, count + 1);
+      const base = minimapPosition(tile);
+      const offset = sharedMinimapOffset(count);
+
+      return {
+        id: player.id,
+        icon: tokenIcon(player.tokenModel),
+        isActive: player.id === store.activePlayer?.id,
+        title: `${player.name} - casilla ${tile + 1}`,
+        x: base.x + offset.x,
+        y: base.y + offset.y,
+      };
+    });
+});
+
+const minimapTiles = computed(() => {
+  const activeTile = store.activePlayer
+    ? ((store.activePlayer.position % 40) + 40) % 40
+    : -1;
+
+  return Array.from({ length: 40 }, (_, index) => {
+    const position = minimapPosition(index);
+    const baseColor = minimapTileBaseColor(index);
+    const statusColor = minimapTileStatusColor(index);
+    const background = statusColor
+      ? `linear-gradient(135deg, ${baseColor} 0 50%, ${statusColor} 50% 100%)`
+      : baseColor;
+    return {
+      index,
+      x: position.x,
+      y: position.y,
+      background,
+      label: minimapTileLabel(index),
+      isCorner: index % 10 === 0,
+      hasActivePlayer: index === activeTile,
+      isDark: positionIsDark(statusColor ?? baseColor),
+    };
+  });
+});
+
+function minimapTileBaseColor(tile: number) {
+  const boardTile = BOARD_TILES.find((candidate) => candidate.index === tile);
+  if (boardTile?.type === "property" && boardTile.color) return boardTile.color;
+  return "#9ca3af";
+}
+
+function minimapTileStatusColor(tile: number) {
+  const development = store.propertyDevelopments[tile];
+  if (development?.mortgaged) return "#050505";
+  if (development?.hotel) return "#ef4444";
+  if ((development?.houses ?? 0) > 0) return "#22c55e";
+  return null;
+}
+
+function minimapTileLabel(tile: number) {
+  if (tile === 0) return "GO";
+  if (tile === 10) return "J";
+  if (tile === 20) return "P";
+  if (tile === 30) return "C";
+  return "";
+}
+
+function positionIsDark(color: string) {
+  if (color === "#050505") return true;
+  const hex = color.replace("#", "");
+  if (hex.length !== 6) return false;
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  return 0.299 * r + 0.587 * g + 0.114 * b < 95;
+}
+
+function minimapPosition(tile: number) {
+  const edgeMin = 7;
+  const edgeMax = 93;
+  const span = edgeMax - edgeMin;
+
+  if (tile <= 10) {
+    return {
+      x: edgeMin + (tile / 10) * span,
+      y: edgeMax,
+    };
+  }
+
+  if (tile <= 20) {
+    return {
+      x: edgeMax,
+      y: edgeMax - ((tile - 10) / 10) * span,
+    };
+  }
+
+  if (tile <= 30) {
+    return {
+      x: edgeMax - ((tile - 20) / 10) * span,
+      y: edgeMin,
+    };
+  }
+
+  return {
+    x: edgeMin,
+    y: edgeMin + ((tile - 30) / 10) * span,
+  };
+}
+
+function sharedMinimapOffset(index: number) {
+  if (index === 0) return { x: 0, y: 0 };
+  const radius = 4;
+  const angle = (index - 1) * 1.9;
+  return {
+    x: Math.cos(angle) * radius,
+    y: Math.sin(angle) * radius,
+  };
+}
+
 function focusPrimaryButton() {
   nextTick(() => {
     if (props.cardOpen || sidebarOpen.value) return;
+    if (props.isMoving) {
+      skipMoveBtnRef.value?.focus();
+      return;
+    }
     rollBtnRef.value?.focus();
   });
 }
@@ -227,6 +412,10 @@ watch(
 );
 watch(
   () => store.activePlayerIndex,
+  () => focusPrimaryButton(),
+);
+watch(
+  () => props.isMoving,
   () => focusPrimaryButton(),
 );
 watch(
@@ -334,6 +523,10 @@ function onPayBailClick() {
   const player = store.activePlayer;
   if (!player || !player.inJail) return;
   store.payJailBail(player.id);
+}
+
+function onSkipMoveClick() {
+  emit("skip-move");
 }
 
 async function onRollClick() {
@@ -603,6 +796,18 @@ async function onRollClick() {
   cursor: not-allowed;
 }
 
+.skip-btn {
+  min-width: 132px;
+  background: #f97316;
+  color: #fff7ed;
+  box-shadow: 0 10px 18px rgba(249, 115, 22, 0.32);
+}
+
+.skip-btn:hover {
+  background: #ea580c;
+  transform: translateY(-2px);
+}
+
 .config-btn {
   background: #475569;
   box-shadow: 0 10px 18px rgba(0, 0, 0, 0.22);
@@ -746,6 +951,161 @@ async function onRollClick() {
   font-size: 16px;
 }
 
+.board-minimap {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  z-index: 95;
+  width: 226px;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(10, 16, 25, 0.82);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.26);
+  backdrop-filter: blur(10px);
+  pointer-events: none;
+  font-family: "Inter", sans-serif;
+}
+
+.minimap-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+  color: rgba(255, 255, 255, 0.64);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0;
+}
+
+.minimap-header strong {
+  min-width: 24px;
+  padding: 3px 7px;
+  border-radius: 8px;
+  color: #111827;
+  background: #86efac;
+  text-align: center;
+}
+
+.minimap-board {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  background:
+    linear-gradient(rgba(15, 23, 42, 0.94), rgba(15, 23, 42, 0.94)) center / 70%
+      70% no-repeat,
+    #273142;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  overflow: hidden;
+}
+
+.minimap-center {
+  position: absolute;
+  inset: 17%;
+  border-radius: 6px;
+  background: rgba(10, 16, 25, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: grid;
+  place-items: center;
+  padding: 8px;
+}
+
+.minimap-legend {
+  width: 100%;
+  display: grid;
+  gap: 5px;
+  color: rgba(248, 250, 252, 0.78);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.minimap-legend span {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.legend-swatch {
+  width: 13px;
+  height: 13px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  flex: 0 0 auto;
+}
+
+.legend-house {
+  background: linear-gradient(135deg, #f8fafc 0 50%, #22c55e 50% 100%);
+}
+
+.legend-hotel {
+  background: linear-gradient(135deg, #f8fafc 0 50%, #ef4444 50% 100%);
+}
+
+.legend-mortgage {
+  background: linear-gradient(135deg, #f8fafc 0 50%, #050505 50% 100%);
+}
+
+.minimap-tile {
+  position: absolute;
+  width: 21px;
+  height: 21px;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border-radius: 4px;
+  color: #111827;
+  font-size: 8px;
+  font-weight: 800;
+  border: 1px solid rgba(15, 23, 42, 0.58);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  z-index: 1;
+}
+
+.minimap-tile-corner {
+  width: 30px;
+  height: 30px;
+  font-size: 10px;
+  border-radius: 6px;
+  z-index: 2;
+}
+
+.minimap-tile-active {
+  outline: 2px solid #86efac;
+  outline-offset: 1px;
+}
+
+.minimap-tile-dark {
+  color: #f8fafc;
+}
+
+.minimap-marker {
+  position: absolute;
+  width: 25px;
+  height: 25px;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  color: #f8fafc;
+  background: #111827;
+  border: 2px solid rgba(248, 250, 252, 0.85);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.38);
+  font-size: 13px;
+  line-height: 1;
+  z-index: 4;
+}
+
+.minimap-marker-active {
+  border-color: #86efac;
+  box-shadow:
+    0 0 0 3px rgba(134, 239, 172, 0.22),
+    0 4px 10px rgba(0, 0, 0, 0.38);
+}
+
 .doubles-badge {
   background: #f59e0b;
   color: #111827;
@@ -806,7 +1166,19 @@ async function onRollClick() {
   .players-hud {
     left: 12px;
     right: 12px;
+    top: 238px;
     width: auto;
+  }
+
+  .board-minimap {
+    top: 12px;
+    left: 12px;
+    width: 190px;
+  }
+
+  .minimap-legend {
+    font-size: 9px;
+    gap: 4px;
   }
 
   .overlay-container {

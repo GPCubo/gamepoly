@@ -74,12 +74,16 @@ export interface GameState {
   isAuctionActive: boolean;
   exchangeProposal: ExchangeProposal | null;
   canSkipBuy: boolean;
+  auctionOnly: boolean;
   doublesGiveExtraTurn: boolean;
   jailBailCost: number;
   chanceDeck: number[];
   communityDeck: number[];
   activeCard: GameCard | null;
   isDoubles: boolean;
+  skipMovementRequested: boolean;
+  forceAllDiceRollsAsDoubles: boolean;
+  forceAllDiceRollsToCards: boolean;
 }
 
 const PROPERTY_COLOR_GROUPS = new Set<TileGroup>([
@@ -93,6 +97,42 @@ const PROPERTY_COLOR_GROUPS = new Set<TileGroup>([
   "darkBlue",
 ]);
 
+const CARD_TILE_INDEXES = BOARD_TILES
+  .filter((tile) => tile.type === "card")
+  .map((tile) => tile.index)
+  .sort((a, b) => a - b);
+
+function normalizeBoardPosition(position: number): number {
+  return ((position % 40) + 40) % 40;
+}
+
+function stepsToNextCardTile(position: number): number {
+  const current = normalizeBoardPosition(position);
+  return Math.min(
+    ...CARD_TILE_INDEXES.map((index) =>
+      index > current ? index - current : 40 - current + index,
+    ),
+  );
+}
+
+function diceValuesForTotal(total: number): [number, number] {
+  const pairs: Record<number, [number, number]> = {
+    2: [1, 1],
+    3: [1, 2],
+    4: [1, 3],
+    5: [2, 3],
+    6: [1, 5],
+    7: [3, 4],
+    8: [3, 5],
+    9: [4, 5],
+    10: [4, 6],
+    11: [5, 6],
+    12: [6, 6],
+  };
+
+  return pairs[total] ?? [1, 1];
+}
+
 function getOwnableTile(tileIndex: number): BoardTile | undefined {
   const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
   if (!tile || tile.price === undefined) return undefined;
@@ -104,6 +144,10 @@ function getPropertyGroupTiles(group: TileGroup): BoardTile[] {
   return BOARD_TILES.filter(
     (tile) => tile.type === "property" && tile.group === group,
   );
+}
+
+function developmentLevel(development: PropertyDevelopmentState): number {
+  return development.hotel ? 5 : development.houses;
 }
 
 export const useGameStore = defineStore("game", {
@@ -125,12 +169,16 @@ export const useGameStore = defineStore("game", {
     isAuctionActive: false,
     exchangeProposal: null,
     canSkipBuy: GAME_CONFIG.CAN_SKIP_BUY,
+    auctionOnly: GAME_CONFIG.AUCTION_ONLY,
     doublesGiveExtraTurn: GAME_CONFIG.DOUBLES_GIVE_EXTRA_TURN,
     jailBailCost: GAME_CONFIG.JAIL_BAIL_COST,
     chanceDeck: [],
     communityDeck: [],
     activeCard: null,
     isDoubles: false,
+    skipMovementRequested: false,
+    forceAllDiceRollsAsDoubles: false,
+    forceAllDiceRollsToCards: false,
   }),
 
   getters: {
@@ -160,7 +208,7 @@ export const useGameStore = defineStore("game", {
   },
 
   actions: {
-    setupGame(configs: PlayerConfig[], options?: { goSalary?: number; canSkipBuy?: boolean; doublesGiveExtraTurn?: boolean }) {
+    setupGame(configs: PlayerConfig[], options?: { goSalary?: number; canSkipBuy?: boolean; auctionOnly?: boolean; doublesGiveExtraTurn?: boolean }) {
       const defaultCash = GAME_CONFIG.STARTING_CASH;
       this.players = configs.map((c, idx) => ({
         id: idx,
@@ -178,11 +226,15 @@ export const useGameStore = defineStore("game", {
       this.isTurnComplete = false;
       this.goSalary = options?.goSalary ?? GAME_CONFIG.GO_SALARY;
       this.canSkipBuy = options?.canSkipBuy ?? GAME_CONFIG.CAN_SKIP_BUY;
+      this.auctionOnly = options?.auctionOnly ?? GAME_CONFIG.AUCTION_ONLY;
       this.doublesGiveExtraTurn = options?.doublesGiveExtraTurn ?? GAME_CONFIG.DOUBLES_GIVE_EXTRA_TURN;
       this.chanceDeck = shuffleDeck(Array.from({ length: CHANCE_CARDS.length }, (_, i) => i));
       this.communityDeck = shuffleDeck(Array.from({ length: COMMUNITY_CARDS.length }, (_, i) => i));
       this.activeCard = null;
       this.isDoubles = false;
+      this.skipMovementRequested = false;
+      this.forceAllDiceRollsAsDoubles = false;
+      this.forceAllDiceRollsToCards = false;
       this.statusMessage = `¡${configs[0].name} comienza!`;
       this.propertyOwners = {};
       this.propertyDevelopments = {};
@@ -195,6 +247,7 @@ export const useGameStore = defineStore("game", {
       if (!p) return;
 
       p.isMoving = true;
+      this.skipMovementRequested = false;
       const startPosition = p.position;
       const target = p.position + steps;
 
@@ -204,19 +257,45 @@ export const useGameStore = defineStore("game", {
       }
 
       for (let i = p.position + 1; i <= target; i++) {
+        if (this.skipMovementRequested) {
+          p.position = target;
+          this.moveEvent = {
+            playerIndex: this.activePlayerIndex,
+            position: target,
+          };
+          await new Promise((r) => setTimeout(r, 0));
+          break;
+        }
+
         p.position = i;
         this.moveEvent = {
           playerIndex: this.activePlayerIndex,
           position: i,
         };
         await new Promise((r) => setTimeout(r, 300));
+
+        if (this.skipMovementRequested && i < target) {
+          p.position = target;
+          this.moveEvent = {
+            playerIndex: this.activePlayerIndex,
+            position: target,
+          };
+          await new Promise((r) => setTimeout(r, 0));
+          break;
+        }
       }
 
       p.isMoving = false;
       p.inJail = false;
       p.jailTurns = 0;
       this.moveEvent = null;
+      this.skipMovementRequested = false;
       this.isTurnComplete = true;
+    },
+
+    skipCurrentMovement() {
+      if (!this.isAnyMoving) return;
+      this.skipMovementRequested = true;
     },
 
     finishTurn() {
@@ -396,6 +475,36 @@ export const useGameStore = defineStore("game", {
       this.statusMessage = `Escenario local activado. ${player.name} inicia con todas las propiedades, hoteles y $${cash}`;
     },
 
+    seedAllPlayersRollDoubles() {
+      this.forceAllDiceRollsAsDoubles = true;
+      this.diceValues = [6, 6];
+      this.isDoubles = true;
+      this.statusMessage = "Escenario local activado. Todos los tiros seran dobles";
+    },
+
+    seedAllPlayersInJail() {
+      for (const player of this.players) {
+        player.inJail = true;
+        player.jailTurns = 0;
+        player.position = 10;
+        player.consecutiveDoubles = 0;
+      }
+
+      this.moveEvent = null;
+      this.isTurnComplete = false;
+      this.statusMessage = "Escenario local activado. Todos los jugadores inician en la carcel";
+    },
+
+    seedAllPlayersLandOnCards() {
+      this.forceAllDiceRollsToCards = true;
+      const player = this.activePlayer;
+      if (player) {
+        this.diceValues = diceValuesForTotal(stepsToNextCardTile(player.position));
+        this.isDoubles = this.diceValues[0] === this.diceValues[1];
+      }
+      this.statusMessage = "Escenario local activado. Todos los jugadores caeran en Arca Comunal o Suerte";
+    },
+
     getPropertyDevelopment(tileIndex: number): PropertyDevelopmentState {
       return this.propertyDevelopments[tileIndex] ?? {
         houses: 0,
@@ -518,6 +627,83 @@ export const useGameStore = defineStore("game", {
       });
     },
 
+    _groupImprovementTargets(
+      tileIndex: number,
+      playerId: number,
+      direction: "build" | "sell",
+    ): BoardTile[] {
+      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      if (!tile || tile.type !== "property") return [];
+      if (!this.ownsFullPropertyGroup(tileIndex, playerId)) return [];
+
+      const groupTiles = getPropertyGroupTiles(tile.group);
+      if (groupTiles.some((candidate) => this.propertyOwners[candidate.index] !== playerId)) {
+        return [];
+      }
+
+      const levels = groupTiles.map((candidate) =>
+        developmentLevel(this.getPropertyDevelopment(candidate.index)),
+      );
+
+      if (direction === "build") {
+        if (this.hasMortgagedPropertyInColorGroup(tileIndex)) return [];
+        const minLevel = Math.min(...levels);
+        if (minLevel >= 5) return [];
+        return groupTiles.filter(
+          (candidate) =>
+            developmentLevel(this.getPropertyDevelopment(candidate.index)) === minLevel,
+        );
+      }
+
+      const maxLevel = Math.max(...levels);
+      if (maxLevel <= 0) return [];
+      return groupTiles.filter(
+        (candidate) =>
+          developmentLevel(this.getPropertyDevelopment(candidate.index)) === maxLevel,
+      );
+    },
+
+    getPropertyGroupBuildCost(tileIndex: number, playerId: number): number {
+      const targets = this._groupImprovementTargets(tileIndex, playerId, "build");
+      return targets.reduce((total, target) => {
+        const development = this.getPropertyDevelopment(target.index);
+        const level = developmentLevel(development);
+        const cost = level >= 4 ? this.getHotelCost(target.index) : this.getHouseCost(target.index);
+        return total + cost;
+      }, 0);
+    },
+
+    getPropertyGroupSellRefund(tileIndex: number, playerId: number): number {
+      const targets = this._groupImprovementTargets(tileIndex, playerId, "sell");
+      return targets.reduce((total, target) => {
+        const development = this.getPropertyDevelopment(target.index);
+        const refund = development.hotel
+          ? Math.round(this.getHotelCost(target.index) / 2)
+          : Math.round(this.getHouseCost(target.index) / 2);
+        return total + refund;
+      }, 0);
+    },
+
+    canBuildPropertyGroupImprovement(tileIndex: number, playerId: number): boolean {
+      const player = this.players.find((candidate) => candidate.id === playerId);
+      const targets = this._groupImprovementTargets(tileIndex, playerId, "build");
+      if (!player || targets.length === 0) return false;
+      const totalCost = this.getPropertyGroupBuildCost(tileIndex, playerId);
+      if (player.cash < totalCost) return false;
+      return targets.every((target) => {
+        const development = this.getPropertyDevelopment(target.index);
+        return developmentLevel(development) >= 4
+          ? this.canBuildHotel(target.index, playerId)
+          : this.canBuildHouse(target.index, playerId);
+      });
+    },
+
+    canSellPropertyGroupImprovement(tileIndex: number, playerId: number): boolean {
+      const targets = this._groupImprovementTargets(tileIndex, playerId, "sell");
+      if (targets.length === 0) return false;
+      return targets.every((target) => this.canSellImprovement(target.index, playerId));
+    },
+
     canMortgageProperty(tileIndex: number, playerId: number): boolean {
       const tile = getOwnableTile(tileIndex);
       if (!tile) return false;
@@ -567,6 +753,38 @@ export const useGameStore = defineStore("game", {
       this._checkBankruptcy(playerId);
     },
 
+    buildPropertyGroupImprovement(tileIndex: number, playerId: number) {
+      if (!this.canBuildPropertyGroupImprovement(tileIndex, playerId)) return;
+      const player = this.players.find((candidate) => candidate.id === playerId);
+      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      if (!player || !tile || tile.type !== "property") return;
+
+      const targets = this._groupImprovementTargets(tileIndex, playerId, "build");
+      let totalCost = 0;
+
+      for (const target of targets) {
+        const development = this._ensurePropertyDevelopment(target.index);
+        const level = developmentLevel(development);
+
+        if (level >= 4) {
+          const cost = this.getHotelCost(target.index);
+          player.cash -= cost;
+          totalCost += cost;
+          development.houses = 0;
+          development.hotel = true;
+        } else {
+          const cost = this.getHouseCost(target.index);
+          player.cash -= cost;
+          totalCost += cost;
+          development.houses = Math.min(4, development.houses + 1);
+          development.hotel = false;
+        }
+      }
+
+      this.statusMessage = `${player.name} mejoro el grupo ${tile.group} por $${totalCost}`;
+      this._checkBankruptcy(playerId);
+    },
+
     sellImprovement(tileIndex: number, playerId: number) {
       if (!this.canSellImprovement(tileIndex, playerId)) return;
       const player = this.players.find((candidate) => candidate.id === playerId);
@@ -590,6 +808,39 @@ export const useGameStore = defineStore("game", {
         player.cash += refund;
         this.statusMessage = `${player.name} vendió una casa de ${tile.name} por $${refund}`;
       }
+    },
+
+    sellPropertyGroupImprovement(tileIndex: number, playerId: number) {
+      if (!this.canSellPropertyGroupImprovement(tileIndex, playerId)) return;
+      const player = this.players.find((candidate) => candidate.id === playerId);
+      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      if (!player || !tile || tile.type !== "property") return;
+
+      const targets = this._groupImprovementTargets(tileIndex, playerId, "sell");
+      let totalRefund = 0;
+
+      for (const target of targets) {
+        const development = this._ensurePropertyDevelopment(target.index);
+
+        if (development.hotel) {
+          const refund = Math.round(this.getHotelCost(target.index) / 2);
+          development.hotel = false;
+          development.houses = 4;
+          player.cash += refund;
+          totalRefund += refund;
+          continue;
+        }
+
+        if (development.houses > 0) {
+          const refund = Math.round(this.getHouseCost(target.index) / 2);
+          development.houses = Math.max(0, development.houses - 1);
+          development.hotel = false;
+          player.cash += refund;
+          totalRefund += refund;
+        }
+      }
+
+      this.statusMessage = `${player.name} vendio mejoras del grupo ${tile.group} por $${totalRefund}`;
     },
 
     mortgageProperty(tileIndex: number, playerId: number) {
@@ -806,6 +1057,20 @@ export const useGameStore = defineStore("game", {
     showDice() {
       this.isDiceVisible = true;
       this.isDiceRolling = true;
+      if (this.forceAllDiceRollsToCards) {
+        const player = this.activePlayer;
+        const steps = player ? stepsToNextCardTile(player.position) : 2;
+        this.diceValues = diceValuesForTotal(steps);
+        this.isDoubles = this.diceValues[0] === this.diceValues[1];
+        return;
+      }
+
+      if (this.forceAllDiceRollsAsDoubles) {
+        this.diceValues = [6, 6];
+        this.isDoubles = true;
+        return;
+      }
+
       this.diceValues = [
         Math.floor(Math.random() * 6) + 1,
         Math.floor(Math.random() * 6) + 1,
@@ -878,6 +1143,15 @@ export const useGameStore = defineStore("game", {
           }
         }
 
+        const fromImprovementRefund = this._sellPartialExchangeDevelopments(
+          proposal.offerProperties,
+          proposal.fromPlayerId,
+        );
+        const toImprovementRefund = this._sellPartialExchangeDevelopments(
+          proposal.requestProperties,
+          proposal.toPlayerId,
+        );
+
         for (const tileIdx of proposal.offerProperties) {
           this.propertyOwners[tileIdx] = proposal.toPlayerId;
         }
@@ -893,7 +1167,10 @@ export const useGameStore = defineStore("game", {
         this._checkBankruptcy(from.id);
         this._checkBankruptcy(to.id);
 
-        this.statusMessage = `Intercambio realizado entre ${from.name} y ${to.name}`;
+        const improvementRefund = fromImprovementRefund + toImprovementRefund;
+        this.statusMessage = improvementRefund > 0
+          ? `Intercambio realizado entre ${from.name} y ${to.name}. Mejoras vendidas por $${improvementRefund}`
+          : `Intercambio realizado entre ${from.name} y ${to.name}`;
       } else {
         this.statusMessage = "Intercambio rechazado";
       }
@@ -903,6 +1180,52 @@ export const useGameStore = defineStore("game", {
 
     cancelExchange() {
       this.exchangeProposal = null;
+    },
+
+    _sellPartialExchangeDevelopments(tileIndexes: number[], ownerId: number): number {
+      const owner = this.players.find((player) => player.id === ownerId);
+      if (!owner) return 0;
+
+      const transferSet = new Set(tileIndexes);
+      let totalRefund = 0;
+      const clearedGroups = new Set<TileGroup>();
+
+      for (const tileIndex of tileIndexes) {
+        const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+        if (!tile || tile.type !== "property") continue;
+        if (clearedGroups.has(tile.group)) continue;
+
+        const groupTiles = getPropertyGroupTiles(tile.group);
+        const fullGroupTransfers = groupTiles.every(
+          (groupTile) =>
+            this.propertyOwners[groupTile.index] === ownerId &&
+            transferSet.has(groupTile.index),
+        );
+        if (fullGroupTransfers) continue;
+
+        clearedGroups.add(tile.group);
+
+        for (const groupTile of groupTiles) {
+          if (this.propertyOwners[groupTile.index] !== ownerId) continue;
+          const development = this.propertyDevelopments[groupTile.index];
+          if (!development || (!development.hotel && development.houses <= 0)) continue;
+
+          let refund = 0;
+          if (development.hotel) {
+            refund += Math.round(this.getHotelCost(groupTile.index) / 2);
+            refund += 4 * Math.round(this.getHouseCost(groupTile.index) / 2);
+          } else {
+            refund += development.houses * Math.round(this.getHouseCost(groupTile.index) / 2);
+          }
+
+          development.houses = 0;
+          development.hotel = false;
+          owner.cash += refund;
+          totalRefund += refund;
+        }
+      }
+
+      return totalRefund;
     },
   },
 });

@@ -1,8 +1,8 @@
 <template>
   <Transition name="card">
-    <div class="card-overlay" @click.self="closeDisabled ? null : emit('close')">
-      <div class="card-inner" :class="cardGroup">
-        <button class="close-btn" @click="emit('close')" :disabled="closeDisabled" tabindex="-1">
+    <div class="card-overlay" @click.self="resolveCard">
+      <div class="card-inner" :class="cardGroup" @keydown.esc.stop.prevent="resolveCard">
+        <button class="close-btn" @click="resolveCard" :disabled="closeDisabled" tabindex="-1">
           <span class="material-symbols-outlined">close</span>
         </button>
 
@@ -17,7 +17,7 @@
             <span class="material-symbols-outlined effect-icon">{{ effectIcon }}</span>
             <span class="effect-text">{{ effectDescription }}</span>
           </div>
-          <button ref="acceptBtnRef" class="accept-btn" tabindex="0" @click="emit('accept')">
+          <button ref="acceptBtnRef" class="accept-btn" tabindex="0" @click="resolveCard">
             <span class="material-symbols-outlined">check</span>
             Aceptar
           </button>
@@ -28,7 +28,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, onMounted, nextTick } from "vue";
+import { computed, ref, onMounted, onUnmounted, nextTick } from "vue";
 import type { GameCard } from "~/config/boardTilesConfig";
 
 const props = defineProps<{
@@ -43,8 +43,25 @@ const emit = defineEmits<{
 
 const acceptBtnRef = ref<HTMLElement | null>(null);
 
+function resolveCard() {
+  if (props.closeDisabled) return;
+  emit("accept");
+}
+
+function onKeydown(event: KeyboardEvent) {
+  if (event.key !== "Escape") return;
+  event.preventDefault();
+  event.stopPropagation();
+  resolveCard();
+}
+
 onMounted(() => {
+  window.addEventListener("keydown", onKeydown);
   nextTick(() => acceptBtnRef.value?.focus());
+});
+
+onUnmounted(() => {
+  window.removeEventListener("keydown", onKeydown);
 });
 
 const cardGroup = computed(() => props.card.group);

@@ -1,12 +1,21 @@
 <template>
-  <div class="winner-backdrop">
+  <div class="winner-backdrop" @keydown.stop @click.stop>
     <div class="winner-card">
       <div class="confetti-row">🎉 🏆 🎉</div>
       <p class="winner-label">¡GANADOR!</p>
       <h1 class="winner-name">{{ player.name }}</h1>
       <p class="winner-token">{{ tokenIcon }}</p>
       <p class="winner-cash">con ${{ player.cash.toLocaleString() }}</p>
-      <button ref="newGameBtnRef" class="new-game-btn" tabindex="0" @click="navigateTo('/')">Nueva partida</button>
+      <button
+        ref="newGameBtnRef"
+        class="new-game-btn"
+        tabindex="0"
+        @click.stop="onNewGameClick"
+        @keydown.enter.stop
+        @keydown.space.stop
+      >
+        Nueva partida
+      </button>
     </div>
   </div>
 </template>
@@ -27,6 +36,10 @@ const tokenIcon = computed(
 onMounted(() => {
   nextTick(() => newGameBtnRef.value?.focus());
 });
+
+function onNewGameClick() {
+  navigateTo("/");
+}
 </script>
 
 <style scoped>

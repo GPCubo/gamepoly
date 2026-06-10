@@ -99,11 +99,12 @@
       :current-position="store.casillaActual"
       :is-moving="store.isAnyMoving"
       :card-open="
-        showTileCard || showAuction || showCardOverlay || showExchange
+        showTileCard || showAuction || showCardOverlay || showExchange || !!store.winner
       "
       @roll="onDiceRoll"
       @next-turn="onNextTurn"
       @open-exchange="onOpenExchange"
+      @skip-move="onSkipMove"
     />
 
     <TileCard
@@ -116,6 +117,7 @@
       :active-player-id="store.activePlayer?.id ?? -1"
       :active-player-cash="store.activePlayer?.cash ?? 0"
       :can-skip-buy="store.canSkipBuy"
+      :auction-only="store.auctionOnly"
       :houses="tileDevelopment.houses"
       :has-hotel="tileDevelopment.hotel"
       :is-mortgaged="tileDevelopment.mortgaged"
@@ -162,6 +164,7 @@
       :active-player="store.activePlayer!"
       :players="store.activePlayers"
       :property-owners="store.propertyOwners"
+      :property-developments="store.propertyDevelopments"
       :proposal="store.exchangeProposal"
       :is-responding="exchangeIsResponding"
       @propose="onExchangePropose"
@@ -225,6 +228,7 @@ if (store.players.length === 0) {
 const showTileCard = ref(false);
 const showAuction = ref(false);
 const showCardOverlay = ref(false);
+const isResolvingCardEffect = ref(false);
 const showExchange = ref(false);
 const exchangeIsResponding = ref(false);
 const currentTile = computed(
@@ -429,41 +433,41 @@ function onAuctionUnsold() {
 }
 
 function onCardClose() {
-  showCardOverlay.value = false;
-  store.activeCard = null;
-  if (pendingDoublesTurn) {
-    pendingDoublesTurn = false;
-    store.finishTurnKeepPlayer();
-  } else {
-    store.finishTurn();
-  }
+  void onCardAccept();
 }
 
 async function onCardAccept() {
+  if (isResolvingCardEffect.value) return;
+  if (!store.activeCard) return;
+  isResolvingCardEffect.value = true;
   showCardOverlay.value = false;
-  const movedPosition = await store.applyCardEffect();
-  const activePlayer = store.activePlayer;
-  if (activePlayer && activePlayer.inJail) {
-    pendingDoublesTurn = false;
-    return;
-  }
-  if (movedPosition) {
-    return;
-  }
-  const tile = currentTile.value;
-  if (
-    tile.type === "property" ||
-    tile.type === "railroad" ||
-    tile.type === "utility"
-  ) {
-    showTileCard.value = true;
-  } else {
-    if (pendingDoublesTurn) {
+  try {
+    const movedPosition = await store.applyCardEffect();
+    const activePlayer = store.activePlayer;
+    if (activePlayer && activePlayer.inJail) {
       pendingDoublesTurn = false;
-      store.finishTurnKeepPlayer();
-    } else {
-      store.finishTurn();
+      return;
     }
+    if (movedPosition) {
+      return;
+    }
+    const tile = currentTile.value;
+    if (
+      tile.type === "property" ||
+      tile.type === "railroad" ||
+      tile.type === "utility"
+    ) {
+      showTileCard.value = true;
+    } else {
+      if (pendingDoublesTurn) {
+        pendingDoublesTurn = false;
+        store.finishTurnKeepPlayer();
+      } else {
+        store.finishTurn();
+      }
+    }
+  } finally {
+    isResolvingCardEffect.value = false;
   }
 }
 
@@ -855,7 +859,7 @@ onMounted(async () => {
     playerScenes.value = loadResults.map((gltf) => gltf.scene as Group);
 
     for (let i = 0; i < playerCount; i++) {
-      const coords = getCasillaCoordinates(0);
+      const coords = getCasillaCoordinates(store.players[i]?.position ?? 0);
       setPosition(i, coords);
       displayPositions[i].x = coords.x;
       displayPositions[i].y = coords.y;
@@ -901,19 +905,22 @@ function onDiceRoll(value: number) {
     return;
   }
 
-  store.moveCurrentPlayer(value);
-
   if (store.doublesGiveExtraTurn) {
-    const activePlayer = store.activePlayer;
-    if (activePlayer && activePlayer.inJail) {
+    const isExtraTurn = store.checkDoubles();
+    if (player.inJail) {
       pendingDoublesTurn = false;
       return;
     }
-    const isExtraTurn = store.checkDoubles();
     if (isExtraTurn) {
       pendingDoublesTurn = true;
     }
   }
+
+  store.moveCurrentPlayer(value);
+}
+
+function onSkipMove() {
+  store.skipCurrentMovement();
 }
 
 let pendingDoublesTurn = false;

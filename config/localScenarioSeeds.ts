@@ -1,6 +1,9 @@
 export interface LocalScenarioSeedContext {
   seedAllPropertiesForActivePlayer(cash: number): void;
   seedAllPropertiesWithHotelsForActivePlayer(cash: number): void;
+  seedAllPlayersRollDoubles(): void;
+  seedAllPlayersInJail(): void;
+  seedAllPlayersLandOnCards(): void;
 }
 
 export interface LocalScenarioSeed {
@@ -29,6 +32,27 @@ export const LOCAL_SCENARIO_SEEDS: LocalScenarioSeed[] = [
     description: "Asigna todas las propiedades con hoteles al jugador activo y fija su dinero.",
     isEnabled: (params) => isTrueParam(params, "allhotels"),
     apply: (context) => context.seedAllPropertiesWithHotelsForActivePlayer(100000),
+  },
+  {
+    key: "all-players-doubles",
+    queryParam: "alldoubles",
+    description: "Fuerza que todos los tiros de dados sean dobles.",
+    isEnabled: (params) => isTrueParam(params, "alldoubles"),
+    apply: (context) => context.seedAllPlayersRollDoubles(),
+  },
+  {
+    key: "all-players-in-jail",
+    queryParam: "alljail",
+    description: "Envía a todos los jugadores a la cárcel al iniciar la partida.",
+    isEnabled: (params) => isTrueParam(params, "alljail"),
+    apply: (context) => context.seedAllPlayersInJail(),
+  },
+  {
+    key: "all-players-land-on-cards",
+    queryParam: "allcards",
+    description: "Fuerza que todos los jugadores caigan siempre en Arca Comunal o Suerte.",
+    isEnabled: (params) => isTrueParam(params, "allcards"),
+    apply: (context) => context.seedAllPlayersLandOnCards(),
   },
 ];
 

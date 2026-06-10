@@ -201,6 +201,12 @@ def add_uv_sphere(name, radius, location, material, segments=10, rings=6, squash
     obj.data.materials.append(material)
     return obj
 
+def parent_local(obj, parent, location, rotation_z=0):
+    obj.parent = parent
+    obj.location = location
+    obj.rotation_euler = (0, 0, rotation_z)
+    return obj
+
 def bevel_mesh(obj, width=0.004, segments=2):
     """Redondea los cantos del objeto (footprint intacto -> no afecta alineación)."""
     if not ENABLE_BEVEL or width <= 0:
@@ -232,6 +238,120 @@ def add_text_line(name, text_str, location, size, material, extrude=0.002, paren
     if parent:
         obj.parent = parent
     return obj
+
+def add_flat_icon_polygon(name, points, z, material, parent):
+    mesh = bpy.data.meshes.new(f"{name}_Mesh")
+    verts = [(x, y, z) for x, y in points]
+    mesh.from_pydata(verts, [], [list(range(len(verts)))])
+    mesh.update()
+    obj = bpy.data.objects.new(name, mesh)
+    obj.data.materials.append(material)
+    bpy.context.scene.collection.objects.link(obj)
+    obj.parent = parent
+    return obj
+
+def add_flat_icon_rect(name, center, width, height, z, material, parent, rotation_z=0):
+    cx, cy = center
+    hw = width / 2
+    hh = height / 2
+    base_points = [(-hw, -hh), (hw, -hh), (hw, hh), (-hw, hh)]
+    cos_r = math.cos(rotation_z)
+    sin_r = math.sin(rotation_z)
+    points = [
+        (
+            cx + px * cos_r - py * sin_r,
+            cy + px * sin_r + py * cos_r,
+        )
+        for px, py in base_points
+    ]
+    return add_flat_icon_polygon(name, points, z, material, parent)
+
+def add_flat_icon_circle(name, center, radius, z, material, parent, vertices=28, scale_y=1.0):
+    cx, cy = center
+    points = [
+        (
+            cx + math.cos((math.tau * i) / vertices) * radius,
+            cy + math.sin((math.tau * i) / vertices) * radius * scale_y,
+        )
+        for i in range(vertices)
+    ]
+    return add_flat_icon_polygon(name, points, z, material, parent)
+
+def add_special_tile_icon(tile_idx, icon_type, parent, mats):
+    base_name = f"Tile_{tile_idx:02d}_Icon"
+    z = TILE_HEIGHT / 2 + 0.006
+    y = -0.075
+
+    if icon_type == "community":
+        add_flat_icon_rect(f"{base_name}_ChestBody", (0, y - 0.004), 0.110, 0.056, z, mats["community_dark"], parent)
+        add_flat_icon_rect(f"{base_name}_ChestLid", (0, y + 0.032), 0.120, 0.020, z + 0.0004, mats["community_light"], parent)
+        add_flat_icon_rect(f"{base_name}_ChestBand", (0, y - 0.004), 0.018, 0.066, z + 0.0008, mats["metal"], parent)
+        add_flat_icon_rect(f"{base_name}_ChestLock", (0, y - 0.039), 0.020, 0.012, z + 0.0012, mats["metal"], parent)
+        return
+
+    if icon_type == "railroad":
+        add_flat_icon_rect(f"{base_name}_TrainBody", (0, y, ), 0.112, 0.044, z, mats["rail"], parent)
+        add_flat_icon_rect(f"{base_name}_TrainCab", (0.036, y + 0.018), 0.044, 0.046, z + 0.0004, mats["rail"], parent)
+        add_flat_icon_circle(f"{base_name}_TrainNose", (-0.055, y), 0.024, z + 0.0004, mats["rail"], parent, vertices=20, scale_y=0.82)
+        add_flat_icon_circle(f"{base_name}_WheelA", (-0.036, y - 0.036), 0.014, z + 0.0008, mats["dark"], parent, vertices=20)
+        add_flat_icon_circle(f"{base_name}_WheelB", (0.036, y - 0.036), 0.014, z + 0.0008, mats["dark"], parent, vertices=20)
+        add_flat_icon_rect(f"{base_name}_Track", (0, y - 0.050), 0.136, 0.008, z + 0.0012, mats["dark"], parent)
+        return
+
+    if icon_type == "tax":
+        for offset in [-0.028, 0.0, 0.028]:
+            add_flat_icon_circle(f"{base_name}_Coin_{offset:.2f}", (offset, y), 0.019, z + abs(offset) * 0.002, mats["gold"], parent, vertices=26)
+        add_text_line(f"{base_name}_MoneyText", "$", (0, y + 0.003, z + 0.002), 0.038, mats["dark"], extrude=0, parent=parent)
+        return
+
+    if icon_type == "luxury":
+        add_flat_icon_polygon(
+            f"{base_name}_Diamond",
+            [(0, y + 0.055), (0.052, y + 0.005), (0, y - 0.055), (-0.052, y + 0.005)],
+            z,
+            mats["diamond"],
+            parent)
+        add_flat_icon_polygon(
+            f"{base_name}_DiamondFacet",
+            [(0, y + 0.055), (0.020, y + 0.005), (0, y - 0.055), (-0.020, y + 0.005)],
+            z + 0.0005,
+            mats["metal"],
+            parent)
+        return
+
+    if icon_type == "electric":
+        add_flat_icon_polygon(
+            f"{base_name}_Bolt",
+            [(-0.012, y + 0.060), (0.034, y + 0.010), (0.010, y + 0.010), (0.036, y - 0.060), (-0.036, y - 0.002), (-0.010, y - 0.002)],
+            z,
+            mats["gold"],
+            parent)
+        return
+
+    if icon_type == "chance":
+        add_text_line(f"{base_name}_Question", "?", (0, y, z + 0.002), 0.080, mats["chance"], extrude=0, parent=parent)
+        return
+
+    if icon_type == "water":
+        add_flat_icon_polygon(
+            f"{base_name}_Drop",
+            [(0, y + 0.060), (0.036, y + 0.008), (0.028, y - 0.038), (0, y - 0.058), (-0.028, y - 0.038), (-0.036, y + 0.008)],
+            z,
+            mats["water"],
+            parent)
+
+def special_icon_type(group, short_name):
+    if group == "community":
+        return "community"
+    if group == "railroad":
+        return "railroad"
+    if group == "chance":
+        return "chance"
+    if group == "tax":
+        return "luxury" if short_name == "Lujo" else "tax"
+    if group == "utility":
+        return "water" if short_name == "Agua" else "electric"
+    return None
 
 # ─────────────────────────────────────────────────────────────────────────
 # MATRIZ DE TRANSFORMACIÓN (Corrige orientación y giros invertidos)
@@ -473,6 +593,17 @@ def build_gamepoly():
     white_tile_mat = get_or_create_material("TileWhite", TILE_COLORS["white"], roughness=0.45)
     text_mat = get_or_create_material("TileText", (0.06, 0.06, 0.06, 1), roughness=0.3)
     text_mat_white = get_or_create_material("TileTextWhite", (0.95, 0.95, 0.92, 1), roughness=0.3)
+    icon_mats = {
+        "community_dark": get_or_create_material("IconCommunityChestDark", (0.420, 0.225, 0.105, 1), roughness=0.32),
+        "community_light": get_or_create_material("IconCommunityChestLight", (0.710, 0.435, 0.185, 1), roughness=0.24),
+        "rail": get_or_create_material("IconRailroad", (0.055, 0.055, 0.055, 1), roughness=0.26),
+        "dark": get_or_create_material("IconDark", (0.025, 0.025, 0.025, 1), roughness=0.35),
+        "metal": get_or_create_material("IconMetal", (0.780, 0.700, 0.500, 1), roughness=0.18),
+        "gold": get_or_create_material("IconGold", (1.000, 0.760, 0.120, 1), roughness=0.14),
+        "diamond": get_or_create_material("IconDiamond", (0.500, 0.900, 1.000, 1), roughness=0.08),
+        "chance": get_or_create_material("IconChance", TILE_COLORS["chance"], roughness=0.12),
+        "water": get_or_create_material("IconWater", (0.100, 0.490, 0.980, 1), roughness=0.08),
+    }
 
     # 1. Mesa base del juego
     table = add_box("Table_Base", (TABLE_WIDTH, TABLE_DEPTH, TABLE_TOP_Z),
@@ -598,6 +729,9 @@ def build_gamepoly():
         elif is_spec:
             # Casillas especiales: texto siempre oscuro (estaciones, lujos, impuestos)
             spec_top_y_new = (-0.05 + (TILE_DEPTH * 0.35) / 2) + 0.032
+            icon_type = special_icon_type(group, info["short"])
+            if icon_type:
+                add_special_tile_icon(i, icon_type, tile_container, icon_mats)
 
             add_text_line(
                 f"Tile_{i:02d}_Lbl", info["short"],

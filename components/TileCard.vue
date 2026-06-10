@@ -1,8 +1,13 @@
 <template>
   <Transition name="card">
-    <div class="tile-card" @click.self="emit('close')">
+    <div class="tile-card" @click.self="onBackdropClick">
       <div class="card-inner">
-        <button class="close-btn" tabindex="-1" @click="emit('close')">
+        <button
+          v-if="canCloseDialog"
+          class="close-btn"
+          tabindex="-1"
+          @click="emit('close')"
+        >
           <span class="material-symbols-outlined">close</span>
         </button>
 
@@ -196,6 +201,7 @@
             <template v-else>
               <div class="action-stack">
                 <button
+                  v-if="!auctionOnly"
                   ref="buyBtnRef"
                   class="action-btn buy-btn"
                   :class="{ 'disabled-btn': !canAfford }"
@@ -216,7 +222,7 @@
                   <span>Subastar</span>
                 </button>
                 <button
-                  v-if="canSkipBuy"
+                  v-if="canSkipBuy && !auctionOnly"
                   ref="skipBtnRef"
                   class="action-btn skip-btn"
                   tabindex="0"
@@ -336,6 +342,7 @@
             <template v-else>
               <div class="action-stack">
                 <button
+                  v-if="!auctionOnly"
                   ref="buyBtnRailRef"
                   class="action-btn buy-btn"
                   :class="{ 'disabled-btn': !canAfford }"
@@ -356,7 +363,7 @@
                   <span>Subastar</span>
                 </button>
                 <button
-                  v-if="canSkipBuy"
+                  v-if="canSkipBuy && !auctionOnly"
                   ref="skipBtnRailRef"
                   class="action-btn skip-btn"
                   tabindex="0"
@@ -478,6 +485,7 @@
             <template v-else>
               <div class="action-stack">
                 <button
+                  v-if="!auctionOnly"
                   ref="buyBtnUtilRef"
                   class="action-btn buy-btn"
                   :class="{ 'disabled-btn': !canAfford }"
@@ -498,7 +506,7 @@
                   <span>Subastar</span>
                 </button>
                 <button
-                  v-if="canSkipBuy"
+                  v-if="canSkipBuy && !auctionOnly"
                   ref="skipBtnUtilRef"
                   class="action-btn skip-btn"
                   tabindex="0"
@@ -638,6 +646,7 @@ const props = defineProps<{
   activePlayerId: number;
   activePlayerCash: number;
   canSkipBuy: boolean;
+  auctionOnly: boolean;
   houses?: number;
   hasHotel?: boolean;
   isMortgaged?: boolean;
@@ -694,9 +703,24 @@ const ownerState = computed<"own" | "other" | "free">(() => {
   return "other";
 });
 
+const isFreeOwnableTile = computed(
+  () =>
+    ownerState.value === "free" &&
+    ["property", "railroad", "utility"].includes(props.tile.type),
+);
+
+const canCloseDialog = computed(
+  () => !isFreeOwnableTile.value || (props.canSkipBuy && !props.auctionOnly),
+);
+
 const canAfford = computed(
   () => (props.tile.price ?? 0) <= props.activePlayerCash,
 );
+
+function onBackdropClick() {
+  if (!canCloseDialog.value) return;
+  emit("close");
+}
 
 const tileType = computed(() => props.tile.type);
 
@@ -730,16 +754,19 @@ const activeRefs = computed(() => {
   if (tileType.value === "card") return [closeActionBtnRefCard];
   if (tileType.value === "corner") return [closeActionBtnRefCorner];
   if (tileType.value === "property") {
+    if (props.auctionOnly) return [auctionBtnRef];
     return props.canSkipBuy
       ? [buyBtnRef, auctionBtnRef, skipBtnRef]
       : [buyBtnRef, auctionBtnRef];
   }
   if (tileType.value === "railroad") {
+    if (props.auctionOnly) return [auctionBtnRailRef];
     return props.canSkipBuy
       ? [buyBtnRailRef, auctionBtnRailRef, skipBtnRailRef]
       : [buyBtnRailRef, auctionBtnRailRef];
   }
   if (tileType.value === "utility") {
+    if (props.auctionOnly) return [auctionBtnUtilRef];
     return props.canSkipBuy
       ? [buyBtnUtilRef, auctionBtnUtilRef, skipBtnUtilRef]
       : [buyBtnUtilRef, auctionBtnUtilRef];

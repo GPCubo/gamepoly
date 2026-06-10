@@ -83,6 +83,27 @@
                 </div>
               </header>
 
+              <div v-if="canShowGroupActions(group)" class="group-actions">
+                <button
+                  class="mini-action build-action"
+                  :class="{ 'disabled-btn': !canBuildGroup(group) }"
+                  :disabled="!canBuildGroup(group)"
+                  @click="onBuildGroup(group)"
+                >
+                  <span class="material-symbols-outlined">add_home</span>
+                  <span>Comprar grupo ${{ groupBuildCost(group) }}</span>
+                </button>
+                <button
+                  class="mini-action sell-action"
+                  :class="{ 'disabled-btn': !canSellGroup(group) }"
+                  :disabled="!canSellGroup(group)"
+                  @click="onSellGroup(group)"
+                >
+                  <span class="material-symbols-outlined">real_estate_agent</span>
+                  <span>Vender grupo +${{ groupSellRefund(group) }}</span>
+                </button>
+              </div>
+
               <div class="property-list">
                 <article
                   v-for="tile in group.tiles"
@@ -215,6 +236,13 @@ const PROPERTY_GROUP_LABELS: Partial<Record<TileGroup, string>> = {
   utility: "Servicios",
 };
 
+interface OwnedTileGroup {
+  key: TileGroup;
+  label: string;
+  color: string;
+  tiles: BoardTile[];
+}
+
 const activePlayerId = computed(() => store.activePlayer?.id ?? -1);
 const activePlayerInitial = computed(() => {
   const name = store.activePlayer?.name?.trim();
@@ -251,12 +279,7 @@ const filteredOwnedTiles = computed(() => {
 const groupedOwnedTiles = computed(() => {
   const groups = new Map<
     TileGroup,
-    {
-      key: TileGroup;
-      label: string;
-      color: string;
-      tiles: BoardTile[];
-    }
+    OwnedTileGroup
   >();
 
   for (const tile of filteredOwnedTiles.value) {
@@ -268,12 +291,7 @@ const groupedOwnedTiles = computed(() => {
         label: groupLabelFor(tile),
         color: tile.color ?? "#94a3b8",
         tiles: [],
-      } satisfies {
-        key: TileGroup;
-        label: string;
-        color: string;
-        tiles: BoardTile[];
-      });
+      } satisfies OwnedTileGroup);
 
     current.tiles.push(tile);
     groups.set(groupKey, current);
@@ -358,6 +376,34 @@ function canSellImprovement(tile: BoardTile) {
   return !managementDisabled.value && store.canSellImprovement(tile.index, activePlayerId.value);
 }
 
+function groupRepresentative(group: OwnedTileGroup) {
+  return group.tiles.find((tile) => tile.type === "property") ?? null;
+}
+
+function canShowGroupActions(group: OwnedTileGroup) {
+  return groupRepresentative(group) !== null;
+}
+
+function canBuildGroup(group: OwnedTileGroup) {
+  const tile = groupRepresentative(group);
+  return !!tile && !managementDisabled.value && store.canBuildPropertyGroupImprovement(tile.index, activePlayerId.value);
+}
+
+function canSellGroup(group: OwnedTileGroup) {
+  const tile = groupRepresentative(group);
+  return !!tile && !managementDisabled.value && store.canSellPropertyGroupImprovement(tile.index, activePlayerId.value);
+}
+
+function groupBuildCost(group: OwnedTileGroup) {
+  const tile = groupRepresentative(group);
+  return tile ? store.getPropertyGroupBuildCost(tile.index, activePlayerId.value) : 0;
+}
+
+function groupSellRefund(group: OwnedTileGroup) {
+  const tile = groupRepresentative(group);
+  return tile ? store.getPropertyGroupSellRefund(tile.index, activePlayerId.value) : 0;
+}
+
 function canMortgage(tile: BoardTile) {
   return !managementDisabled.value && store.canMortgageProperty(tile.index, activePlayerId.value);
 }
@@ -385,6 +431,18 @@ function onBuildHotel(tile: BoardTile) {
 function onSellImprovement(tile: BoardTile) {
   if (!canSellImprovement(tile)) return;
   store.sellImprovement(tile.index, activePlayerId.value);
+}
+
+function onBuildGroup(group: OwnedTileGroup) {
+  const tile = groupRepresentative(group);
+  if (!tile || !canBuildGroup(group)) return;
+  store.buildPropertyGroupImprovement(tile.index, activePlayerId.value);
+}
+
+function onSellGroup(group: OwnedTileGroup) {
+  const tile = groupRepresentative(group);
+  if (!tile || !canSellGroup(group)) return;
+  store.sellPropertyGroupImprovement(tile.index, activePlayerId.value);
 }
 
 function onMortgage(tile: BoardTile) {
@@ -720,6 +778,16 @@ function onCameraToggle() {
   font-size: 13px;
   font-weight: 700;
   line-height: 1.2;
+}
+
+.group-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 7px;
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, var(--property-accent), transparent 74%);
+  background: color-mix(in srgb, var(--property-accent), transparent 92%);
 }
 
 .property-list {

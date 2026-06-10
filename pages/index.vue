@@ -206,6 +206,20 @@
                 </label>
               </div>
 
+              <!-- Toggle: Auction Only -->
+              <div class="setting-toggle-card">
+                <div class="toggle-info">
+                  <span class="toggle-title">Solo Subastas</span>
+                  <span class="toggle-desc">Las propiedades libres solo pueden entrar en subasta</span>
+                </div>
+                <label class="toggle-label">
+                  <input type="checkbox" v-model="auctionOnly" class="toggle-input" />
+                  <span class="toggle-track">
+                    <span class="toggle-thumb" />
+                  </span>
+                </label>
+              </div>
+
               <!-- Toggle: Doubles Extra Turn -->
               <div class="setting-toggle-card">
                 <div class="toggle-info">
@@ -254,6 +268,7 @@ const playerTokens = ref<string[]>(
 const startingCash = ref<number>(GAME_CONFIG.STARTING_CASH);
 const goSalary = ref<number>(GAME_CONFIG.GO_SALARY);
 const canSkipBuy = ref<boolean>(GAME_CONFIG.CAN_SKIP_BUY);
+const auctionOnly = ref<boolean>(GAME_CONFIG.AUCTION_ONLY);
 const doublesGiveExtraTurn = ref<boolean>(GAME_CONFIG.DOUBLES_GIVE_EXTRA_TURN);
 const errorMsg = ref("");
 const showSettings = ref(false);
@@ -323,6 +338,7 @@ function resetForm() {
   startingCash.value = GAME_CONFIG.STARTING_CASH;
   goSalary.value = GAME_CONFIG.GO_SALARY;
   canSkipBuy.value = GAME_CONFIG.CAN_SKIP_BUY;
+  auctionOnly.value = GAME_CONFIG.AUCTION_ONLY;
   doublesGiveExtraTurn.value = GAME_CONFIG.DOUBLES_GIVE_EXTRA_TURN;
   errorMsg.value = "";
   playerPage.value = 0;
@@ -377,7 +393,12 @@ function startGame() {
     players.push({ name, tokenModel: token, startingCash: cash });
   }
 
-  store.setupGame(players, { goSalary: salary, canSkipBuy: canSkipBuy.value, doublesGiveExtraTurn: doublesGiveExtraTurn.value });
+  store.setupGame(players, {
+    goSalary: salary,
+    canSkipBuy: canSkipBuy.value,
+    auctionOnly: auctionOnly.value,
+    doublesGiveExtraTurn: doublesGiveExtraTurn.value,
+  });
   applyLocalGameScenarioSeeds();
   navigateTo("/game");
 }

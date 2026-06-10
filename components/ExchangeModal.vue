@@ -1,15 +1,18 @@
 <template>
   <div class="exchange-backdrop" @click.self="emit('cancel')">
     <div class="exchange-modal">
-      <button class="close-btn" tabindex="-1" @click="emit('cancel')">
+      <button class="close-btn" tabindex="-1" aria-label="Cerrar intercambio" @click="emit('cancel')">
         <span class="material-symbols-outlined">close</span>
       </button>
 
       <template v-if="phase === 'select'">
         <div class="exchange-header">
-          <span class="exchange-tag">🔄 INTERCAMBIO</span>
-          <h2 class="exchange-title">Elegir jugador</h2>
-          <p class="exchange-subtitle">¿Con quién quieres intercambiar?</p>
+          <span class="exchange-tag">
+            <span class="material-symbols-outlined">sync_alt</span>
+            Intercambio
+          </span>
+          <h2 class="exchange-title">Selecciona un jugador</h2>
+          <p class="exchange-subtitle">Elige con quién negociar propiedades y efectivo.</p>
         </div>
         <div class="exchange-body">
           <div class="player-select-list">
@@ -23,8 +26,11 @@
               @click="selectedTargetId = p.id"
             >
               <span class="player-select-icon">{{ tokenIcon(p.tokenModel) }}</span>
-              <span class="player-select-name">{{ p.name }}</span>
-              <span class="player-select-cash">${{ p.cash.toLocaleString() }}</span>
+              <span class="player-select-copy">
+                <strong>{{ p.name }}</strong>
+                <small>{{ ownedCount(p.id) }} propiedades</small>
+              </span>
+              <span class="player-select-cash">{{ formatMoney(p.cash) }}</span>
             </button>
           </div>
           <button
@@ -41,19 +47,46 @@
 
       <template v-if="phase === 'propose'">
         <div class="exchange-header">
-          <span class="exchange-tag">🔄 INTERCAMBIO</span>
-          <h2 class="exchange-title">Proponer intercambio</h2>
-          <p class="exchange-subtitle">Con {{ targetPlayer?.name }}</p>
+          <span class="exchange-tag">
+            <span class="material-symbols-outlined">handshake</span>
+            Propuesta
+          </span>
+          <h2 class="exchange-title">{{ activePlayer.name }} ↔ {{ targetPlayer?.name }}</h2>
+          <p class="exchange-subtitle">Arma una oferta equilibrando propiedades y dinero.</p>
         </div>
         <div class="exchange-body">
+          <div class="trade-summary">
+            <div>
+              <span>Tú entregas</span>
+              <strong>{{ offerSummary }}</strong>
+            </div>
+            <span class="summary-arrow material-symbols-outlined">sync_alt</span>
+            <div>
+              <span>Tú recibes</span>
+              <strong>{{ requestSummary }}</strong>
+            </div>
+          </div>
+
+          <div v-if="proposalDevelopmentWarnings.length > 0" class="exchange-warning">
+            <span class="material-symbols-outlined">warning</span>
+            <div>
+              <strong>Este intercambio venderá mejoras</strong>
+              <p>{{ proposalDevelopmentWarnings.join(" ") }}</p>
+            </div>
+          </div>
+
           <div class="exchange-columns">
             <div class="exchange-column">
-              <h3 class="column-title">Tú ofreces</h3>
+              <div class="column-heading">
+                <h3 class="column-title">Tú ofreces</h3>
+                <span>{{ myProperties.length }} disp.</span>
+              </div>
               <div class="property-list">
                 <label
                   v-for="prop in myProperties"
                   :key="prop.index"
                   class="property-item"
+                  :class="{ selected: offerProperties.includes(prop.index) }"
                 >
                   <input
                     type="checkbox"
@@ -62,12 +95,16 @@
                     @change="toggleOfferProperty(prop.index)"
                   />
                   <span class="property-color" :style="{ background: prop.color ?? '#4b5563' }"></span>
-                  <span class="property-name">{{ prop.name }}</span>
+                  <span class="property-copy">
+                    <span class="property-name">{{ prop.name }}</span>
+                    <small>{{ tileKindLabel(prop.type) }}</small>
+                  </span>
+                  <span v-if="prop.price" class="property-price">{{ formatMoney(prop.price) }}</span>
                 </label>
                 <p v-if="myProperties.length === 0" class="empty-msg">Sin propiedades</p>
               </div>
               <div class="money-input-row">
-                <label class="money-label">Dinero:</label>
+                <label class="money-label">Dinero</label>
                 <input
                   ref="offerMoneyRef"
                   type="number"
@@ -77,17 +114,20 @@
                   :value="offerMoney"
                   @input="onOfferMoneyInput"
                 />
-                <span class="money-suffix">/ ${{ myCash.toLocaleString() }}</span>
+                <span class="money-suffix">max {{ formatMoney(myCash) }}</span>
               </div>
             </div>
-            <div class="exchange-arrow">⇄</div>
             <div class="exchange-column">
-              <h3 class="column-title">Pides a {{ targetPlayer?.name }}</h3>
+              <div class="column-heading">
+                <h3 class="column-title">Pides a {{ targetPlayer?.name }}</h3>
+                <span>{{ targetProperties.length }} disp.</span>
+              </div>
               <div class="property-list">
                 <label
                   v-for="prop in targetProperties"
                   :key="prop.index"
                   class="property-item"
+                  :class="{ selected: requestProperties.includes(prop.index) }"
                 >
                   <input
                     type="checkbox"
@@ -96,12 +136,16 @@
                     @change="toggleRequestProperty(prop.index)"
                   />
                   <span class="property-color" :style="{ background: prop.color ?? '#4b5563' }"></span>
-                  <span class="property-name">{{ prop.name }}</span>
+                  <span class="property-copy">
+                    <span class="property-name">{{ prop.name }}</span>
+                    <small>{{ tileKindLabel(prop.type) }}</small>
+                  </span>
+                  <span v-if="prop.price" class="property-price">{{ formatMoney(prop.price) }}</span>
                 </label>
                 <p v-if="targetProperties.length === 0" class="empty-msg">Sin propiedades</p>
               </div>
               <div class="money-input-row">
-                <label class="money-label">Dinero:</label>
+                <label class="money-label">Dinero</label>
                 <input
                   type="number"
                   class="money-input"
@@ -110,12 +154,12 @@
                   :value="requestMoney"
                   @input="onRequestMoneyInput"
                 />
-                <span class="money-suffix">/ ${{ targetPlayer!.cash.toLocaleString() }}</span>
+                <span class="money-suffix">max {{ formatMoney(targetPlayer!.cash) }}</span>
               </div>
             </div>
           </div>
           <div class="exchange-actions">
-            <button class="action-btn cancel-btn" tabindex="0" @click="emit('cancel')">Cancelar</button>
+            <button class="action-btn cancel-btn" tabindex="0" @click="selectedTargetId = null">Atrás</button>
             <button
               ref="sendProposalRef"
               class="action-btn confirm-btn"
@@ -131,14 +175,39 @@
 
       <template v-if="phase === 'respond'">
         <div class="exchange-header">
-          <span class="exchange-tag">🔄 INTERCAMBIO</span>
+          <span class="exchange-tag">
+            <span class="material-symbols-outlined">fact_check</span>
+            Revisión
+          </span>
           <h2 class="exchange-title">Propuesta de {{ fromPlayer?.name }}</h2>
-          <p class="exchange-subtitle">¿Aceptas este intercambio?</p>
+          <p class="exchange-subtitle">Revisa lo que cambia de manos antes de aceptar.</p>
         </div>
         <div class="exchange-body">
+          <div class="trade-summary respond-summary">
+            <div>
+              <span>{{ fromPlayer?.name }} entrega</span>
+              <strong>{{ incomingSummary }}</strong>
+            </div>
+            <span class="summary-arrow material-symbols-outlined">sync_alt</span>
+            <div>
+              <span>{{ fromPlayer?.name }} recibe</span>
+              <strong>{{ outgoingSummary }}</strong>
+            </div>
+          </div>
+
+          <div v-if="respondDevelopmentWarnings.length > 0" class="exchange-warning">
+            <span class="material-symbols-outlined">warning</span>
+            <div>
+              <strong>Al aceptar se venderán mejoras</strong>
+              <p>{{ respondDevelopmentWarnings.join(" ") }}</p>
+            </div>
+          </div>
+
           <div class="exchange-columns">
             <div class="exchange-column">
-              <h3 class="column-title">{{ fromPlayer?.name }} ofrece</h3>
+              <div class="column-heading">
+                <h3 class="column-title">{{ fromPlayer?.name }} ofrece</h3>
+              </div>
               <div class="property-list">
                 <div
                   v-for="prop in offeredProperties"
@@ -146,17 +215,22 @@
                   class="property-item read-only"
                 >
                   <span class="property-color" :style="{ background: prop.color ?? '#4b5563' }"></span>
-                  <span class="property-name">{{ prop.name }}</span>
+                  <span class="property-copy">
+                    <span class="property-name">{{ prop.name }}</span>
+                    <small>{{ tileKindLabel(prop.type) }}</small>
+                  </span>
+                  <span v-if="prop.price" class="property-price">{{ formatMoney(prop.price) }}</span>
                 </div>
                 <p v-if="proposal!.offerProperties.length === 0" class="empty-msg">Sin propiedades</p>
               </div>
               <div v-if="proposal!.offerMoney > 0" class="money-display">
-                ${{ proposal!.offerMoney.toLocaleString() }}
+                {{ formatMoney(proposal!.offerMoney) }}
               </div>
             </div>
-            <div class="exchange-arrow">⇄</div>
             <div class="exchange-column">
-              <h3 class="column-title">{{ fromPlayer?.name }} pide</h3>
+              <div class="column-heading">
+                <h3 class="column-title">{{ fromPlayer?.name }} pide</h3>
+              </div>
               <div class="property-list">
                 <div
                   v-for="prop in requestedProperties"
@@ -164,12 +238,16 @@
                   class="property-item read-only"
                 >
                   <span class="property-color" :style="{ background: prop.color ?? '#4b5563' }"></span>
-                  <span class="property-name">{{ prop.name }}</span>
+                  <span class="property-copy">
+                    <span class="property-name">{{ prop.name }}</span>
+                    <small>{{ tileKindLabel(prop.type) }}</small>
+                  </span>
+                  <span v-if="prop.price" class="property-price">{{ formatMoney(prop.price) }}</span>
                 </div>
                 <p v-if="proposal!.requestProperties.length === 0" class="empty-msg">Sin propiedades</p>
               </div>
               <div v-if="proposal!.requestMoney > 0" class="money-display">
-                ${{ proposal!.requestMoney.toLocaleString() }}
+                {{ formatMoney(proposal!.requestMoney) }}
               </div>
             </div>
           </div>
@@ -185,15 +263,16 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, watch } from "vue";
-import { BOARD_TILES } from "~/config/boardTilesConfig";
+import { BOARD_TILES, type BoardTile, type TileType } from "~/config/boardTilesConfig";
 import { GAME_CONFIG } from "~/config/gameConfig";
-import type { PlayerState, ExchangeProposal } from "~/stores/gameStore";
+import type { PlayerState, ExchangeProposal, PropertyDevelopmentState } from "~/stores/gameStore";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
 
 const props = defineProps<{
   activePlayer: PlayerState;
   players: PlayerState[];
   propertyOwners: Record<number, number>;
+  propertyDevelopments: Record<number, PropertyDevelopmentState>;
   proposal: ExchangeProposal | null;
   isResponding: boolean;
 }>();
@@ -273,8 +352,146 @@ const requestedProperties = computed(() =>
     : [],
 );
 
+const offerSummary = computed(() =>
+  tradeSideSummary(offerProperties.value, offerMoney.value),
+);
+
+const requestSummary = computed(() =>
+  tradeSideSummary(requestProperties.value, requestMoney.value),
+);
+
+const incomingSummary = computed(() =>
+  props.proposal
+    ? tradeSideSummary(props.proposal.offerProperties, props.proposal.offerMoney)
+    : "Sin elementos",
+);
+
+const outgoingSummary = computed(() =>
+  props.proposal
+    ? tradeSideSummary(props.proposal.requestProperties, props.proposal.requestMoney)
+    : "Sin elementos",
+);
+
+const proposalDevelopmentWarnings = computed(() => {
+  const warnings = [
+    ...developmentWarningsForTransfer(offerProperties.value, props.activePlayer.id),
+  ];
+  if (selectedTargetId.value !== null) {
+    warnings.push(
+      ...developmentWarningsForTransfer(requestProperties.value, selectedTargetId.value),
+    );
+  }
+  return warnings;
+});
+
+const respondDevelopmentWarnings = computed(() => {
+  if (!props.proposal) return [];
+  return [
+    ...developmentWarningsForTransfer(
+      props.proposal.offerProperties,
+      props.proposal.fromPlayerId,
+    ),
+    ...developmentWarningsForTransfer(
+      props.proposal.requestProperties,
+      props.proposal.toPlayerId,
+    ),
+  ];
+});
+
 function tokenIcon(file: string) {
   return GAME_CONFIG.TOKEN_MODELS.find((t) => t.file === file)?.icon ?? "?";
+}
+
+function formatMoney(amount: number) {
+  return `$${amount.toLocaleString()}`;
+}
+
+function ownedCount(playerId: number) {
+  return BOARD_TILES.filter(
+    (tile) =>
+      isExchangeableTile(tile) &&
+      props.propertyOwners[tile.index] === playerId,
+  ).length;
+}
+
+function isExchangeableTile(tile: BoardTile) {
+  return tile.type === "property" || tile.type === "railroad" || tile.type === "utility";
+}
+
+function tileKindLabel(type: TileType) {
+  if (type === "railroad") return "Estación";
+  if (type === "utility") return "Servicio";
+  return "Propiedad";
+}
+
+function tradeSideSummary(propertyIndexes: number[], money: number) {
+  const parts = [];
+  if (propertyIndexes.length > 0) {
+    parts.push(`${propertyIndexes.length} prop.`);
+  }
+  if (money > 0) {
+    parts.push(formatMoney(money));
+  }
+  return parts.length > 0 ? parts.join(" + ") : "Sin elementos";
+}
+
+function developmentWarningsForTransfer(propertyIndexes: number[], ownerId: number) {
+  const transferSet = new Set(propertyIndexes);
+  const warnedGroups = new Set<string>();
+  const warnings: string[] = [];
+
+  for (const tileIndex of propertyIndexes) {
+    const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+    if (!tile || tile.type !== "property" || warnedGroups.has(tile.group)) continue;
+
+    const groupTiles = BOARD_TILES.filter(
+      (candidate) => candidate.type === "property" && candidate.group === tile.group,
+    );
+    const fullGroupTransfers = groupTiles.every(
+      (groupTile) =>
+        props.propertyOwners[groupTile.index] === ownerId &&
+        transferSet.has(groupTile.index),
+    );
+    if (fullGroupTransfers) continue;
+
+    const improvedTiles = groupTiles.filter((groupTile) => {
+      if (props.propertyOwners[groupTile.index] !== ownerId) return false;
+      const development = props.propertyDevelopments[groupTile.index];
+      return Boolean(development && (development.hotel || development.houses > 0));
+    });
+    if (improvedTiles.length === 0) continue;
+
+    warnedGroups.add(tile.group);
+    const ownerName = props.players.find((player) => player.id === ownerId)?.name ?? "El jugador";
+    const groupName = colorGroupLabel(tile.group);
+    const affected = improvedTiles
+      .map((groupTile) => {
+        const development = props.propertyDevelopments[groupTile.index];
+        if (!development) return groupTile.name;
+        const level = development.hotel
+          ? "hotel"
+          : `${development.houses} casa${development.houses === 1 ? "" : "s"}`;
+        return `${groupTile.name} (${level})`;
+      })
+      .join(", ");
+    warnings.push(`${ownerName} no transfiere todo el grupo ${groupName}; se venderán mejoras en ${affected}.`);
+  }
+
+  return warnings;
+}
+
+function colorGroupLabel(group: string) {
+  const labels: Record<string, string> = {
+    brown: "marrón",
+    lightBlue: "celeste",
+    pink: "rosa",
+    orange: "naranja",
+    red: "rojo",
+    yellow: "amarillo",
+    green: "verde",
+    darkBlue: "azul",
+  };
+  return labels[group] ?? group;
 }
 
 function toggleOfferProperty(index: number) {
@@ -380,335 +597,533 @@ onMounted(() => {
 .exchange-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75);
+  background: rgba(4, 8, 16, 0.78);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 300;
-  backdrop-filter: blur(4px);
+  padding: 24px;
+  backdrop-filter: blur(6px);
 }
 
 .exchange-modal {
-  width: 520px;
+  width: min(860px, 94vw);
   max-height: 90vh;
-  overflow-y: auto;
-  border-radius: 20px;
-  background: #0d0d1a;
-  border: 1px solid rgba(74, 222, 128, 0.3);
-  box-shadow: 0 32px 64px rgba(0, 0, 0, 0.8);
-  font-family: monospace;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #111827;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  box-shadow: 0 30px 90px rgba(0, 0, 0, 0.72);
+  color: #f8fafc;
+  font-family: "Inter", "Hanken Grotesk", system-ui, sans-serif;
   position: relative;
 }
 
 .close-btn {
   position: absolute;
-  top: 12px;
-  right: 12px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: none;
-  background: rgba(0, 0, 0, 0.3);
-  backdrop-filter: blur(8px);
-  color: rgba(255, 255, 255, 0.8);
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.72);
+  color: #cbd5e1;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: grid;
+  place-items: center;
   z-index: 10;
-  transition: all 0.15s;
   padding: 0;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
 }
 
 .close-btn:hover {
-  background: rgba(0, 0, 0, 0.5);
-  color: white;
-  transform: scale(1.1);
+  background: rgba(30, 41, 59, 0.96);
+  border-color: rgba(148, 163, 184, 0.38);
+  color: #ffffff;
 }
 
 .exchange-header {
-  background: linear-gradient(135deg, #1a1a2e, #0d1117);
-  padding: 20px 24px 16px;
-  border-bottom: 1px solid rgba(74, 222, 128, 0.1);
+  padding: 24px 28px 18px;
+  background: #172033;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.16);
 }
 
 .exchange-tag {
-  font-size: 10px;
-  letter-spacing: 0.15em;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #fbbf24;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: #f59e0b;
+}
+
+.exchange-tag .material-symbols-outlined {
+  font-size: 18px;
 }
 
 .exchange-title {
-  color: #f1f5f9;
-  font-size: 18px;
-  margin: 4px 0 2px;
-  font-weight: bold;
+  margin: 8px 44px 4px 0;
+  color: #f8fafc;
+  font-size: 24px;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: 0;
 }
 
 .exchange-subtitle {
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.4);
   margin: 0;
+  color: #94a3b8;
+  font-size: 14px;
 }
 
 .exchange-body {
-  padding: 20px 24px 24px;
+  padding: 22px 28px 26px;
+  overflow-y: auto;
+  max-height: calc(90vh - 118px);
 }
 
 .player-select-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 16px;
+  display: grid;
+  gap: 10px;
+  margin-bottom: 18px;
 }
 
 .player-select-btn {
-  display: flex;
+  min-height: 70px;
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
   align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(255, 255, 255, 0.04);
-  color: rgba(255, 255, 255, 0.7);
-  font-family: monospace;
-  font-size: 14px;
+  gap: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.82);
+  color: #e2e8f0;
   cursor: pointer;
-  transition: all 0.15s;
+  text-align: left;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s;
 }
 
 .player-select-btn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
+  background: rgba(30, 41, 59, 0.96);
+  border-color: rgba(251, 191, 36, 0.42);
 }
 
 .player-select-active {
-  background: rgba(74, 222, 128, 0.12) !important;
-  border-color: rgba(74, 222, 128, 0.4) !important;
-  color: #4ade80 !important;
+  background: rgba(20, 83, 45, 0.44);
+  border-color: rgba(74, 222, 128, 0.62);
 }
 
 .player-select-icon {
-  font-size: 18px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(251, 191, 36, 0.13);
+  border: 1px solid rgba(251, 191, 36, 0.28);
+  font-size: 22px;
 }
 
-.player-select-name {
-  flex: 1;
-  text-align: left;
-}
-
-.player-select-cash {
-  color: #4ade80;
-  font-weight: bold;
-}
-
-.exchange-columns {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  margin-bottom: 16px;
-}
-
-.exchange-column {
-  flex: 1;
+.player-select-copy {
+  display: grid;
+  gap: 3px;
   min-width: 0;
 }
 
-.exchange-arrow {
-  font-size: 24px;
-  color: rgba(255, 255, 255, 0.3);
-  padding-top: 36px;
-  flex-shrink: 0;
-}
-
-.column-title {
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.5);
-  margin: 0 0 8px;
-}
-
-.property-list {
-  max-height: 160px;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: 12px;
-}
-
-.property-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  cursor: pointer;
-  transition: all 0.15s;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.75);
-}
-
-.property-item:hover {
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.property-item input[type="checkbox"] {
-  accent-color: #4ade80;
-  width: 14px;
-  height: 14px;
-  cursor: pointer;
-}
-
-.property-item.read-only {
-  cursor: default;
-}
-
-.property-color {
-  width: 12px;
-  height: 12px;
-  border-radius: 3px;
-  flex-shrink: 0;
-}
-
-.property-name {
-  flex: 1;
+.player-select-copy strong {
+  color: #f8fafc;
+  font-size: 16px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.empty-msg {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.25);
-  margin: 0;
-  text-align: center;
-  padding: 8px;
+.player-select-copy small {
+  color: #94a3b8;
+  font-size: 12px;
 }
 
-.money-input-row {
+.player-select-cash {
+  color: #86efac;
+  font-weight: 800;
+  font-size: 15px;
+}
+
+.trade-summary {
+  display: grid;
+  grid-template-columns: 1fr 42px 1fr;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 18px;
+  padding: 14px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.trade-summary div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.trade-summary span:not(.summary-arrow) {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.trade-summary strong {
+  color: #f8fafc;
+  font-size: 16px;
+  overflow-wrap: anywhere;
+}
+
+.summary-arrow {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+}
+
+.respond-summary {
+  border-color: rgba(74, 222, 128, 0.22);
+}
+
+.exchange-warning {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 12px;
+  align-items: start;
+  margin: -4px 0 18px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: rgba(120, 53, 15, 0.42);
+  border: 1px solid rgba(251, 191, 36, 0.38);
+  color: #fde68a;
+}
+
+.exchange-warning > .material-symbols-outlined {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.14);
+}
+
+.exchange-warning strong {
+  display: block;
+  margin-bottom: 3px;
+  color: #fef3c7;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.exchange-warning p {
+  margin: 0;
+  color: #fcd34d;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.exchange-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: stretch;
+  margin-bottom: 18px;
+}
+
+.exchange-column {
+  min-width: 0;
+  padding: 14px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.66);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.column-heading {
+  min-height: 24px;
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
 }
 
-.money-label {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
+.column-title {
+  margin: 0;
+  color: #cbd5e1;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+}
+
+.column-heading > span {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 700;
   white-space: nowrap;
 }
 
-.money-input {
-  width: 80px;
-  padding: 6px 10px;
+.property-list {
+  max-height: 250px;
+  min-height: 118px;
+  overflow-y: auto;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-right: 2px;
+}
+
+.property-item {
+  display: grid;
+  grid-template-columns: 16px 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+  min-height: 46px;
+  padding: 8px 10px;
   border-radius: 8px;
-  border: 1px solid rgba(74, 222, 128, 0.2);
-  background: rgba(0, 0, 0, 0.3);
-  color: #4ade80;
-  font-family: monospace;
+  background: rgba(2, 6, 23, 0.34);
+  border: 1px solid rgba(148, 163, 184, 0.14);
+  cursor: pointer;
+  color: #e2e8f0;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.property-item:hover {
+  background: rgba(30, 41, 59, 0.78);
+  border-color: rgba(148, 163, 184, 0.3);
+}
+
+.property-item.selected {
+  background: rgba(22, 101, 52, 0.34);
+  border-color: rgba(74, 222, 128, 0.55);
+}
+
+.property-item.read-only {
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  cursor: default;
+}
+
+.property-item input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: #22c55e;
+  cursor: pointer;
+}
+
+.property-color {
+  width: 14px;
+  height: 28px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  flex-shrink: 0;
+}
+
+.property-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.property-name {
+  color: #f8fafc;
+  font-size: 13px;
+  font-weight: 800;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.property-copy small {
+  color: #94a3b8;
+  font-size: 11px;
+}
+
+.property-price {
+  color: #fbbf24;
+  font-size: 12px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.empty-msg {
+  margin: 0;
+  padding: 22px 12px;
+  border-radius: 8px;
+  color: #64748b;
+  background: rgba(2, 6, 23, 0.24);
+  border: 1px dashed rgba(148, 163, 184, 0.16);
+  font-size: 12px;
+  text-align: center;
+}
+
+.money-input-row {
+  display: grid;
+  grid-template-columns: auto 112px 1fr;
+  align-items: center;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(148, 163, 184, 0.14);
+}
+
+.money-label {
+  color: #94a3b8;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.money-input {
+  width: 100%;
+  min-width: 0;
+  padding: 9px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(74, 222, 128, 0.3);
+  background: rgba(2, 6, 23, 0.6);
+  color: #86efac;
   font-size: 14px;
-  font-weight: bold;
+  font-weight: 900;
   text-align: right;
 }
 
 .money-input:focus {
   outline: none;
-  border-color: rgba(74, 222, 128, 0.5);
-  box-shadow: 0 0 0 3px rgba(74, 222, 128, 0.15);
+  border-color: rgba(74, 222, 128, 0.78);
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.18);
 }
 
 .money-suffix {
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.3);
+  color: #64748b;
+  font-size: 11px;
+  white-space: nowrap;
 }
 
 .money-display {
-  padding: 10px 14px;
-  background: rgba(74, 222, 128, 0.08);
-  border: 1px solid rgba(74, 222, 128, 0.15);
-  border-radius: 10px;
-  color: #4ade80;
+  margin-top: 10px;
+  padding: 11px 12px;
+  border-radius: 8px;
+  color: #86efac;
+  background: rgba(22, 101, 52, 0.24);
+  border: 1px solid rgba(74, 222, 128, 0.22);
   font-size: 18px;
-  font-weight: bold;
+  font-weight: 900;
   text-align: center;
-  margin-top: 8px;
 }
 
 .exchange-actions {
   display: flex;
-  gap: 10px;
   justify-content: flex-end;
+  gap: 10px;
 }
 
 .action-btn {
-  padding: 12px 24px;
-  border-radius: 12px;
-  border: none;
-  font-family: monospace;
+  min-height: 44px;
+  padding: 0 20px;
+  border-radius: 8px;
+  border: 1px solid transparent;
   font-size: 14px;
-  font-weight: bold;
+  font-weight: 900;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: background 0.15s, border-color 0.15s, transform 0.15s, opacity 0.15s;
 }
 
-.confirm-btn {
-  background: #10b981;
-  color: white;
-  box-shadow: 0 8px 16px rgba(16, 185, 129, 0.3);
-}
-
-.confirm-btn:hover:not(:disabled) {
-  background: #059669;
+.action-btn:hover:not(:disabled) {
   transform: translateY(-1px);
+}
+
+.confirm-btn,
+.accept-btn {
+  background: #16a34a;
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(22, 163, 74, 0.24);
+}
+
+.confirm-btn:hover:not(:disabled),
+.accept-btn:hover {
+  background: #15803d;
 }
 
 .confirm-btn:disabled {
-  opacity: 0.4;
+  opacity: 0.45;
   cursor: not-allowed;
-}
-
-.confirm-btn:focus-visible {
-  outline: 2px solid #4ade80;
-  outline-offset: 3px;
-  box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.25);
+  box-shadow: none;
 }
 
 .cancel-btn {
-  background: rgba(255, 255, 255, 0.08);
-  color: rgba(255, 255, 255, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.88);
+  color: #cbd5e1;
+  border-color: rgba(148, 163, 184, 0.2);
 }
 
 .cancel-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: rgba(255, 255, 255, 0.8);
+  background: rgba(30, 41, 59, 0.96);
+  border-color: rgba(148, 163, 184, 0.36);
 }
 
-.cancel-btn:focus-visible {
-  outline: 2px solid rgba(255, 255, 255, 0.4);
+.action-btn:focus-visible,
+.close-btn:focus-visible,
+.player-select-btn:focus-visible {
+  outline: 2px solid #fbbf24;
   outline-offset: 3px;
 }
 
-.accept-btn {
-  background: #10b981;
-  color: white;
-  box-shadow: 0 8px 16px rgba(16, 185, 129, 0.3);
-}
+@media (max-width: 760px) {
+  .exchange-backdrop {
+    padding: 12px;
+    align-items: flex-start;
+  }
 
-.accept-btn:hover {
-  background: #059669;
-  transform: translateY(-1px);
-}
+  .exchange-modal {
+    width: 100%;
+    max-height: calc(100vh - 24px);
+  }
 
-.accept-btn:focus-visible {
-  outline: 2px solid #4ade80;
-  outline-offset: 3px;
-  box-shadow: 0 0 0 4px rgba(74, 222, 128, 0.25);
+  .exchange-header,
+  .exchange-body {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .exchange-title {
+    font-size: 20px;
+  }
+
+  .trade-summary,
+  .exchange-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .summary-arrow {
+    width: 100%;
+    height: 30px;
+  }
+
+  .money-input-row {
+    grid-template-columns: 1fr;
+  }
+
+  .exchange-actions {
+    flex-direction: column-reverse;
+  }
+
+  .action-btn {
+    width: 100%;
+  }
 }
 </style>
