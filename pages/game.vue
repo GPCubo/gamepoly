@@ -172,6 +172,8 @@
       :property-developments="store.propertyDevelopments"
       :proposal="store.exchangeProposal"
       :is-responding="exchangeIsResponding"
+      :spectator-mode="exchangeSpectatorMode"
+      :spectator-result="exchangeSpectatorResult"
       @propose="onExchangePropose"
       @accept="onExchangeAccept"
       @reject="onExchangeReject"
@@ -249,7 +251,10 @@ const showCardOverlay = ref(false);
 const isResolvingCardEffect = ref(false);
 const showExchange = ref(false);
 const exchangeIsResponding = ref(false);
-let pendingBotExchangeResolve: ((result: BotExchangeResult) => void) | null = null;
+const exchangeSpectatorMode = ref(false);
+const exchangeSpectatorResult = ref<"accepted" | "rejected" | null>(null);
+let pendingBotExchangeResolve: ((result: BotExchangeResult) => void) | null =
+  null;
 
 const isTurnCompleteRef = computed(() => store.isTurnComplete);
 const isAnyMovingRef = computed(() => store.isAnyMoving);
@@ -277,7 +282,9 @@ function resolvePendingBotExchange(result: BotExchangeResult) {
   resolve(result);
 }
 
-function waitForBotExchangeResponse(proposal: ExchangeProposal): Promise<BotExchangeResult> {
+function waitForBotExchangeResponse(
+  proposal: ExchangeProposal,
+): Promise<BotExchangeResult> {
   return new Promise((resolve) => {
     if (pendingBotExchangeResolve || store.exchangeProposal) {
       resolve("cancelled");
@@ -293,8 +300,11 @@ function waitForBotExchangeResponse(proposal: ExchangeProposal): Promise<BotExch
     }
 
     exchangeIsResponding.value = true;
-    const target = store.players.find((player) => player.id === proposal.toPlayerId);
-    showExchange.value = !target?.isBot;
+    const target = store.players.find(
+      (player) => player.id === proposal.toPlayerId,
+    );
+    exchangeSpectatorMode.value = !!target?.isBot;
+    showExchange.value = true;
   });
 }
 
@@ -1050,6 +1060,8 @@ function onExchangeAccept() {
   store.respondExchange(true);
   showExchange.value = false;
   exchangeIsResponding.value = false;
+  exchangeSpectatorMode.value = false;
+  exchangeSpectatorResult.value = null;
   resolvePendingBotExchange("accepted");
 }
 
@@ -1057,6 +1069,8 @@ function onExchangeReject() {
   store.respondExchange(false);
   showExchange.value = false;
   exchangeIsResponding.value = false;
+  exchangeSpectatorMode.value = false;
+  exchangeSpectatorResult.value = null;
   resolvePendingBotExchange("rejected");
 }
 
@@ -1066,6 +1080,8 @@ function onExchangeCancel() {
   }
   showExchange.value = false;
   exchangeIsResponding.value = false;
+  exchangeSpectatorMode.value = false;
+  exchangeSpectatorResult.value = null;
   resolvePendingBotExchange("cancelled");
 }
 
@@ -1084,16 +1100,32 @@ watch(
             resolvePendingBotExchange("cancelled");
             return;
           }
-          const nextTarget = store.players.find((p) => p.id === response.counterProposal!.toPlayerId);
+          const nextTarget = store.players.find(
+            (p) => p.id === response.counterProposal!.toPlayerId,
+          );
           exchangeIsResponding.value = true;
-          showExchange.value = !nextTarget?.isBot;
+          exchangeSpectatorMode.value = !!nextTarget?.isBot;
+          showExchange.value = true;
           return;
         }
 
-        store.respondExchange(response.action === "accept");
-        showExchange.value = false;
-        exchangeIsResponding.value = false;
-        resolvePendingBotExchange(response.action === "accept" ? "accepted" : "rejected");
+        const accepted = response.action === "accept";
+        if (exchangeSpectatorMode.value) {
+          exchangeSpectatorResult.value = accepted ? "accepted" : "rejected";
+          setTimeout(() => {
+            store.respondExchange(accepted);
+            showExchange.value = false;
+            exchangeIsResponding.value = false;
+            exchangeSpectatorMode.value = false;
+            exchangeSpectatorResult.value = null;
+            resolvePendingBotExchange(accepted ? "accepted" : "rejected");
+          }, 800);
+        } else {
+          store.respondExchange(accepted);
+          showExchange.value = false;
+          exchangeIsResponding.value = false;
+          resolvePendingBotExchange(accepted ? "accepted" : "rejected");
+        }
       }, 1200);
     }
   },

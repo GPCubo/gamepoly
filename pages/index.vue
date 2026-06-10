@@ -164,7 +164,6 @@
       </div>
 
       <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
-      <p v-if="activeMode === 'bots' && !isValidBotsConfig && !errorMsg" class="error-msg warning-msg">Debe haber al menos 1 jugador humano.</p>
 
       <!-- Actions -->
       <div class="action-row">
@@ -336,14 +335,6 @@ const visiblePlayers = computed(() => {
   return arr;
 });
 
-const isValidBotsConfig = computed(() => {
-  if (activeMode.value !== "bots") return true;
-  let humanCount = 0;
-  for (let i = 0; i < selectedCount.value; i++) {
-    if (playerTypes.value[i] === "human") humanCount++;
-  }
-  return humanCount >= 1;
-});
 
 watch(playerTypes, (newTypes) => {
   for (let i = 0; i < GAME_CONFIG.MAX_PLAYERS; i++) {
@@ -463,10 +454,6 @@ function applyLocalGameScenarioSeeds() {
 function startGame() {
   errorMsg.value = "";
 
-  if (activeMode.value === "bots" && !isValidBotsConfig.value) {
-    errorMsg.value = "Debe haber al menos 1 jugador humano.";
-    return;
-  }
 
   const cash = Math.floor(startingCash.value);
   const salary = Math.floor(goSalary.value);

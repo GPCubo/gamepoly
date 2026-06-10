@@ -15,6 +15,7 @@ export const GAME_CONFIG = {
     { file: "tacon.glb", name: "Tacón", icon: "👠", color: "#be123c" },
     { file: "cat.glb", name: "Gato", icon: "🐱", color: "#64748b" },
     { file: "coffee.glb", name: "Vaso de café", icon: "☕", color: "#15803d" },
+    { file: "train.glb", name: "Locomotora", icon: "🚂", color: "#475569" },
   ] as const,
 
   LABEL_FONT_SIZE: 34,

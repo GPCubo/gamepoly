@@ -207,7 +207,12 @@ function focusFirstEnabled() {
 }
 
 onMounted(() => focusFirstEnabled());
-watch(phase, () => focusFirstEnabled());
+watch(phase, (newPhase) => {
+  focusFirstEnabled();
+  if (newPhase !== "bidding" && props.players.every((p) => p.isBot)) {
+    setTimeout(() => emitResult(), 1200);
+  }
+});
 watch(currentBidderId, () => {
   if (phase.value === "bidding") focusFirstEnabled();
 });

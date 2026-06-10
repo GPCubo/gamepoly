@@ -1,7 +1,7 @@
 <template>
-  <div class="exchange-backdrop" @click.self="emit('cancel')">
+  <div class="exchange-backdrop" @click.self="spectatorMode || emit('cancel')">
     <div class="exchange-modal">
-      <button class="close-btn" tabindex="-1" aria-label="Cerrar intercambio" @click="emit('cancel')">
+      <button v-if="!spectatorMode" class="close-btn" tabindex="-1" aria-label="Cerrar intercambio" @click="emit('cancel')">
         <span class="material-symbols-outlined">close</span>
       </button>
 
@@ -251,12 +251,26 @@
               </div>
             </div>
           </div>
-          <div class="exchange-actions">
+          <div v-if="!spectatorMode" class="exchange-actions">
             <button ref="rejectRef" class="action-btn cancel-btn" tabindex="0" @click="onReject">Rechazar</button>
             <button ref="renegotiateRef" class="action-btn renegotiate-btn" tabindex="0" @click="onRenegotiate">
               Renegociar
             </button>
             <button ref="acceptRef" class="action-btn accept-btn" tabindex="0" @click="onAccept">Aceptar</button>
+          </div>
+          <div v-else class="spectator-banner" :class="spectatorResult ?? ''">
+            <template v-if="!spectatorResult">
+              <span class="material-symbols-outlined spectator-icon">smart_toy</span>
+              <span>{{ spectatorBannerText }}</span>
+            </template>
+            <template v-else-if="spectatorResult === 'accepted'">
+              <span class="material-symbols-outlined spectator-icon accepted-icon">check_circle</span>
+              <span class="spectator-result">Intercambio aceptado</span>
+            </template>
+            <template v-else>
+              <span class="material-symbols-outlined spectator-icon rejected-icon">cancel</span>
+              <span class="spectator-result">Intercambio rechazado</span>
+            </template>
           </div>
         </div>
       </template>
@@ -278,6 +292,8 @@ const props = defineProps<{
   propertyDevelopments: Record<number, PropertyDevelopmentState>;
   proposal: ExchangeProposal | null;
   isResponding: boolean;
+  spectatorMode?: boolean;
+  spectatorResult?: "accepted" | "rejected" | null;
 }>();
 
 const emit = defineEmits<{
@@ -408,6 +424,13 @@ const respondDevelopmentWarnings = computed(() => {
       props.proposal.toPlayerId,
     ),
   ];
+});
+
+const spectatorBannerText = computed(() => {
+  if (!props.proposal) return "Los bots están negociando...";
+  const from = props.players.find((p) => p.id === props.proposal!.fromPlayerId);
+  const to = props.players.find((p) => p.id === props.proposal!.toPlayerId);
+  return `${to?.name ?? "Bot"} está evaluando la oferta de ${from?.name ?? "Bot"}...`;
 });
 
 function tokenIcon(file: string) {
@@ -1189,5 +1212,59 @@ watch(
   .action-btn {
     width: 100%;
   }
+}
+
+.spectator-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 20px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.72);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  color: #94a3b8;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  transition: border-color 0.3s, background 0.3s;
+}
+
+.spectator-banner.accepted {
+  background: rgba(20, 83, 45, 0.28);
+  border-color: rgba(74, 222, 128, 0.45);
+}
+
+.spectator-banner.rejected {
+  background: rgba(127, 29, 29, 0.28);
+  border-color: rgba(248, 113, 113, 0.45);
+}
+
+.spectator-icon {
+  font-size: 20px;
+  color: #fbbf24;
+  flex-shrink: 0;
+}
+
+.accepted-icon {
+  color: #4ade80;
+}
+
+.rejected-icon {
+  color: #f87171;
+}
+
+.spectator-result {
+  font-size: 15px;
+  font-weight: 900;
+  color: inherit;
+}
+
+.spectator-banner.accepted .spectator-result {
+  color: #4ade80;
+}
+
+.spectator-banner.rejected .spectator-result {
+  color: #f87171;
 }
 </style>
