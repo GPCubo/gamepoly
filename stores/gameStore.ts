@@ -18,10 +18,14 @@ import {
   rentForDevelopment,
 } from "~/config/economyConfig";
 
+export type BotDifficulty = "regular" | "difficult";
+
 export interface PlayerConfig {
   name: string;
   tokenModel: string;
   startingCash?: number;
+  isBot?: boolean;
+  botDifficulty?: BotDifficulty | null;
 }
 
 export interface PlayerState {
@@ -34,6 +38,8 @@ export interface PlayerState {
   inJail: boolean;
   jailTurns: number;
   consecutiveDoubles: number;
+  isBot: boolean;
+  botDifficulty: BotDifficulty | null;
 }
 
 export interface MoveEvent {
@@ -48,12 +54,33 @@ export interface ExchangeProposal {
   offerMoney: number;
   requestProperties: number[];
   requestMoney: number;
+  renegotiationCount?: number;
 }
 
 export interface PropertyDevelopmentState {
   houses: number;
   hotel: boolean;
   mortgaged: boolean;
+}
+
+export type EconomicHistoryType =
+  | "purchase"
+  | "auction"
+  | "mortgage"
+  | "card_gain"
+  | "card_loss"
+  | "tax"
+  | "rent"
+  | "exchange";
+
+export interface EconomicHistoryItem {
+  id: number;
+  type: EconomicHistoryType;
+  title: string;
+  detail: string;
+  amount?: number;
+  playerIds: number[];
+  createdAt: number;
 }
 
 export interface GameState {
@@ -84,6 +111,9 @@ export interface GameState {
   skipMovementRequested: boolean;
   forceAllDiceRollsAsDoubles: boolean;
   forceAllDiceRollsToCards: boolean;
+  isBotThinking: boolean;
+  botActionMessage: string;
+  economicHistory: EconomicHistoryItem[];
 }
 
 const PROPERTY_COLOR_GROUPS = new Set<TileGroup>([
@@ -179,6 +209,9 @@ export const useGameStore = defineStore("game", {
     skipMovementRequested: false,
     forceAllDiceRollsAsDoubles: false,
     forceAllDiceRollsToCards: false,
+    isBotThinking: false,
+    botActionMessage: "",
+    economicHistory: [],
   }),
 
   getters: {
@@ -205,6 +238,17 @@ export const useGameStore = defineStore("game", {
       if (proposal) return false;
       return true;
     },
+    isCurrentPlayerBot: (state) => {
+      const player = state.players[state.activePlayerIndex];
+      return player?.isBot ?? false;
+    },
+    activeBotDifficulty: (state) => {
+      const player = state.players[state.activePlayerIndex];
+      if (!player?.isBot) return null;
+      return player.botDifficulty;
+    },
+    hasAnyBot: (state) => state.players.some((p) => p.isBot),
+    hasAny_human: (state) => state.players.some((p) => !p.isBot),
   },
 
   actions: {
@@ -220,6 +264,8 @@ export const useGameStore = defineStore("game", {
         inJail: false,
         jailTurns: 0,
         consecutiveDoubles: 0,
+        isBot: c.isBot ?? false,
+        botDifficulty: c.botDifficulty ?? null,
       }));
       this.activePlayerIndex = 0;
       this.phase = "playing";
@@ -235,6 +281,7 @@ export const useGameStore = defineStore("game", {
       this.skipMovementRequested = false;
       this.forceAllDiceRollsAsDoubles = false;
       this.forceAllDiceRollsToCards = false;
+      this.economicHistory = [];
       this.statusMessage = `¡${configs[0].name} comienza!`;
       this.propertyOwners = {};
       this.propertyDevelopments = {};
@@ -425,6 +472,13 @@ export const useGameStore = defineStore("game", {
       this.propertyOwners[tileIndex] = playerId;
       this._ensurePropertyDevelopment(tileIndex);
       this.statusMessage = `${player.name} compró ${tile.name} por $${tile.price}`;
+      this.addEconomicHistory({
+        type: "purchase",
+        title: `${player.name} compró ${tile.name}`,
+        detail: `${player.name} pagó $${tile.price} por ${tile.name}. Saldo: $${player.cash}`,
+        amount: tile.price,
+        playerIds: [playerId],
+      });
       this._checkBankruptcy(playerId);
     },
 
@@ -437,6 +491,13 @@ export const useGameStore = defineStore("game", {
       this.propertyOwners[tileIndex] = playerId;
       this._ensurePropertyDevelopment(tileIndex);
       this.statusMessage = `${player.name} ganó la subasta de ${tile.name} por $${amount}`;
+      this.addEconomicHistory({
+        type: "auction",
+        title: `${player.name} ganó una subasta`,
+        detail: `${player.name} compró ${tile.name} en subasta por $${amount}. Saldo: $${player.cash}`,
+        amount,
+        playerIds: [playerId],
+      });
       this._checkBankruptcy(playerId);
     },
 
@@ -473,6 +534,71 @@ export const useGameStore = defineStore("game", {
       }
 
       this.statusMessage = `Escenario local activado. ${player.name} inicia con todas las propiedades, hoteles y $${cash}`;
+    },
+
+    seedDebtResolutionScenario() {
+      const player = this.activePlayer;
+      if (!player) return;
+
+      this.propertyOwners = {};
+      this.propertyDevelopments = {};
+      this.bankruptPlayers = [];
+      this.exchangeProposal = null;
+      this.isAuctionActive = false;
+      this.activeCard = null;
+      this.isDiceVisible = false;
+      this.isDiceRolling = false;
+      this.moveEvent = null;
+      this.skipMovementRequested = false;
+      this.isTurnComplete = true;
+
+      player.position = 24;
+      player.cash = -260;
+      player.inJail = false;
+      player.jailTurns = 0;
+      player.consecutiveDoubles = 0;
+
+      const mortgageableIndexes = [1, 3, 5, 12, 15];
+      for (const tileIndex of mortgageableIndexes) {
+        this.propertyOwners[tileIndex] = player.id;
+        const development = this._ensurePropertyDevelopment(tileIndex);
+        development.houses = 0;
+        development.hotel = false;
+        development.mortgaged = false;
+      }
+
+      const houseGroupIndexes = [16, 18, 19];
+      for (const tileIndex of houseGroupIndexes) {
+        this.propertyOwners[tileIndex] = player.id;
+        const development = this._ensurePropertyDevelopment(tileIndex);
+        development.houses = 2;
+        development.hotel = false;
+        development.mortgaged = false;
+      }
+
+      const hotelGroupIndexes = [26, 27, 29];
+      for (const tileIndex of hotelGroupIndexes) {
+        this.propertyOwners[tileIndex] = player.id;
+        const development = this._ensurePropertyDevelopment(tileIndex);
+        development.houses = 0;
+        development.hotel = true;
+        development.mortgaged = false;
+      }
+
+      const opponent = this.players.find((candidate) => candidate.id !== player.id);
+      if (opponent) {
+        opponent.position = 0;
+        opponent.cash = 1760;
+        for (const tileIndex of [21, 23, 24]) {
+          this.propertyOwners[tileIndex] = opponent.id;
+          const development = this._ensurePropertyDevelopment(tileIndex);
+          development.houses = 3;
+          development.hotel = false;
+          development.mortgaged = false;
+        }
+      }
+
+      this.statusMessage = `Escenario deuda: ${player.name} debe $${Math.abs(player.cash)}. Usa Resolver deuda para vender mejoras o hipotecar`;
     },
 
     seedAllPlayersRollDoubles() {
@@ -723,6 +849,37 @@ export const useGameStore = defineStore("game", {
       return player.cash >= this.getUnmortgageCost(tileIndex);
     },
 
+    getEmergencyLiquidationValue(playerId: number): number {
+      let total = 0;
+
+      for (const tile of BOARD_TILES) {
+        if (tile.price === undefined || this.propertyOwners[tile.index] !== playerId) continue;
+
+        const development = this.getPropertyDevelopment(tile.index);
+        if (tile.type === "property") {
+          if (development.hotel) {
+            total += Math.round(this.getHotelCost(tile.index) / 2);
+            total += 4 * Math.round(this.getHouseCost(tile.index) / 2);
+          } else if (development.houses > 0) {
+            total += development.houses * Math.round(this.getHouseCost(tile.index) / 2);
+          }
+        }
+
+        if (!development.mortgaged) {
+          total += this.getMortgageValue(tile.index);
+        }
+      }
+
+      return total;
+    },
+
+    canPlayerAvoidBankruptcy(playerId: number): boolean {
+      const player = this.players.find((candidate) => candidate.id === playerId);
+      if (!player) return false;
+      if (player.cash >= 0) return true;
+      return player.cash + this.getEmergencyLiquidationValue(playerId) >= 0;
+    },
+
     buildHouse(tileIndex: number, playerId: number) {
       if (!this.canBuildHouse(tileIndex, playerId)) return;
       const player = this.players.find((candidate) => candidate.id === playerId);
@@ -854,6 +1011,46 @@ export const useGameStore = defineStore("game", {
       development.mortgaged = true;
       player.cash += value;
       this.statusMessage = `${player.name} hipotecó ${tile.name} y recibió $${value}`;
+      this.addEconomicHistory({
+        type: "mortgage",
+        title: `${player.name} hipotecó ${tile.name}`,
+        detail: `${player.name} recibió $${value} por hipotecar ${tile.name}. Saldo: $${player.cash}`,
+        amount: value,
+        playerIds: [playerId],
+      });
+    },
+
+    mortgageAllAvailable(playerId: number): number {
+      const player = this.players.find((candidate) => candidate.id === playerId);
+      if (!player) return 0;
+
+      let total = 0;
+      const mortgageableTiles = BOARD_TILES.filter(
+        (tile) => tile.price !== undefined && this.canMortgageProperty(tile.index, playerId),
+      );
+
+      for (const tile of mortgageableTiles) {
+        const development = this._ensurePropertyDevelopment(tile.index);
+        if (development.mortgaged) continue;
+        development.mortgaged = true;
+        const value = this.getMortgageValue(tile.index);
+        player.cash += value;
+        total += value;
+      }
+
+      if (total > 0) {
+        this.statusMessage = `${player.name} hipotecó ${mortgageableTiles.length} propiedades y recibió $${total}`;
+        this.addEconomicHistory({
+          type: "mortgage",
+          title: `${player.name} hipotecó ${mortgageableTiles.length} propiedades`,
+          detail: `${player.name} recibió $${total} por hipotecar: ${mortgageableTiles.map((tile) => tile.name).join(", ")}. Saldo: $${player.cash}`,
+          amount: total,
+          playerIds: [playerId],
+        });
+      }
+
+      this._checkBankruptcy(playerId);
+      return total;
     },
 
     unmortgageProperty(tileIndex: number, playerId: number) {
@@ -881,7 +1078,8 @@ export const useGameStore = defineStore("game", {
             this.propertyOwners[t.index] === ownerId &&
             !this.getPropertyDevelopment(t.index).mortgaged,
         ).length;
-        return 25 * count;
+        const railroadRentByCount = [0, 25, 50, 100, 200];
+        return railroadRentByCount[Math.min(count, 4)] ?? 0;
       }
 
       if (tile.type === "utility") {
@@ -891,7 +1089,7 @@ export const useGameStore = defineStore("game", {
             this.propertyOwners[t.index] === ownerId &&
             !this.getPropertyDevelopment(t.index).mortgaged,
         ).length;
-        return this.diceTotal * (count >= 2 ? 10 : 4);
+        return this.diceTotal * (count >= 2 ? 8 : 1);
       }
 
       if (tile.type !== "property") return 0;
@@ -910,6 +1108,13 @@ export const useGameStore = defineStore("game", {
       payer.cash -= amount;
       receiver.cash += amount;
       this.statusMessage = `${payer.name} pagó $${amount} de alquiler a ${receiver.name}`;
+      this.addEconomicHistory({
+        type: "rent",
+        title: `${payer.name} pagó alquiler`,
+        detail: `${payer.name} pagó $${amount} a ${receiver.name}. Saldos: ${payer.name} $${payer.cash}, ${receiver.name} $${receiver.cash}`,
+        amount,
+        playerIds: [fromPlayerId, toPlayerId],
+      });
       this._checkBankruptcy(fromPlayerId);
     },
 
@@ -918,6 +1123,13 @@ export const useGameStore = defineStore("game", {
       if (!player) return;
       player.cash -= amount;
       this.statusMessage = `${player.name} pagó $${amount} de impuesto`;
+      this.addEconomicHistory({
+        type: "tax",
+        title: `${player.name} pagó impuesto`,
+        detail: `${player.name} pagó $${amount} de impuesto. Saldo: $${player.cash}`,
+        amount,
+        playerIds: [playerId],
+      });
       this._checkBankruptcy(playerId);
     },
 
@@ -937,7 +1149,12 @@ export const useGameStore = defineStore("game", {
     _checkBankruptcy(playerId: number) {
       const player = this.players.find((p) => p.id === playerId);
       if (!player || this.bankruptPlayers.includes(playerId)) return;
-      if (player.cash < 0) this.declareBankruptcy(playerId);
+      if (player.cash >= 0) return;
+      if (this.canPlayerAvoidBankruptcy(playerId)) {
+        this.statusMessage = `${player.name} debe $${Math.abs(player.cash)}. Vende mejoras o hipoteca propiedades para continuar`;
+        return;
+      }
+      this.declareBankruptcy(playerId);
     },
 
     _ensurePropertyDevelopment(tileIndex: number): PropertyDevelopmentState {
@@ -1007,23 +1224,38 @@ export const useGameStore = defineStore("game", {
             this.isTurnComplete = false;
             player.position += steps;
             if (player.position < 0) player.position += 40;
-            this.moveEvent = {
-              playerIndex: this.activePlayerIndex,
-              position: player.position,
-            };
-            this.statusMessage = `${player.name} retrocede ${Math.abs(steps)} casillas`;
-            this.isTurnComplete = true;
-          }
+          this.moveEvent = {
+            playerIndex: this.activePlayerIndex,
+            position: player.position,
+          };
+          this.statusMessage = `${player.name} retrocede ${Math.abs(steps)} casillas`;
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          this.isTurnComplete = true;
+        }
           break;
         }
         case "collect": {
           player.cash += card.amount ?? 0;
           this.statusMessage = `${player.name} cobra $${card.amount ?? 0}`;
+          this.addEconomicHistory({
+            type: "card_gain",
+            title: `${player.name} cobró por carta`,
+            detail: `${card.text}. ${player.name} recibió $${card.amount ?? 0}. Saldo: $${player.cash}`,
+            amount: card.amount ?? 0,
+            playerIds: [player.id],
+          });
           break;
         }
         case "pay": {
           player.cash -= card.amount ?? 0;
           this.statusMessage = `${player.name} paga $${card.amount ?? 0}`;
+          this.addEconomicHistory({
+            type: "card_loss",
+            title: `${player.name} pagó por carta`,
+            detail: `${card.text}. ${player.name} pagó $${card.amount ?? 0}. Saldo: $${player.cash}`,
+            amount: card.amount ?? 0,
+            playerIds: [player.id],
+          });
           this._checkBankruptcy(player.id);
           break;
         }
@@ -1038,6 +1270,13 @@ export const useGameStore = defineStore("game", {
             other.cash += amount;
           }
           this.statusMessage = `${player.name} paga $${amount} a cada jugador ($${totalPay} total)`;
+          this.addEconomicHistory({
+            type: "card_loss",
+            title: `${player.name} pagó a otros jugadores`,
+            detail: `${card.text}. ${player.name} pagó $${amount} a ${otherPlayers.map((other) => other.name).join(", ")} ($${totalPay} total). Saldo: $${player.cash}`,
+            amount: totalPay,
+            playerIds: [player.id, ...otherPlayers.map((other) => other.id)],
+          });
           this._checkBankruptcy(player.id);
           break;
         }
@@ -1106,8 +1345,12 @@ export const useGameStore = defineStore("game", {
       }
       if (proposal.offerMoney < 0 || proposal.requestMoney < 0) return;
       if (proposal.offerMoney > from.cash) return;
+      if (proposal.requestMoney > to.cash) return;
 
-      this.exchangeProposal = proposal;
+      this.exchangeProposal = {
+        ...proposal,
+        renegotiationCount: proposal.renegotiationCount ?? 0,
+      };
     },
 
     respondExchange(accepted: boolean) {
@@ -1168,6 +1411,15 @@ export const useGameStore = defineStore("game", {
         this._checkBankruptcy(to.id);
 
         const improvementRefund = fromImprovementRefund + toImprovementRefund;
+        const offeredItems = this._exchangeSideSummary(proposal.offerProperties, proposal.offerMoney);
+        const requestedItems = this._exchangeSideSummary(proposal.requestProperties, proposal.requestMoney);
+        this.addEconomicHistory({
+          type: "exchange",
+          title: `${from.name} y ${to.name} hicieron intercambio`,
+          detail: `${from.name} entregó ${offeredItems} y recibió ${requestedItems}. Saldos: ${from.name} $${from.cash}, ${to.name} $${to.cash}`,
+          amount: proposal.offerMoney + proposal.requestMoney,
+          playerIds: [from.id, to.id],
+        });
         this.statusMessage = improvementRefund > 0
           ? `Intercambio realizado entre ${from.name} y ${to.name}. Mejoras vendidas por $${improvementRefund}`
           : `Intercambio realizado entre ${from.name} y ${to.name}`;
@@ -1180,6 +1432,40 @@ export const useGameStore = defineStore("game", {
 
     cancelExchange() {
       this.exchangeProposal = null;
+    },
+
+    setBotThinking(message: string) {
+      this.isBotThinking = true;
+      this.botActionMessage = message;
+    },
+
+    clearBotThinking() {
+      this.isBotThinking = false;
+      this.botActionMessage = "";
+    },
+
+    addEconomicHistory(entry: Omit<EconomicHistoryItem, "id" | "createdAt">) {
+      const item: EconomicHistoryItem = {
+        ...entry,
+        id: Date.now() + this.economicHistory.length,
+        createdAt: Date.now(),
+      };
+      this.economicHistory.unshift(item);
+      if (this.economicHistory.length > 100) {
+        this.economicHistory.length = 100;
+      }
+    },
+
+    _exchangeSideSummary(propertyIndexes: number[], money: number): string {
+      const parts: string[] = [];
+      if (propertyIndexes.length > 0) {
+        const names = propertyIndexes
+          .map((tileIndex) => BOARD_TILES.find((tile) => tile.index === tileIndex)?.name)
+          .filter(Boolean);
+        parts.push(names.join(", "));
+      }
+      if (money > 0) parts.push(`$${money}`);
+      return parts.length > 0 ? parts.join(" + ") : "sin elementos";
     },
 
     _sellPartialExchangeDevelopments(tileIndexes: number[], ownerId: number): number {

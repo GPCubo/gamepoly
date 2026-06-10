@@ -40,7 +40,62 @@
             <span class="material-symbols-outlined">videocam</span>
             <span>{{ store.isCamFollowActive ? "Camara fija" : "Camara libre" }}</span>
           </button>
+
+          <button
+            v-if="activeOwnedTiles.length"
+            ref="mortgageAllBtnRef"
+            class="sidebar-btn mortgage-all-btn"
+            :class="{ 'disabled-btn': !canMortgageAll }"
+            :disabled="!canMortgageAll"
+            tabindex="0"
+            @click="onMortgageAll"
+          >
+            <span class="material-symbols-outlined">account_balance_wallet</span>
+            <span>Hipotecar todo +${{ mortgageAllValue }}</span>
+          </button>
+
+          <button
+            ref="historyBtnRef"
+            class="sidebar-btn history-btn"
+            :class="{ 'history-active': showHistory }"
+            tabindex="0"
+            @click="showHistory = !showHistory"
+          >
+            <span class="material-symbols-outlined">history</span>
+            <span>Historico</span>
+          </button>
         </div>
+
+        <section v-if="showHistory" class="history-panel">
+          <div class="panel-heading">
+            <div>
+              <span class="panel-kicker">Eventos</span>
+              <span class="panel-title">Historico economico</span>
+            </div>
+            <span class="panel-count">{{ store.economicHistory.length }}</span>
+          </div>
+
+          <p v-if="store.economicHistory.length === 0" class="empty-text">
+            Sin movimientos
+          </p>
+
+          <div v-else class="history-list">
+            <article
+              v-for="item in store.economicHistory.slice(0, 20)"
+              :key="item.id"
+              class="history-item"
+            >
+              <span class="history-item-icon material-symbols-outlined">{{ historyIcon(item.type) }}</span>
+              <div class="history-item-copy">
+                <strong>{{ item.title }}</strong>
+                <span>{{ item.detail }}</span>
+              </div>
+              <span v-if="item.amount !== undefined" class="history-item-amount">
+                ${{ item.amount.toLocaleString() }}
+              </span>
+            </article>
+          </div>
+        </section>
 
         <section class="property-panel">
           <div class="panel-heading">
@@ -191,7 +246,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Ref } from "vue";
 import { BOARD_TILES, type BoardTile, type TileGroup } from "~/config/boardTilesConfig";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
-import { useGameStore, type PropertyDevelopmentState } from "~/stores/gameStore";
+import { useGameStore, type EconomicHistoryType, type PropertyDevelopmentState } from "~/stores/gameStore";
 
 const store = useGameStore();
 
@@ -208,7 +263,10 @@ const emit = defineEmits<{
 
 const exchangeBtnRef = ref<HTMLElement | null>(null);
 const camBtnRef = ref<HTMLElement | null>(null);
+const mortgageAllBtnRef = ref<HTMLElement | null>(null);
+const historyBtnRef = ref<HTMLElement | null>(null);
 const searchTerm = ref("");
+const showHistory = ref(false);
 
 const PROPERTY_GROUP_ORDER: TileGroup[] = [
   "brown",
@@ -249,7 +307,7 @@ const activePlayerInitial = computed(() => {
   return name ? name.slice(0, 1).toUpperCase() : "?";
 });
 const managementDisabled = computed(
-  () => props.isMoving || store.isDiceRolling || store.phase !== "playing",
+  () => props.isMoving || store.isDiceRolling || store.phase !== "playing" || store.isCurrentPlayerBot,
 );
 
 const activeOwnedTiles = computed(() =>
@@ -257,6 +315,20 @@ const activeOwnedTiles = computed(() =>
     (tile) => isOwnableTile(tile) && store.propertyOwners[tile.index] === activePlayerId.value,
   ),
 );
+
+const mortgageableTiles = computed(() =>
+  activeOwnedTiles.value.filter((tile) => store.canMortgageProperty(tile.index, activePlayerId.value)),
+);
+
+const mortgageAllValue = computed(() =>
+  mortgageableTiles.value.reduce((total, tile) => total + store.getMortgageValue(tile.index), 0),
+);
+
+const canMortgageAll = computed(
+  () => !managementDisabled.value && mortgageableTiles.value.length > 0,
+);
+
+const activePlayerInDebt = computed(() => (store.activePlayer?.cash ?? 0) < 0);
 
 const filteredOwnedTiles = computed(() => {
   const query = normalizeText(searchTerm.value);
@@ -311,13 +383,17 @@ const sidebarEnabled = computed(() => props.open);
 
 const sidebarRefs = computed(() => {
   const refs: Ref<HTMLElement | null>[] = [];
+  if (activePlayerInDebt.value && activeOwnedTiles.value.length) refs.push(mortgageAllBtnRef);
   if (store.hasAnyPropertyOwned) refs.push(exchangeBtnRef);
   refs.push(camBtnRef);
+  if (!activePlayerInDebt.value && activeOwnedTiles.value.length) refs.push(mortgageAllBtnRef);
+  refs.push(historyBtnRef);
   return refs;
 });
 
 const { autoFocus } = useKeyboardNavigation(sidebarRefs, {
   direction: "vertical",
+  allowBothAxes: true,
   enabled: sidebarEnabled,
   loop: true,
 });
@@ -450,6 +526,11 @@ function onMortgage(tile: BoardTile) {
   store.mortgageProperty(tile.index, activePlayerId.value);
 }
 
+function onMortgageAll() {
+  if (!canMortgageAll.value) return;
+  store.mortgageAllAvailable(activePlayerId.value);
+}
+
 function onUnmortgage(tile: BoardTile) {
   if (!canUnmortgage(tile)) return;
   store.unmortgageProperty(tile.index, activePlayerId.value);
@@ -489,6 +570,20 @@ function onExchangeClick() {
 
 function onCameraToggle() {
   store.toggleCameraFollow();
+}
+
+function historyIcon(type: EconomicHistoryType) {
+  const icons: Record<EconomicHistoryType, string> = {
+    purchase: "shopping_cart",
+    auction: "gavel",
+    mortgage: "account_balance",
+    card_gain: "add_card",
+    card_loss: "credit_card_off",
+    tax: "receipt_long",
+    rent: "payments",
+    exchange: "sync_alt",
+  };
+  return icons[type];
 }
 </script>
 
@@ -651,6 +746,28 @@ function onCameraToggle() {
   transform: translateY(-2px);
 }
 
+.mortgage-all-btn {
+  background: linear-gradient(135deg, #334155, #0f766e);
+  border: 1px solid rgba(45, 212, 191, 0.28);
+  box-shadow: 0 8px 16px rgba(15, 118, 110, 0.2);
+}
+
+.mortgage-all-btn:hover:not(.disabled-btn) {
+  filter: brightness(1.08);
+  transform: translateY(-2px);
+}
+
+.history-btn {
+  background: #312e81;
+  box-shadow: 0 8px 16px rgba(49, 46, 129, 0.22);
+}
+
+.history-btn:hover,
+.history-active {
+  background: #4338ca;
+  transform: translateY(-2px);
+}
+
 .cam-btn {
   background: #475569;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
@@ -672,6 +789,73 @@ function onCameraToggle() {
   gap: 12px;
   padding-top: 4px;
   border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.history-panel {
+  display: grid;
+  gap: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid rgba(129, 140, 248, 0.24);
+  background: rgba(49, 46, 129, 0.14);
+}
+
+.history-list {
+  display: grid;
+  gap: 8px;
+  max-height: 300px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.history-item {
+  display: grid;
+  grid-template-columns: 30px minmax(0, 1fr) auto;
+  gap: 9px;
+  align-items: start;
+  padding: 9px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.history-item-icon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(129, 140, 248, 0.16);
+  color: #c4b5fd;
+}
+
+.history-item-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.history-item-copy strong {
+  color: #f8fafc;
+  font-size: 12px;
+  line-height: 1.2;
+}
+
+.history-item-copy span {
+  color: rgba(226, 232, 240, 0.68);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.history-item-amount {
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: rgba(15, 118, 110, 0.24);
+  color: #99f6e4;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .panel-heading {

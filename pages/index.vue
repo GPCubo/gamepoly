@@ -20,7 +20,34 @@
         <p class="subtitle">Ajusta los parámetros de tu próxima sesión.</p>
       </div>
 
-      <!-- Player Count -->
+      <!-- Game Mode Tabs -->
+      <div class="mode-tabs">
+        <button
+          class="mode-tab"
+          :class="{ active: activeMode === 'bots' }"
+          @click="selectMode('bots')"
+        >
+          <span class="material-symbols-outlined">smart_toy</span>
+          Bots
+        </button>
+        <button
+          class="mode-tab"
+          :class="{ active: activeMode === 'familiar' }"
+          @click="selectMode('familiar')"
+        >
+          <span class="material-symbols-outlined">groups</span>
+          Familiar
+        </button>
+        <button
+          class="mode-tab disabled"
+          disabled
+          title="Próximamente"
+        >
+          <span class="material-symbols-outlined">wifi</span>
+          Multijugador
+          <span class="coming-soon">Próximamente</span>
+        </button>
+      </div>
       <div class="section-block">
         <span class="section-label">NÚMERO DE JUGADORES</span>
         <div class="player-count-bar">
@@ -54,48 +81,65 @@
 
           <div class="carousel-track">
             <TransitionGroup name="slide" tag="div" class="carousel-inner">
-              <div
-                v-for="idx in visiblePlayers"
-                :key="idx"
-                class="player-card"
-                :class="'player-accent-' + idx"
-              >
-                <div class="player-card-top">
-                  <div class="player-num-badge">{{ idx }}</div>
-                  <div class="player-card-title">Jugador {{ idx }}</div>
-                  <span class="material-symbols-outlined player-icon">person</span>
-                </div>
-                <div class="player-card-fields">
-                  <div class="field-group">
-                    <label class="field-label">NOMBRE</label>
-                    <input
-                      v-model="playerNames[idx - 1]"
-                      class="field-input"
-                      :placeholder="'Jugador ' + idx"
-                      maxlength="20"
-                    />
+<div
+                  v-for="idx in visiblePlayers"
+                  :key="idx"
+                  class="player-card"
+                  :class="'player-accent-' + idx"
+                >
+                  <div class="player-card-top">
+                    <div class="player-num-badge">{{ idx }}</div>
+                    <div class="player-card-title">Jugador {{ idx }}</div>
+                    <span class="material-symbols-outlined player-icon">{{ playerTypes[idx - 1] === 'human' ? 'person' : 'smart_toy' }}</span>
                   </div>
-                  <div class="field-group">
-                    <label class="field-label">FICHA</label>
-                    <div class="select-wrapper">
-                      <select
-                        v-model="playerTokens[idx - 1]"
-                        class="field-input field-select"
-                      >
-                        <option value="" disabled>Elegir ficha</option>
-                        <option
-                          v-for="token in availableTokens(idx - 1)"
-                          :key="token.file"
-                          :value="token.file"
+                  <div class="player-card-fields">
+                    <!-- Bot type selector (Bots mode only) -->
+                    <div v-if="activeMode === 'bots'" class="field-group">
+                      <label class="field-label">TIPO</label>
+                      <div class="select-wrapper">
+                        <select
+                          v-model="playerTypes[idx - 1]"
+                          class="field-input field-select"
+                          @change="onPlayerTypeChange"
                         >
-                          {{ token.icon }} {{ token.name }}
-                        </option>
-                      </select>
-                      <span class="material-symbols-outlined select-arrow">expand_more</span>
+                          <option value="human">Humano</option>
+                          <option value="regular">Bot Regular</option>
+                          <option value="difficult">Bot Difícil</option>
+                        </select>
+                        <span class="material-symbols-outlined select-arrow">expand_more</span>
+                      </div>
+                    </div>
+                    <div class="field-group">
+                      <label class="field-label">NOMBRE</label>
+                      <input
+                        v-model="playerNames[idx - 1]"
+                        class="field-input"
+                        :placeholder="(playerTypes[idx - 1] !== 'human' && activeMode === 'bots') ? (playerTypes[idx - 1] === 'difficult' ? 'Bot Difícil ' + idx : 'Bot Regular ' + idx) : 'Jugador ' + idx"
+                        :disabled="activeMode === 'bots' && playerTypes[idx - 1] !== 'human'"
+                        maxlength="20"
+                      />
+                    </div>
+                    <div class="field-group">
+                      <label class="field-label">FICHA</label>
+                      <div class="select-wrapper">
+                        <select
+                          v-model="playerTokens[idx - 1]"
+                          class="field-input field-select"
+                        >
+                          <option value="" disabled>Elegir ficha</option>
+                          <option
+                            v-for="token in availableTokens(idx - 1)"
+                            :key="token.file"
+                            :value="token.file"
+                          >
+                            {{ token.icon }} {{ token.name }}
+                          </option>
+                        </select>
+                        <span class="material-symbols-outlined select-arrow">expand_more</span>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
             </TransitionGroup>
           </div>
 
@@ -120,6 +164,7 @@
       </div>
 
       <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
+      <p v-if="activeMode === 'bots' && !isValidBotsConfig && !errorMsg" class="error-msg warning-msg">Debe haber al menos 1 jugador humano.</p>
 
       <!-- Actions -->
       <div class="action-row">
@@ -246,10 +291,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick } from "vue";
+import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import { applyLocalScenarioSeeds } from "~/config/localScenarioSeeds";
-import { useGameStore } from "~/stores/gameStore";
+import { useGameStore, type BotDifficulty } from "~/stores/gameStore";
+
+type GameMode = "familiar" | "bots" | "multiplayer";
 
 const store = useGameStore();
 store.phase = "setup";
@@ -257,6 +304,7 @@ store.players = [];
 store.activePlayerIndex = 0;
 
 const startBtnRef = ref<HTMLElement | null>(null);
+const activeMode = ref<GameMode>("bots");
 
 const selectedCount = ref(2);
 const playerNames = ref<string[]>(
@@ -264,6 +312,9 @@ const playerNames = ref<string[]>(
 );
 const playerTokens = ref<string[]>(
   GAME_CONFIG.TOKEN_MODELS.slice(0, GAME_CONFIG.MAX_PLAYERS).map((t) => t.file)
+);
+const playerTypes = ref<("human" | BotDifficulty)[]>(
+  createDefaultBotTypes()
 );
 const startingCash = ref<number>(GAME_CONFIG.STARTING_CASH);
 const goSalary = ref<number>(GAME_CONFIG.GO_SALARY);
@@ -273,6 +324,7 @@ const doublesGiveExtraTurn = ref<boolean>(GAME_CONFIG.DOUBLES_GIVE_EXTRA_TURN);
 const errorMsg = ref("");
 const showSettings = ref(false);
 const playerPage = ref(0);
+const hasCustomizedBotTypes = ref(false);
 
 const maxPlayerPage = computed(() => Math.max(0, Math.ceil(selectedCount.value / 2) - 1));
 
@@ -283,6 +335,28 @@ const visiblePlayers = computed(() => {
   for (let i = start + 1; i <= end; i++) arr.push(i);
   return arr;
 });
+
+const isValidBotsConfig = computed(() => {
+  if (activeMode.value !== "bots") return true;
+  let humanCount = 0;
+  for (let i = 0; i < selectedCount.value; i++) {
+    if (playerTypes.value[i] === "human") humanCount++;
+  }
+  return humanCount >= 1;
+});
+
+watch(playerTypes, (newTypes) => {
+  for (let i = 0; i < GAME_CONFIG.MAX_PLAYERS; i++) {
+    const type = newTypes[i];
+    if (type === "regular") {
+      playerNames.value[i] = `Bot Regular ${i + 1}`;
+    } else if (type === "difficult") {
+      playerNames.value[i] = `Bot Difícil ${i + 1}`;
+    } else if (type === "human" && (playerNames.value[i].startsWith("Bot Regular") || playerNames.value[i].startsWith("Bot Difícil"))) {
+      playerNames.value[i] = `Jugador ${i + 1}`;
+    }
+  }
+}, { deep: true });
 
 function onKeyDown(e: KeyboardEvent) {
   if (e.key === "Escape" && showSettings.value) {
@@ -307,9 +381,35 @@ onUnmounted(() => window.removeEventListener("keydown", onKeyDown));
 function selectCount(n: number) {
   if (n >= 2 && n <= GAME_CONFIG.MAX_PLAYERS) {
     selectedCount.value = n;
+    ensureBotDefaultsForCurrentMode();
     if (playerPage.value > maxPlayerPage.value) {
       playerPage.value = maxPlayerPage.value;
     }
+  }
+}
+
+function createDefaultBotTypes(): ("human" | BotDifficulty)[] {
+  return Array.from(
+    { length: GAME_CONFIG.MAX_PLAYERS },
+    (_, index) => index === 0 ? "human" : "difficult",
+  );
+}
+
+function ensureBotDefaultsForCurrentMode() {
+  if (activeMode.value !== "bots" || hasCustomizedBotTypes.value) return;
+  playerTypes.value = createDefaultBotTypes();
+}
+
+function selectMode(mode: GameMode) {
+  activeMode.value = mode;
+  if (mode === "bots") {
+    ensureBotDefaultsForCurrentMode();
+  }
+}
+
+function onPlayerTypeChange() {
+  if (activeMode.value === "bots") {
+    hasCustomizedBotTypes.value = true;
   }
 }
 
@@ -329,12 +429,15 @@ function availableTokens(excludeIdx: number) {
 }
 
 function resetForm() {
+  activeMode.value = "bots";
   selectedCount.value = 2;
   playerNames.value = Array.from(
     { length: GAME_CONFIG.MAX_PLAYERS },
     (_, i) => `Player 0${i + 1}`
   );
   playerTokens.value = GAME_CONFIG.TOKEN_MODELS.slice(0, GAME_CONFIG.MAX_PLAYERS).map((t) => t.file);
+  hasCustomizedBotTypes.value = false;
+  playerTypes.value = createDefaultBotTypes();
   startingCash.value = GAME_CONFIG.STARTING_CASH;
   goSalary.value = GAME_CONFIG.GO_SALARY;
   canSkipBuy.value = GAME_CONFIG.CAN_SKIP_BUY;
@@ -360,6 +463,11 @@ function applyLocalGameScenarioSeeds() {
 function startGame() {
   errorMsg.value = "";
 
+  if (activeMode.value === "bots" && !isValidBotsConfig.value) {
+    errorMsg.value = "Debe haber al menos 1 jugador humano.";
+    return;
+  }
+
   const cash = Math.floor(startingCash.value);
   const salary = Math.floor(goSalary.value);
 
@@ -376,7 +484,12 @@ function startGame() {
   const seenTokens = new Set<string>();
 
   for (let i = 0; i < selectedCount.value; i++) {
-    const name = playerNames.value[i].trim() || `Jugador ${i + 1}`;
+    const type = activeMode.value === "bots" ? playerTypes.value[i] : "human";
+    const isBot = type !== "human";
+    const defaultName = isBot
+      ? (type === "difficult" ? `Bot Difícil ${i + 1}` : `Bot Regular ${i + 1}`)
+      : `Jugador ${i + 1}`;
+    const name = (isBot ? defaultName : (playerNames.value[i].trim() || defaultName));
     const token = playerTokens.value[i];
 
     if (!token) {
@@ -390,7 +503,13 @@ function startGame() {
     }
 
     seenTokens.add(token);
-    players.push({ name, tokenModel: token, startingCash: cash });
+    players.push({
+      name,
+      tokenModel: token,
+      startingCash: cash,
+      isBot,
+      botDifficulty: isBot ? (type as BotDifficulty) : null,
+    });
   }
 
   store.setupGame(players, {
@@ -533,6 +652,66 @@ function startGame() {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.mode-tabs {
+  display: flex;
+  gap: 6px;
+  background: rgba(25, 27, 36, 0.8);
+  padding: 5px;
+  border-radius: 14px;
+  border: 1px solid rgba(132, 149, 136, 0.1);
+}
+
+.mode-tab {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: #849588;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.mode-tab:hover:not(.disabled) {
+  background: rgba(50, 52, 62, 0.5);
+  color: #00e38f;
+}
+
+.mode-tab.active {
+  background: #00f59b;
+  color: #003920;
+  box-shadow: 0 4px 12px rgba(0, 245, 155, 0.2);
+}
+
+.mode-tab .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.mode-tab.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.coming-soon {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(132, 149, 136, 0.5);
+  background: rgba(25, 27, 36, 0.6);
+  padding: 2px 6px;
+  border-radius: 4px;
 }
 
 .main-title {
@@ -836,6 +1015,12 @@ function startGame() {
   background: rgba(248, 113, 113, 0.08);
   border: 1px solid rgba(248, 113, 113, 0.2);
   border-radius: 10px;
+}
+
+.warning-msg {
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.2);
 }
 
 /* Actions */

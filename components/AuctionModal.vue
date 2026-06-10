@@ -110,7 +110,11 @@ import { ref, computed, onMounted, nextTick, watch, type Ref } from "vue";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import type { BoardTile } from "~/config/boardTilesConfig";
 import type { PlayerState } from "~/stores/gameStore";
+import { useGameStore } from "~/stores/gameStore";
+import { getBotAuctionBid } from "~/composables/useBotTurn";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
+
+const gameStore = useGameStore();
 
 const props = defineProps<{
   tile: BoardTile;
@@ -207,6 +211,24 @@ watch(phase, () => focusFirstEnabled());
 watch(currentBidderId, () => {
   if (phase.value === "bidding") focusFirstEnabled();
 });
+
+watch(currentBidderId, () => {
+  if (phase.value !== "bidding") return;
+  const bidderId = currentBidderId.value;
+  const bidder = props.players.find((p) => p.id === bidderId);
+  if (!bidder || !bidder.isBot) return;
+  const tile = props.tile;
+  if (!tile || tile.price === undefined) return;
+  const bidAmount = getBotAuctionBid(tile.index, currentBid.value, bidderId);
+  setTimeout(() => {
+    if (phase.value !== "bidding") return;
+    if (bidAmount <= 0) {
+      pass();
+    } else {
+      placeBid(bidAmount - currentBid.value);
+    }
+  }, 600 + Math.random() * 800);
+}, { immediate: true });
 
 function canAfford(amount: number) {
   const cash = props.players.find((p) => p.id === currentBidderId.value)?.cash ?? 0;

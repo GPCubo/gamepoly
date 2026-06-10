@@ -51,7 +51,7 @@
             <span class="material-symbols-outlined">handshake</span>
             Propuesta
           </span>
-          <h2 class="exchange-title">{{ activePlayer.name }} ↔ {{ targetPlayer?.name }}</h2>
+          <h2 class="exchange-title">{{ proposingPlayer?.name }} ↔ {{ targetPlayer?.name }}</h2>
           <p class="exchange-subtitle">Arma una oferta equilibrando propiedades y dinero.</p>
         </div>
         <div class="exchange-body">
@@ -159,7 +159,7 @@
             </div>
           </div>
           <div class="exchange-actions">
-            <button class="action-btn cancel-btn" tabindex="0" @click="selectedTargetId = null">Atrás</button>
+            <button class="action-btn cancel-btn" tabindex="0" @click="onBackFromProposal">Atrás</button>
             <button
               ref="sendProposalRef"
               class="action-btn confirm-btn"
@@ -253,6 +253,9 @@
           </div>
           <div class="exchange-actions">
             <button ref="rejectRef" class="action-btn cancel-btn" tabindex="0" @click="onReject">Rechazar</button>
+            <button ref="renegotiateRef" class="action-btn renegotiate-btn" tabindex="0" @click="onRenegotiate">
+              Renegociar
+            </button>
             <button ref="acceptRef" class="action-btn accept-btn" tabindex="0" @click="onAccept">Aceptar</button>
           </div>
         </div>
@@ -287,15 +290,24 @@ const emit = defineEmits<{
 type Phase = "select" | "propose" | "respond";
 
 const phase = computed<Phase>(() => {
+  if (isRenegotiating.value) return "propose";
   if (props.isResponding && props.proposal) return "respond";
   if (selectedTargetId.value !== null) return "propose";
   return "select";
 });
 
 const selectedTargetId = ref<number | null>(null);
+const isRenegotiating = ref(false);
+
+const proposingPlayer = computed(() => {
+  if (isRenegotiating.value && props.proposal) {
+    return props.players.find((p) => p.id === props.proposal!.toPlayerId) ?? props.activePlayer;
+  }
+  return props.activePlayer;
+});
 
 const targetPlayers = computed(() =>
-  props.players.filter((p) => p.id !== props.activePlayer.id),
+  props.players.filter((p) => p.id !== proposingPlayer.value.id),
 );
 
 const targetPlayer = computed(() =>
@@ -306,7 +318,7 @@ const myProperties = computed(() =>
   BOARD_TILES.filter(
     (t) =>
       (t.type === "property" || t.type === "railroad" || t.type === "utility") &&
-      props.propertyOwners[t.index] === props.activePlayer.id,
+      props.propertyOwners[t.index] === proposingPlayer.value.id,
   ),
 );
 
@@ -319,7 +331,7 @@ const targetProperties = computed(() => {
   );
 });
 
-const myCash = computed(() => props.activePlayer.cash);
+const myCash = computed(() => proposingPlayer.value.cash);
 
 const offerProperties = ref<number[]>([]);
 const offerMoney = ref(0);
@@ -374,7 +386,7 @@ const outgoingSummary = computed(() =>
 
 const proposalDevelopmentWarnings = computed(() => {
   const warnings = [
-    ...developmentWarningsForTransfer(offerProperties.value, props.activePlayer.id),
+    ...developmentWarningsForTransfer(offerProperties.value, proposingPlayer.value.id),
   ];
   if (selectedTargetId.value !== null) {
     warnings.push(
@@ -530,13 +542,17 @@ function onSelectTarget() {
 function onSendProposal() {
   if (!canSendProposal.value || selectedTargetId.value === null) return;
   emit("propose", {
-    fromPlayerId: props.activePlayer.id,
+    fromPlayerId: proposingPlayer.value.id,
     toPlayerId: selectedTargetId.value,
     offerProperties: [...offerProperties.value],
     offerMoney: offerMoney.value,
     requestProperties: [...requestProperties.value],
     requestMoney: requestMoney.value,
+    renegotiationCount: isRenegotiating.value
+      ? (props.proposal?.renegotiationCount ?? 0) + 1
+      : 0,
   });
+  isRenegotiating.value = false;
 }
 
 function onAccept() {
@@ -547,11 +563,37 @@ function onReject() {
   emit("reject");
 }
 
+function onRenegotiate() {
+  if (!props.proposal) return;
+  isRenegotiating.value = true;
+  selectedTargetId.value = props.proposal.fromPlayerId;
+  offerProperties.value = [...props.proposal.requestProperties];
+  offerMoney.value = props.proposal.requestMoney;
+  requestProperties.value = [...props.proposal.offerProperties];
+  requestMoney.value = props.proposal.offerMoney;
+  nextTick(() => {
+    sendProposalRef.value?.focus();
+  });
+}
+
+function onBackFromProposal() {
+  if (isRenegotiating.value) {
+    isRenegotiating.value = false;
+    selectedTargetId.value = props.proposal?.toPlayerId ?? null;
+    nextTick(() => {
+      renegotiateRef.value?.focus();
+    });
+    return;
+  }
+  selectedTargetId.value = null;
+}
+
 const playerBtnRefs = ref<(HTMLElement | null)[]>([]);
 const selectConfirmRef = ref<HTMLElement | null>(null);
 const sendProposalRef = ref<HTMLElement | null>(null);
 const acceptRef = ref<HTMLElement | null>(null);
 const rejectRef = ref<HTMLElement | null>(null);
+const renegotiateRef = ref<HTMLElement | null>(null);
 const offerMoneyRef = ref<HTMLElement | null>(null);
 
 const activeRefs = computed(() => {
@@ -562,19 +604,20 @@ const activeRefs = computed(() => {
     return [sendProposalRef].filter(Boolean) as any[];
   }
   if (phase.value === "respond") {
-    return [rejectRef, acceptRef].filter(Boolean) as any[];
+    return [rejectRef, renegotiateRef, acceptRef].filter(Boolean) as any[];
   }
   return [];
 });
 
 useKeyboardNavigation(activeRefs, {
-  direction: "vertical",
+  direction: "horizontal",
   autoFocusIndex: 0,
   loop: true,
 });
 
 function resetForm() {
   selectedTargetId.value = null;
+  isRenegotiating.value = false;
   offerProperties.value = [];
   offerMoney.value = 0;
   requestProperties.value = [];
@@ -587,10 +630,20 @@ onMounted(() => {
   }
   nextTick(() => {
     if (phase.value === "respond") {
-      rejectRef.value?.focus();
+      renegotiateRef.value?.focus();
     }
   });
 });
+
+watch(
+  () => [phase.value, props.proposal?.renegotiationCount ?? 0],
+  () => {
+    if (phase.value !== "respond") return;
+    nextTick(() => {
+      renegotiateRef.value?.focus();
+    });
+  },
+);
 </script>
 
 <style scoped>
@@ -1057,6 +1110,17 @@ onMounted(() => {
 .confirm-btn:hover:not(:disabled),
 .accept-btn:hover {
   background: #15803d;
+}
+
+.renegotiate-btn {
+  background: rgba(217, 119, 6, 0.18);
+  color: #fde68a;
+  border-color: rgba(251, 191, 36, 0.38);
+}
+
+.renegotiate-btn:hover {
+  background: rgba(217, 119, 6, 0.32);
+  border-color: rgba(251, 191, 36, 0.62);
 }
 
 .confirm-btn:disabled {

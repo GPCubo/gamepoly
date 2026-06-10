@@ -12,6 +12,7 @@ export type Direction = "horizontal" | "vertical";
 
 export interface UseKeyboardNavigationOptions {
   direction?: Direction;
+  allowBothAxes?: boolean;
   autoFocusIndex?: number;
   autoFocusOn?: Ref<boolean> | ComputedRef<boolean>;
   enabled?: Ref<boolean> | ComputedRef<boolean>;
@@ -26,6 +27,7 @@ export function useKeyboardNavigation(
 ) {
   const {
     direction = "horizontal",
+    allowBothAxes = false,
     autoFocusIndex = 0,
     autoFocusOn,
     enabled,
@@ -122,10 +124,12 @@ export function useKeyboardNavigation(
     const refs = getRefs();
     if (refs.length === 0) return;
 
-    const keyMap =
-      direction === "horizontal"
-        ? { next: "ArrowRight", prev: "ArrowLeft" }
-        : { next: "ArrowDown", prev: "ArrowUp" };
+    const nextKeys = allowBothAxes
+      ? ["ArrowRight", "ArrowDown"]
+      : [direction === "horizontal" ? "ArrowRight" : "ArrowDown"];
+    const prevKeys = allowBothAxes
+      ? ["ArrowLeft", "ArrowUp"]
+      : [direction === "horizontal" ? "ArrowLeft" : "ArrowUp"];
 
     const currentFromDom = findCurrentIndex(refs);
     const current =
@@ -135,11 +139,11 @@ export function useKeyboardNavigation(
           ? focusedIndex.value
           : 0;
 
-    if (e.key === keyMap.next) {
+    if (nextKeys.includes(e.key)) {
       e.preventDefault();
       const next = findNextEnabled(refs, current, 1);
       if (next !== -1) focusButton(refs, next);
-    } else if (e.key === keyMap.prev) {
+    } else if (prevKeys.includes(e.key)) {
       e.preventDefault();
       const prev = findNextEnabled(refs, current, -1);
       if (prev !== -1) focusButton(refs, prev);

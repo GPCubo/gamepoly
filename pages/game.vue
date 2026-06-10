@@ -99,7 +99,11 @@
       :current-position="store.casillaActual"
       :is-moving="store.isAnyMoving"
       :card-open="
-        showTileCard || showAuction || showCardOverlay || showExchange || !!store.winner
+        showTileCard ||
+        showAuction ||
+        showCardOverlay ||
+        showExchange ||
+        !!store.winner
       "
       @roll="onDiceRoll"
       @next-turn="onNextTurn"
@@ -108,7 +112,7 @@
     />
 
     <TileCard
-      v-if="showTileCard && !store.winner"
+      v-if="showTileCard && !store.isCurrentPlayerBot && !store.winner"
       :tile="currentTile"
       :owner-id="tileOwnerId"
       :owner-name="tileOwnerName"
@@ -144,6 +148,7 @@
     <CardOverlay
       v-if="showCardOverlay && store.activeCard && !store.winner"
       :card="store.activeCard"
+      :close-disabled="store.isCurrentPlayerBot"
       @close="onCardClose"
       @accept="onCardAccept"
     />
@@ -176,7 +181,15 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, shallowRef, reactive, watch, ref, computed } from "vue";
+import {
+  onMounted,
+  shallowRef,
+  reactive,
+  watch,
+  ref,
+  computed,
+  nextTick,
+} from "vue";
 import { TresCanvas } from "@tresjs/core";
 import { OrbitControls } from "@tresjs/cientos";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
@@ -185,6 +198,11 @@ import { useBoardGeometry } from "~/composables/useBoardGeometry";
 import { usePieceAnimation } from "~/composables/usePieceAnimation";
 import { useCameraOrbit, CAM_LERP } from "~/composables/useCameraOrbit";
 import { useTileLabels } from "~/composables/useTileLabels";
+import {
+  useBotTurn,
+  getBotExchangeResponse,
+  type BotExchangeResult,
+} from "~/composables/useBotTurn";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import { BOARD_TILES } from "~/config/boardTilesConfig";
 import type { BoardTile } from "~/config/boardTilesConfig";
@@ -231,11 +249,54 @@ const showCardOverlay = ref(false);
 const isResolvingCardEffect = ref(false);
 const showExchange = ref(false);
 const exchangeIsResponding = ref(false);
+let pendingBotExchangeResolve: ((result: BotExchangeResult) => void) | null = null;
+
+const isTurnCompleteRef = computed(() => store.isTurnComplete);
+const isAnyMovingRef = computed(() => store.isAnyMoving);
+const BOT_CARD_READ_MS = 2600;
+const botTurn = useBotTurn(isTurnCompleteRef, isAnyMovingRef, {
+  onBotCardDrawn: waitForBotCardRead,
+  onBotExchangeProposed: waitForBotExchangeResponse,
+});
 const currentTile = computed(
   () => BOARD_TILES[(store.casillaActual - 1 + 40) % 40],
 );
 
 const TAX_AMOUNTS: Record<number, number> = { 4: 200, 38: 100 };
+
+async function waitForBotCardRead() {
+  showCardOverlay.value = true;
+  await new Promise((resolve) => setTimeout(resolve, BOT_CARD_READ_MS));
+  showCardOverlay.value = false;
+}
+
+function resolvePendingBotExchange(result: BotExchangeResult) {
+  if (!pendingBotExchangeResolve) return;
+  const resolve = pendingBotExchangeResolve;
+  pendingBotExchangeResolve = null;
+  resolve(result);
+}
+
+function waitForBotExchangeResponse(proposal: ExchangeProposal): Promise<BotExchangeResult> {
+  return new Promise((resolve) => {
+    if (pendingBotExchangeResolve || store.exchangeProposal) {
+      resolve("cancelled");
+      return;
+    }
+
+    pendingBotExchangeResolve = resolve;
+    store.startExchange(proposal);
+
+    if (!store.exchangeProposal) {
+      resolvePendingBotExchange("cancelled");
+      return;
+    }
+
+    exchangeIsResponding.value = true;
+    const target = store.players.find((player) => player.id === proposal.toPlayerId);
+    showExchange.value = !target?.isBot;
+  });
+}
 
 function computeRent(tile: BoardTile, ownerId: number): number {
   return store.calculateRent(tile, ownerId);
@@ -313,6 +374,11 @@ watch(
     const activePlayer = store.activePlayer;
     if (activePlayer && activePlayer.inJail) return;
 
+    if (store.isCurrentPlayerBot) {
+      botTurn.resolveBotLanding();
+      return;
+    }
+
     const tile = currentTile.value;
     const activeId = store.activePlayer?.id ?? -1;
 
@@ -377,6 +443,7 @@ function onBuyTile() {
 
 function onAuctionTile() {
   showTileCard.value = false;
+  store.isAuctionActive = true;
   showAuction.value = true;
 }
 
@@ -413,6 +480,8 @@ function onUnmortgageTile() {
 function onAuctionSold(winnerId: number, amount: number) {
   const tile = currentTile.value;
   store.buyAuctionedProperty(tile.index, winnerId, amount);
+  store.isAuctionActive = false;
+  store.clearBotThinking();
   showAuction.value = false;
   if (pendingDoublesTurn) {
     pendingDoublesTurn = false;
@@ -423,6 +492,8 @@ function onAuctionSold(winnerId: number, amount: number) {
 }
 
 function onAuctionUnsold() {
+  store.isAuctionActive = false;
+  store.clearBotThinking();
   showAuction.value = false;
   if (pendingDoublesTurn) {
     pendingDoublesTurn = false;
@@ -867,6 +938,11 @@ onMounted(async () => {
     }
 
     store.setStatusMessage("¡Todo listo!");
+    nextTick(() => {
+      if (store.isCurrentPlayerBot && store.phase === "playing") {
+        botTurn.startBotTurn();
+      }
+    });
   } catch (error) {
     store.setStatusMessage("Error al cargar assets.");
     console.error(error);
@@ -925,8 +1001,27 @@ function onSkipMove() {
 
 let pendingDoublesTurn = false;
 
+watch(
+  () => store.activePlayerIndex,
+  () => {
+    pendingDoublesTurn = false;
+    nextTick(() => {
+      if (store.isCurrentPlayerBot && store.phase === "playing") {
+        botTurn.startBotTurn();
+      }
+    });
+  },
+);
+
 function onNextTurn() {
   showTileCard.value = false;
+  const activePlayer = store.activePlayer;
+  if (activePlayer && activePlayer.cash < 0) {
+    store.setStatusMessage(
+      `${activePlayer.name} debe $${Math.abs(activePlayer.cash)}. Hipoteca o vende mejoras antes de continuar`,
+    );
+    return;
+  }
   if (pendingDoublesTurn) {
     pendingDoublesTurn = false;
     store.finishTurnKeepPlayer();
@@ -955,12 +1050,14 @@ function onExchangeAccept() {
   store.respondExchange(true);
   showExchange.value = false;
   exchangeIsResponding.value = false;
+  resolvePendingBotExchange("accepted");
 }
 
 function onExchangeReject() {
   store.respondExchange(false);
   showExchange.value = false;
   exchangeIsResponding.value = false;
+  resolvePendingBotExchange("rejected");
 }
 
 function onExchangeCancel() {
@@ -969,5 +1066,48 @@ function onExchangeCancel() {
   }
   showExchange.value = false;
   exchangeIsResponding.value = false;
+  resolvePendingBotExchange("cancelled");
 }
+
+watch(
+  () => store.exchangeProposal,
+  (proposal) => {
+    if (!proposal) return;
+    const toPlayer = store.players.find((p) => p.id === proposal.toPlayerId);
+    if (toPlayer?.isBot && toPlayer.botDifficulty) {
+      const response = getBotExchangeResponse(proposal);
+      setTimeout(() => {
+        if (store.exchangeProposal !== proposal) return;
+        if (response.action === "renegotiate" && response.counterProposal) {
+          store.startExchange(response.counterProposal);
+          if (!store.exchangeProposal) {
+            resolvePendingBotExchange("cancelled");
+            return;
+          }
+          const nextTarget = store.players.find((p) => p.id === response.counterProposal!.toPlayerId);
+          exchangeIsResponding.value = true;
+          showExchange.value = !nextTarget?.isBot;
+          return;
+        }
+
+        store.respondExchange(response.action === "accept");
+        showExchange.value = false;
+        exchangeIsResponding.value = false;
+        resolvePendingBotExchange(response.action === "accept" ? "accepted" : "rejected");
+      }, 1200);
+    }
+  },
+);
+
+watch(
+  () => store.isAuctionActive,
+  (active) => {
+    if (!active || !currentTile.value) {
+      if (!active) showAuction.value = false;
+      return;
+    }
+    showTileCard.value = false;
+    showAuction.value = true;
+  },
+);
 </script>

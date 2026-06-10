@@ -1,4 +1,24 @@
 <template>
+  <div class="history-snackbar-stack" aria-live="polite">
+    <TransitionGroup name="history-snackbar">
+      <article
+        v-for="item in visibleHistorySnackbars"
+        :key="item.id"
+        class="history-snackbar"
+        :class="`history-${item.type}`"
+      >
+        <span class="material-symbols-outlined">{{ historyIcon(item.type) }}</span>
+        <div>
+          <strong>{{ item.title }}</strong>
+          <p>{{ item.detail }}</p>
+        </div>
+        <span v-if="item.amount !== undefined" class="history-amount">
+          ${{ item.amount.toLocaleString() }}
+        </span>
+      </article>
+    </TransitionGroup>
+  </div>
+
   <div class="players-hud">
     <div class="players-hud-title">
       <span>Jugadores</span>
@@ -17,7 +37,12 @@
     >
       <span class="hud-icon">{{ tokenIcon(p.tokenModel) }}</span>
       <div class="hud-copy">
-        <span class="hud-name">{{ p.name }}</span>
+        <span class="hud-name">
+          {{ p.name }}
+          <span v-if="p.isBot" class="hud-bot-badge" :class="p.botDifficulty === 'difficult' ? 'bot-hard' : 'bot-regular'">
+            {{ p.botDifficulty === 'difficult' ? 'Difícil' : 'Regular' }}
+          </span>
+        </span>
         <span class="hud-position">Casilla {{ playerTileNumber(p) }}/40</span>
       </div>
       <span v-if="p.inJail" class="hud-jail-badge material-symbols-outlined"
@@ -62,6 +87,19 @@
         {{ tile.label }}
       </span>
       <span
+        v-for="owner in minimapOwnerMarkers"
+        :key="owner.id"
+        class="minimap-owner-marker"
+        :style="{
+          left: `${owner.x}%`,
+          top: `${owner.y}%`,
+          borderColor: owner.color,
+        }"
+        :title="owner.title"
+      >
+        {{ owner.icon }}
+      </span>
+      <span
         v-for="marker in minimapMarkers"
         :key="marker.id"
         class="minimap-marker"
@@ -100,6 +138,11 @@
     </div>
 
     <div class="action-buttons">
+      <div v-if="store.isBotThinking" class="bot-thinking-indicator">
+        <span class="material-symbols-outlined bot-thinking-icon">smart_toy</span>
+        <span>{{ store.botActionMessage || 'Bot pensando...' }}</span>
+      </div>
+      <template v-else>
       <button
         v-if="activePlayerInJail && !isTurnDone"
         ref="bailBtnRef"
@@ -124,6 +167,7 @@
       </button>
 
       <button
+        v-if="!store.isCurrentPlayerBot"
         ref="rollBtnRef"
         @click="onPrimaryBtnClick"
         :disabled="primaryBtnDisabled"
@@ -136,6 +180,7 @@
       </button>
 
       <button
+        v-if="!store.isCurrentPlayerBot || isTurnDone"
         ref="configBtnRef"
         @click="toggleSidebar"
         tabindex="0"
@@ -145,6 +190,7 @@
         <span class="material-symbols-outlined">settings</span>
         <span>Configuracion</span>
       </button>
+      </template>
     </div>
   </div>
 
@@ -188,9 +234,10 @@ import { GAME_CONFIG } from "~/config/gameConfig";
 import { BOARD_TILES } from "~/config/boardTilesConfig";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
 import SidebarConfig from "~/components/SidebarConfig.vue";
-import { useGameStore, type PlayerState } from "~/stores/gameStore";
+import { useGameStore, type EconomicHistoryItem, type EconomicHistoryType, type PlayerState } from "~/stores/gameStore";
 
 const store = useGameStore();
+const visibleHistorySnackbars = ref<EconomicHistoryItem[]>([]);
 
 const props = defineProps<{
   currentPosition: number;
@@ -280,6 +327,58 @@ const minimapMarkers = computed(() => {
       };
     });
 });
+
+watch(
+  () => store.economicHistory[0]?.id,
+  () => {
+    const item = store.economicHistory[0];
+    if (!item) return;
+    visibleHistorySnackbars.value = [item, ...visibleHistorySnackbars.value].slice(0, 3);
+    window.setTimeout(() => {
+      visibleHistorySnackbars.value = visibleHistorySnackbars.value.filter(
+        (candidate) => candidate.id !== item.id,
+      );
+    }, 5200);
+  },
+);
+
+function historyIcon(type: EconomicHistoryType) {
+  const icons: Record<EconomicHistoryType, string> = {
+    purchase: "shopping_cart",
+    auction: "gavel",
+    mortgage: "account_balance",
+    card_gain: "add_card",
+    card_loss: "credit_card_off",
+    tax: "receipt_long",
+    rent: "payments",
+    exchange: "sync_alt",
+  };
+  return icons[type];
+}
+
+const minimapOwnerMarkers = computed(() =>
+  Object.entries(store.propertyOwners)
+    .map(([tileKey, ownerId]) => {
+      const tileIndex = Number(tileKey);
+      const boardTile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      const owner = store.players.find((player) => player.id === ownerId);
+      const token = GAME_CONFIG.TOKEN_MODELS.find((candidate) => candidate.file === owner?.tokenModel);
+      if (!boardTile || !owner || !token) return null;
+
+      const position = minimapPosition(tileIndex);
+      const offset = ownerMinimapOffset(tileIndex);
+
+      return {
+        id: `${tileIndex}-${ownerId}`,
+        icon: token.icon,
+        color: token.color,
+        title: `${boardTile.name} - ${owner.name}`,
+        x: position.x + offset.x,
+        y: position.y + offset.y,
+      };
+    })
+    .filter((marker): marker is NonNullable<typeof marker> => Boolean(marker)),
+);
 
 const minimapTiles = computed(() => {
   const activeTile = store.activePlayer
@@ -380,6 +479,13 @@ function sharedMinimapOffset(index: number) {
   };
 }
 
+function ownerMinimapOffset(tile: number) {
+  if (tile <= 10) return { x: 1.8, y: -1.8 };
+  if (tile <= 20) return { x: -1.8, y: -1.8 };
+  if (tile <= 30) return { x: -1.8, y: 1.8 };
+  return { x: 1.8, y: 1.8 };
+}
+
 function focusPrimaryButton() {
   nextTick(() => {
     if (props.cardOpen || sidebarOpen.value) return;
@@ -473,8 +579,10 @@ const facePositions: Record<number, Record<string, string>[]> = {
 };
 
 const isTurnDone = computed(() => store.isTurnComplete);
+const activePlayerInDebt = computed(() => activePlayerCash.value < 0);
 
 const primaryBtnLabel = computed(() => {
+  if (isTurnDone.value && activePlayerInDebt.value) return "Resolver deuda";
   if (isTurnDone.value) return "Siguiente";
   if (activePlayerInJail.value) return "Tirar por dobles";
   if (store.isDiceRolling) return "Rodando...";
@@ -483,6 +591,7 @@ const primaryBtnLabel = computed(() => {
 });
 
 const primaryBtnIcon = computed(() => {
+  if (isTurnDone.value && activePlayerInDebt.value) return "account_balance";
   if (isTurnDone.value) return "navigate_next";
   if (activePlayerInJail.value) return "casino";
   if (store.isDiceRolling) return "progress_activity";
@@ -500,7 +609,12 @@ const primaryBtnDisabled = computed(() => {
 });
 
 const primaryBtnClass = computed(() => {
-  if (isTurnDone.value) return { "next-btn": true };
+  if (isTurnDone.value) {
+    return {
+      "next-btn": true,
+      "debt-btn": activePlayerInDebt.value,
+    };
+  }
   return {
     "roll-btn": true,
     "disabled-btn":
@@ -512,6 +626,10 @@ const primaryBtnClass = computed(() => {
 });
 
 function onPrimaryBtnClick() {
+  if (isTurnDone.value && activePlayerInDebt.value) {
+    sidebarOpen.value = true;
+    return;
+  }
   if (isTurnDone.value) {
     emit("next-turn");
   } else {
@@ -780,6 +898,15 @@ async function onRollClick() {
   background: #1d4ed8;
 }
 
+.debt-btn {
+  background: #d97706;
+  box-shadow: 0 12px 22px rgba(217, 119, 6, 0.34);
+}
+
+.debt-btn:hover {
+  background: #b45309;
+}
+
 .bail-btn {
   background: #f59e0b;
   color: #111827;
@@ -827,6 +954,91 @@ async function onRollClick() {
   opacity: 0.5;
   cursor: not-allowed;
   transform: none !important;
+}
+
+.history-snackbar-stack {
+  position: absolute;
+  top: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 360;
+  width: min(560px, calc(100vw - 32px));
+  display: grid;
+  gap: 10px;
+  pointer-events: none;
+}
+
+.history-snackbar {
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.94);
+  border: 1px solid rgba(148, 163, 184, 0.26);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.36);
+  color: #f8fafc;
+  font-family: "Inter", sans-serif;
+  backdrop-filter: blur(10px);
+}
+
+.history-snackbar .material-symbols-outlined {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.14);
+  color: #93c5fd;
+}
+
+.history-snackbar strong {
+  display: block;
+  margin-bottom: 3px;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.history-snackbar p {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.78);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.history-amount {
+  align-self: start;
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: rgba(34, 197, 94, 0.14);
+  color: #86efac;
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.history-card_loss .history-amount,
+.history-tax .history-amount,
+.history-rent .history-amount,
+.history-purchase .history-amount,
+.history-auction .history-amount {
+  background: rgba(248, 113, 113, 0.14);
+  color: #fca5a5;
+}
+
+.history-snackbar-enter-active,
+.history-snackbar-leave-active {
+  transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.history-snackbar-enter-from,
+.history-snackbar-leave-to {
+  opacity: 0;
+  transform: translateY(-16px);
 }
 
 .players-hud {
@@ -1082,6 +1294,23 @@ async function onRollClick() {
   color: #f8fafc;
 }
 
+.minimap-owner-marker {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  display: grid;
+  place-items: center;
+  transform: translate(-50%, -50%);
+  border-radius: 50%;
+  color: #f8fafc;
+  background: rgba(17, 24, 39, 0.92);
+  border: 1px solid rgba(248, 250, 252, 0.78);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.36);
+  font-size: 8px;
+  line-height: 1;
+  z-index: 3;
+}
+
 .minimap-marker {
   position: absolute;
   width: 25px;
@@ -1127,6 +1356,61 @@ async function onRollClick() {
 .jail-roll-btn:hover:not(.disabled-btn) {
   background: #6d28d9 !important;
   transform: translateY(-2px);
+}
+
+.hud-bot-badge {
+  display: inline-block;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 4px;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.bot-regular {
+  background: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.bot-hard {
+  background: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.bot-thinking-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 24px;
+  background: rgba(59, 130, 246, 0.15);
+  border: 1px solid rgba(59, 130, 246, 0.3);
+  border-radius: 12px;
+  color: #93c5fd;
+  font-family: "Inter", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  animation: botPulse 1.5s ease-in-out infinite;
+}
+
+.bot-thinking-icon {
+  font-size: 22px;
+  animation: botSpin 2s linear infinite;
+}
+
+@keyframes botPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes botSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 .action-btn:focus-visible {

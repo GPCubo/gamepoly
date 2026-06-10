@@ -257,6 +257,7 @@
               <div class="metric-card">
                 <span class="metric-label">ALQUILER</span>
                 <span class="metric-value">${{ rentAmount ?? 25 }}</span>
+                <small class="metric-note">1:$25 2:$50 3:$100 4:$200</small>
               </div>
               <div class="metric-card">
                 <span class="metric-label">HIPOTECA</span>
@@ -400,6 +401,7 @@
               <div class="metric-card">
                 <span class="metric-label">ALQUILER</span>
                 <span class="metric-value">${{ rentAmount ?? 0 }}</span>
+                <small class="metric-note">1 servicio: dados | 2: dados x8</small>
               </div>
               <div class="metric-card">
                 <span class="metric-label">HIPOTECA</span>
@@ -1160,6 +1162,13 @@ const improvementSellLabel = computed(() =>
   font-size: 17px;
   font-weight: 700;
   color: rgba(225, 225, 239, 0.95);
+}
+
+.metric-note {
+  color: rgba(225, 225, 239, 0.5);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.25;
 }
 
 .development-rates {

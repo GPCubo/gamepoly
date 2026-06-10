@@ -17,9 +17,15 @@
             <span class="material-symbols-outlined effect-icon">{{ effectIcon }}</span>
             <span class="effect-text">{{ effectDescription }}</span>
           </div>
-          <button ref="acceptBtnRef" class="accept-btn" tabindex="0" @click="resolveCard">
+          <button
+            ref="acceptBtnRef"
+            class="accept-btn"
+            :disabled="closeDisabled"
+            :tabindex="closeDisabled ? -1 : 0"
+            @click="resolveCard"
+          >
             <span class="material-symbols-outlined">check</span>
-            Aceptar
+            {{ closeDisabled ? "Aplicando..." : "Aceptar" }}
           </button>
         </div>
       </div>

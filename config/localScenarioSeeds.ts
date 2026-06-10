@@ -4,6 +4,7 @@ export interface LocalScenarioSeedContext {
   seedAllPlayersRollDoubles(): void;
   seedAllPlayersInJail(): void;
   seedAllPlayersLandOnCards(): void;
+  seedDebtResolutionScenario(): void;
 }
 
 export interface LocalScenarioSeed {
@@ -53,6 +54,13 @@ export const LOCAL_SCENARIO_SEEDS: LocalScenarioSeed[] = [
     description: "Fuerza que todos los jugadores caigan siempre en Arca Comunal o Suerte.",
     isEnabled: (params) => isTrueParam(params, "allcards"),
     apply: (context) => context.seedAllPlayersLandOnCards(),
+  },
+  {
+    key: "debt-resolution",
+    queryParam: "debt",
+    description: "Deja al jugador activo en deuda con propiedades hipotecables y mejoras vendibles.",
+    isEnabled: (params) => isTrueParam(params, "debt"),
+    apply: (context) => context.seedDebtResolutionScenario(),
   },
 ];
 
