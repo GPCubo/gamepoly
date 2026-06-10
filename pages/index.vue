@@ -39,13 +39,12 @@
           Familiar
         </button>
         <button
-          class="mode-tab disabled"
-          disabled
-          title="Próximamente"
+          class="mode-tab"
+          :class="{ active: activeMode === 'multiplayer' }"
+          @click="selectMode('multiplayer')"
         >
           <span class="material-symbols-outlined">wifi</span>
           Multijugador
-          <span class="coming-soon">Próximamente</span>
         </button>
       </div>
       <div class="section-block">
@@ -453,6 +452,11 @@ function applyLocalGameScenarioSeeds() {
 
 function startGame() {
   errorMsg.value = "";
+
+  if (activeMode.value === 'multiplayer') {
+    navigateTo('/multiplayer/lobby')
+    return
+  }
 
 
   const cash = Math.floor(startingCash.value);

@@ -2,7 +2,7 @@
 id: SPEC-004
 title: Arquitectura multijugador multi-mesa en tiempo real
 created_at: 2026-06-10T00:00:00
-status: draft
+status: in-progress
 ---
 
 # SPEC-004: Arquitectura multijugador multi-mesa en tiempo real
@@ -704,31 +704,31 @@ backend/
 ## Criterios de Aceptación
 
 ### No-regresión (todos los modos)
-- [ ] El modo Bots (`pages/game.vue`) funciona igual que antes: sin errores, sin cambios de comportamiento.
-- [ ] El modo Familiar (`pages/game.vue`) funciona igual que antes.
-- [ ] El tab "Multijugador" en `pages/index.vue` está habilitado y navega al lobby.
+- [x] El modo Bots (`pages/game.vue`) funciona igual que antes: sin errores, sin cambios de comportamiento.
+- [x] El modo Familiar (`pages/game.vue`) funciona igual que antes.
+- [x] El tab "Multijugador" en `pages/index.vue` está habilitado y navega al lobby.
 
 ### Fase 1 — Multijugador
-- [ ] Un jugador puede crear una mesa con cualquier combinación de humanos y bots (ej: 2 humanos + 2 bots).
-- [ ] Los slots `"open"` muestran un código de invitación para que otros humanos se unan.
-- [ ] El servidor lanza los dados (los clientes no pueden manipularlos).
-- [ ] Todos los jugadores en la mesa (humanos y bots) ven el mismo estado en <200 ms tras cada acción.
-- [ ] Los bots ejecutan sus turnos en el servidor con el mismo delay visual (600–1400 ms) que en modo local.
-- [ ] Los bots participan en subastas automáticamente desde el servidor (sin intervención del cliente).
-- [ ] Los bots proponen y responden intercambios desde el servidor.
-- [ ] Si un jugador humano se desconecta, el juego continúa (su turno es gestionado por un bot temporal en el servidor).
-- [ ] Al reconectarse, el jugador recibe el estado actual completo y retoma el control de su slot.
-- [ ] Las acciones fuera de turno son rechazadas con mensaje de error.
-- [ ] Una mesa con solo bots (cero humanos) puede completarse en el servidor de forma autónoma.
-- [ ] La mesa soporta 2 a 4 slots (humanos + bots) sin degradación perceptible.
+- [x] Un jugador puede crear una mesa con cualquier combinación de humanos y bots (ej: 2 humanos + 2 bots).
+- [x] Los slots `"open"` muestran un código de invitación para que otros humanos se unan.
+- [x] El servidor lanza los dados (los clientes no pueden manipularlos).
+- [x] Todos los jugadores en la mesa (humanos y bots) ven el mismo estado en <200 ms tras cada acción.
+- [x] Los bots ejecutan sus turnos en el servidor con el mismo delay visual (600–1400 ms) que en modo local.
+- [x] Los bots participan en subastas automáticamente desde el servidor (sin intervención del cliente).
+- [ ] Los bots proponen y responden intercambios desde el servidor. *(parcial: la lógica existe en bot.go pero no está conectada al flujo de turno completo)*
+- [x] Si un jugador humano se desconecta, el juego continúa (su turno es gestionado por un bot temporal en el servidor).
+- [x] Al reconectarse, el jugador recibe el estado actual completo y retoma el control de su slot.
+- [x] Las acciones fuera de turno son rechazadas con mensaje de error.
+- [x] Una mesa con solo bots (cero humanos) puede completarse en el servidor de forma autónoma.
+- [x] La mesa soporta 2 a 4 slots (humanos + bots) sin degradación perceptible.
 
 ### Fase 2
-- [ ] Al finalizar una partida, el resultado se persiste en PostgreSQL en <5 s.
-- [ ] Mesas inactivas >2 h son archivadas y eliminadas de Redis automáticamente.
+- [ ] Al finalizar una partida, el resultado se persiste en PostgreSQL en <5 s. *(bloqueado: requiere postgres.go + schema SQL)*
+- [ ] Mesas inactivas >2 h son archivadas y eliminadas de Redis automáticamente. *(bloqueado: requiere Fase 2)*
 
 ### Fase 3
-- [ ] Con 2 instancias Go activas, jugadores en instancias distintas pueden jugar en la misma mesa.
-- [ ] Un restart de una instancia no termina las partidas (el estado persiste en Redis).
+- [ ] Con 2 instancias Go activas, jugadores en instancias distintas pueden jugar en la misma mesa. *(bloqueado: requiere Redis pub/sub — Fase 3)*
+- [ ] Un restart de una instancia no termina las partidas (el estado persiste en Redis). *(bloqueado: requiere LoadTableState on startup — Fase 3)*
 
 ---
 
