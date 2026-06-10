@@ -54,61 +54,92 @@
     </div>
   </div>
 
-  <div class="board-minimap">
-    <div class="minimap-header">
-      <span>Mapa</span>
-      <strong>{{
-        store.activePlayer ? playerTileNumber(store.activePlayer) : 0
-      }}</strong>
+  <div class="minimap-wrapper">
+    <div class="board-minimap">
+      <div class="minimap-header">
+        <span>Mapa</span>
+        <strong>{{
+          store.activePlayer ? playerTileNumber(store.activePlayer) : 0
+        }}</strong>
+      </div>
+      <div class="minimap-board" aria-hidden="true">
+        <div class="minimap-center">
+          <div class="minimap-legend">
+            <span><i class="legend-swatch legend-house"></i> Casas</span>
+            <span><i class="legend-swatch legend-hotel"></i> Hotel</span>
+            <span><i class="legend-swatch legend-mortgage"></i> Hipoteca</span>
+          </div>
+        </div>
+        <span
+          v-for="tile in minimapTiles"
+          :key="tile.index"
+          class="minimap-tile"
+          :class="{
+            'minimap-tile-corner': tile.isCorner,
+            'minimap-tile-active': tile.hasActivePlayer,
+            'minimap-tile-dark': tile.isDark,
+          }"
+          :style="{
+            left: `${tile.x}%`,
+            top: `${tile.y}%`,
+            background: tile.background,
+          }"
+        >
+          {{ tile.label }}
+        </span>
+        <span
+          v-for="owner in minimapOwnerMarkers"
+          :key="owner.id"
+          class="minimap-owner-marker"
+          :style="{
+            left: `${owner.x}%`,
+            top: `${owner.y}%`,
+            borderColor: owner.color,
+          }"
+          :title="owner.title"
+        >
+          {{ owner.icon }}
+        </span>
+        <span
+          v-for="marker in minimapMarkers"
+          :key="marker.id"
+          class="minimap-marker"
+          :class="{ 'minimap-marker-active': marker.isActive }"
+          :style="{ left: `${marker.x}%`, top: `${marker.y}%` }"
+          :title="marker.title"
+        >
+          {{ marker.icon }}
+        </span>
+      </div>
     </div>
-    <div class="minimap-board" aria-hidden="true">
-      <div class="minimap-center">
-        <div class="minimap-legend">
-          <span><i class="legend-swatch legend-house"></i> Casas</span>
-          <span><i class="legend-swatch legend-hotel"></i> Hotel</span>
-          <span><i class="legend-swatch legend-mortgage"></i> Hipoteca</span>
+    <button class="history-trigger-btn" @click="showHistoryDialog = true">
+      <span class="material-symbols-outlined">history</span>
+      Ver Histórico
+    </button>
+
+    <div
+      v-if="store.isDiceVisible"
+      class="dado-wrapper"
+      :class="{ sliding: isSliding }"
+    >
+      <div class="dado-titulo">
+        Total: {{ store.diceTotal }} | Casilla: {{ currentPosition }}/40
+        <span v-if="store.isDoubles" class="doubles-text"> DOBLES </span>
+      </div>
+      <div class="dados-row">
+        <div
+          v-for="(value, idx) in store.diceValues"
+          :key="idx"
+          class="dado-pequeno"
+        >
+          <span
+            v-for="(pos, i) in facePositions[value]"
+            :key="i"
+            class="circulo"
+            :style="pos"
+          ></span>
         </div>
       </div>
-      <span
-        v-for="tile in minimapTiles"
-        :key="tile.index"
-        class="minimap-tile"
-        :class="{
-          'minimap-tile-corner': tile.isCorner,
-          'minimap-tile-active': tile.hasActivePlayer,
-          'minimap-tile-dark': tile.isDark,
-        }"
-        :style="{
-          left: `${tile.x}%`,
-          top: `${tile.y}%`,
-          background: tile.background,
-        }"
-      >
-        {{ tile.label }}
-      </span>
-      <span
-        v-for="owner in minimapOwnerMarkers"
-        :key="owner.id"
-        class="minimap-owner-marker"
-        :style="{
-          left: `${owner.x}%`,
-          top: `${owner.y}%`,
-          borderColor: owner.color,
-        }"
-        :title="owner.title"
-      >
-        {{ owner.icon }}
-      </span>
-      <span
-        v-for="marker in minimapMarkers"
-        :key="marker.id"
-        class="minimap-marker"
-        :class="{ 'minimap-marker-active': marker.isActive }"
-        :style="{ left: `${marker.x}%`, top: `${marker.y}%` }"
-        :title="marker.title"
-      >
-        {{ marker.icon }}
-      </span>
     </div>
   </div>
 
@@ -202,30 +233,49 @@
     @toggle-camera="onSidebarCamera"
   />
 
-  <div
-    v-if="store.isDiceVisible"
-    class="dado-wrapper"
-    :class="{ sliding: isSliding }"
-  >
-    <div class="dado-titulo">
-      Total: {{ store.diceTotal }} | Casilla: {{ currentPosition }}/40
-      <span v-if="store.isDoubles" class="doubles-text"> DOBLES </span>
-    </div>
-    <div class="dados-row">
-      <div
-        v-for="(value, idx) in store.diceValues"
-        :key="idx"
-        class="dado-pequeno"
-      >
-        <span
-          v-for="(pos, i) in facePositions[value]"
-          :key="i"
-          class="circulo"
-          :style="pos"
-        ></span>
+  <Teleport to="body">
+    <div
+      v-if="showHistoryDialog"
+      class="history-dialog-overlay"
+      @click.self="showHistoryDialog = false"
+    >
+      <div class="history-dialog">
+        <div class="history-dialog-header">
+          <div>
+            <span class="history-dialog-kicker">Eventos</span>
+            <span class="history-dialog-title">Histórico económico</span>
+          </div>
+          <div class="history-dialog-meta">
+            <span class="history-dialog-count">{{ store.economicHistory.length }}</span>
+            <button class="history-dialog-close" @click="showHistoryDialog = false">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+        </div>
+
+        <p v-if="store.economicHistory.length === 0" class="history-dialog-empty">
+          Sin transacciones registradas
+        </p>
+
+        <div v-else class="history-dialog-list">
+          <article
+            v-for="item in store.economicHistory"
+            :key="item.id"
+            class="history-dialog-item"
+          >
+            <span class="history-dialog-item-icon material-symbols-outlined">{{ historyIcon(item.type) }}</span>
+            <div class="history-dialog-item-copy">
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.detail }}</span>
+            </div>
+            <span v-if="item.amount !== undefined" class="history-dialog-item-amount">
+              ${{ item.amount.toLocaleString() }}
+            </span>
+          </article>
+        </div>
       </div>
     </div>
-  </div>
+  </Teleport>
 </template>
 
 <script setup lang="ts">
@@ -255,6 +305,7 @@ const emit = defineEmits<{
 const isSliding = ref(false);
 const isRolling = ref(false);
 const sidebarOpen = ref(false);
+const showHistoryDialog = ref(false);
 
 const activePlayerInJail = computed(() => store.activePlayer?.inJail ?? false);
 const activePlayerCash = computed(() => store.activePlayer?.cash ?? 0);
@@ -676,10 +727,7 @@ async function onRollClick() {
 @import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap");
 
 .dado-wrapper {
-  position: absolute;
-  top: 18px;
-  left: 50%;
-  z-index: 150;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -690,9 +738,9 @@ async function onRollClick() {
   border: 1px solid rgba(134, 239, 172, 0.24);
   border-radius: 8px;
   box-shadow: 0 18px 36px rgba(0, 0, 0, 0.28);
-  transform: translateX(-50%);
   pointer-events: auto;
   font-family: "Inter", sans-serif;
+  box-sizing: border-box;
 }
 
 .dados-row {
@@ -734,11 +782,11 @@ async function onRollClick() {
 @keyframes slideUp {
   from {
     opacity: 1;
-    transform: translateX(-50%) translateY(0);
+    transform: translateY(0);
   }
   to {
     opacity: 0;
-    transform: translateX(-50%) translateY(-100px);
+    transform: translateY(-100px);
   }
 }
 
@@ -1163,12 +1211,20 @@ async function onRollClick() {
   font-size: 16px;
 }
 
-.board-minimap {
+.minimap-wrapper {
   position: absolute;
   top: 16px;
   left: 16px;
   z-index: 95;
   width: 226px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: "Inter", sans-serif;
+}
+
+.board-minimap {
+  width: 100%;
   padding: 10px;
   border-radius: 8px;
   background: rgba(10, 16, 25, 0.82);
@@ -1176,7 +1232,41 @@ async function onRollClick() {
   box-shadow: 0 14px 28px rgba(0, 0, 0, 0.26);
   backdrop-filter: blur(10px);
   pointer-events: none;
-  font-family: "Inter", sans-serif;
+}
+
+.history-trigger-btn {
+  width: 100%;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 8px 12px;
+  color: #c4b5fd;
+  background: rgba(49, 46, 129, 0.72);
+  border: 1px solid rgba(129, 140, 248, 0.3);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(10px);
+  pointer-events: auto;
+}
+
+.history-trigger-btn:hover {
+  background: rgba(67, 56, 202, 0.82);
+  color: #e9d5ff;
+  transform: translateY(-1px);
+}
+
+.history-trigger-btn:focus-visible {
+  outline: 2px solid #00e38f;
+  outline-offset: 3px;
+}
+
+.history-trigger-btn .material-symbols-outlined {
+  font-size: 16px;
 }
 
 .minimap-header {
@@ -1446,6 +1536,166 @@ async function onRollClick() {
   line-height: 1;
 }
 
+.history-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(4px);
+  padding: 16px;
+  font-family: "Inter", sans-serif;
+}
+
+.history-dialog {
+  width: min(520px, 100%);
+  max-height: min(680px, calc(100vh - 32px));
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(18, 24, 35, 0.99) 0%, rgba(9, 13, 22, 0.99) 100%);
+  border: 1px solid rgba(129, 140, 248, 0.3);
+  box-shadow: 0 24px 56px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.history-dialog-header {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.history-dialog-kicker {
+  display: block;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 3px;
+}
+
+.history-dialog-title {
+  display: block;
+  color: #f8fafc;
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.history-dialog-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.history-dialog-count {
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(74, 222, 128, 0.12);
+  color: #86efac;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.history-dialog-close {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 8px;
+  color: rgba(255, 255, 255, 0.72);
+  cursor: pointer;
+  transition: all 0.18s ease;
+}
+
+.history-dialog-close:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.history-dialog-close .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.history-dialog-empty {
+  margin: 0;
+  padding: 32px 18px;
+  color: rgba(255, 255, 255, 0.48);
+  font-size: 13px;
+  text-align: center;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: 8px;
+  margin: 16px 18px;
+}
+
+.history-dialog-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 18px;
+}
+
+.history-dialog-item {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.history-dialog-item-icon {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(129, 140, 248, 0.16);
+  color: #c4b5fd;
+  font-size: 17px !important;
+}
+
+.history-dialog-item-copy {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.history-dialog-item-copy strong {
+  color: #f8fafc;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.history-dialog-item-copy span {
+  color: rgba(226, 232, 240, 0.66);
+  font-size: 11px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.history-dialog-item-amount {
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: rgba(15, 118, 110, 0.22);
+  color: #99f6e4;
+  font-size: 11px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 @media (max-width: 720px) {
   .players-hud {
     left: 12px;
@@ -1454,7 +1704,7 @@ async function onRollClick() {
     width: auto;
   }
 
-  .board-minimap {
+  .minimap-wrapper {
     top: 12px;
     left: 12px;
     width: 190px;

@@ -39,7 +39,7 @@
               :key="inc"
               :ref="(el) => bidBtnRefs[idx] = el as HTMLElement"
               class="bid-btn"
-              :disabled="!canAfford(currentBid + inc)"
+              :disabled="currentBidderIsBot || !canAfford(currentBid + inc)"
               tabindex="0"
               @click="placeBid(inc)"
             >
@@ -48,7 +48,7 @@
             </button>
           </div>
 
-          <button ref="passBtnRef" class="pass-btn" tabindex="0" @click="pass">
+          <button ref="passBtnRef" class="pass-btn" tabindex="0" :disabled="currentBidderIsBot" @click="pass">
             <span class="material-symbols-outlined">not_interested</span>
             Pasar turno
           </button>
@@ -148,6 +148,10 @@ const currentBidderName = computed(
 
 const currentBidderCash = computed(
   () => props.players.find((p) => p.id === currentBidderId.value)?.cash ?? 0,
+);
+
+const currentBidderIsBot = computed(
+  () => props.players.find((p) => p.id === currentBidderId.value)?.isBot ?? false,
 );
 
 const leaderName = computed(
@@ -524,8 +528,13 @@ function emitResult() {
   cursor: pointer;
 }
 
-.pass-btn:hover {
+.pass-btn:hover:not(:disabled) {
   background: rgba(127, 29, 29, 0.28);
+}
+
+.pass-btn:disabled {
+  opacity: 0.32;
+  cursor: not-allowed;
 }
 
 .auction-roster {
