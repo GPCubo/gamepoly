@@ -1,4 +1,5 @@
 import { ref, onUnmounted } from 'vue'
+import { getWsBaseUrl } from '~/utils/env'
 
 export interface SocketMessage {
   v: number
@@ -37,7 +38,7 @@ export function useGameSocket() {
     tableId = tid
     playerId = pid
 
-    const baseUrl = import.meta.env.VITE_WS_URL || 'ws://localhost:8080'
+    const baseUrl = getWsBaseUrl()
     const url = `${baseUrl}/ws?tableId=${tid}&playerId=${pid}${token ? `&token=${token}` : ''}`
 
     ws = new WebSocket(url)

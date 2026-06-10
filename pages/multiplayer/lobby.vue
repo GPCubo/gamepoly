@@ -143,6 +143,7 @@
 <script setup lang="ts">
 import { ref, reactive } from 'vue'
 import { useMultiplayerStore } from '~/stores/multiplayerStore'
+import { getApiBaseUrl } from '~/utils/env'
 
 const mpStore = useMultiplayerStore()
 
@@ -172,7 +173,7 @@ function setSlotCount(n: number) {
   slotCount.value = n
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8080'
+const API_BASE = getApiBaseUrl()
 
 async function createTable() {
   errorMsg.value = ''
