@@ -60,6 +60,7 @@ func (m *Manager) Create(req CreateRequest) (*CreateResult, error) {
 		slots = append(slots, PlayerSlot{
 			ID:         pid,
 			Name:       sc.Name,
+			TokenModel: normalizeTokenModel(sc.TokenModel, i),
 			IsBot:      isBot,
 			Difficulty: sc.Difficulty,
 		})

@@ -144,6 +144,7 @@
 import { ref, reactive } from 'vue'
 import { useMultiplayerStore } from '~/stores/multiplayerStore'
 import { getApiBaseUrl } from '~/utils/env'
+import { GAME_CONFIG } from '~/config/gameConfig'
 
 const mpStore = useMultiplayerStore()
 
@@ -175,6 +176,10 @@ function setSlotCount(n: number) {
 
 const API_BASE = getApiBaseUrl()
 
+function tokenModelForSlot(index: number) {
+  return GAME_CONFIG.TOKEN_MODELS[index % GAME_CONFIG.TOKEN_MODELS.length]?.file ?? 'sombrero.glb'
+}
+
 async function createTable() {
   errorMsg.value = ''
   if (!playerName.value.trim()) {
@@ -184,11 +189,12 @@ async function createTable() {
   creating.value = true
   try {
     const slotsPayload = Array.from({ length: slotCount.value }, (_, i) => {
-      if (i === 0) return { type: 'human', name: playerName.value.trim() }
+      const tokenModel = tokenModelForSlot(i)
+      if (i === 0) return { type: 'human', name: playerName.value.trim(), tokenModel }
       const s = slots[i]
-      if (s.type === 'open') return { type: 'open', name: '' }
+      if (s.type === 'open') return { type: 'open', name: '', tokenModel }
       const diff = s.type === 'bot_difficult' ? 'difficult' : 'regular'
-      return { type: 'bot', difficulty: diff, name: s.type === 'bot_difficult' ? `Bot Difícil ${i + 1}` : `Bot Regular ${i + 1}` }
+      return { type: 'bot', difficulty: diff, name: s.type === 'bot_difficult' ? `Bot Difícil ${i + 1}` : `Bot Regular ${i + 1}`, tokenModel }
     })
 
     const res = await fetch(`${API_BASE}/api/v1/tables`, {

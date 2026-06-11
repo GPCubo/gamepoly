@@ -27,6 +27,7 @@ type PlayerConn struct {
 type PlayerSlot struct {
 	ID         string
 	Name       string
+	TokenModel string
 	IsBot      bool
 	Difficulty game.BotDifficulty
 	Conn       *PlayerConn // nil for bots and disconnected humans
@@ -66,10 +67,7 @@ func NewTable(id string, slots []PlayerSlot, opts game.GameOptions) *Table {
 	gs := game.NewGameState(id)
 	slotConfigs := make([]game.SlotConfig, len(slots))
 	for i, s := range slots {
-		tok := s.Name
-		if tok == "" {
-			tok = "sombrero.glb"
-		}
+		tok := normalizeTokenModel(s.TokenModel, i)
 		slotConfigs[i] = game.SlotConfig{
 			ID:            s.ID,
 			Name:          s.Name,
