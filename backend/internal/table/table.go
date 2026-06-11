@@ -52,6 +52,12 @@ type Table struct {
 	mu            sync.RWMutex
 	lastActivity  time.Time
 	StartedAt     time.Time
+
+	// awaitingBuyDecision is true after the active player lands on an unowned
+	// buyable tile and the game is waiting for a buy/pass action. It lets the
+	// bot orchestration tell "just landed, decide buy" apart from "turn start,
+	// must roll" without re-running the side-effectful ResolveLanding.
+	awaitingBuyDecision bool
 }
 
 const (
@@ -347,6 +353,7 @@ func (t *Table) resolveLanding(pID string, diceTotal int) {
 	}
 	pos := ((p.Position % 40) + 40) % 40
 	resolution := game.ResolveLanding(t.State, pID, diceTotal)
+	t.awaitingBuyDecision = false
 
 	switch resolution {
 	case game.ResolutionBuyable:
@@ -356,8 +363,10 @@ func (t *Table) resolveLanding(pID string, diceTotal int) {
 				TileIndex:           pos,
 				StartingBidderIndex: t.State.ActivePlayerIndex,
 			}))
+		} else {
+			// Human waits for buy/pass; bot decides in next bot step
+			t.awaitingBuyDecision = true
 		}
-		// Human waits for buy/pass; bot decides in next bot step
 
 	case game.ResolutionRent:
 		ownerID := t.State.PropertyOwners[pos]
@@ -412,6 +421,7 @@ func (t *Table) doBuyProperty(pID string, tileIndex int) {
 		price = *tile.Price
 	}
 	game.BuyProperty(t.State, pID, tileIndex)
+	t.awaitingBuyDecision = false
 	t.Broadcast(proto.New("property_purchased", proto.PropertyPurchasedPayload{
 		TileIndex: tileIndex, PlayerID: pID, Amount: price,
 	}))
@@ -424,6 +434,7 @@ func (t *Table) doPassBuy(pID string) {
 		return
 	}
 	pos := ((ap.Position % 40) + 40) % 40
+	t.awaitingBuyDecision = false
 	game.StartAuction(t.State, pos, t.State.ActivePlayerIndex)
 	t.Broadcast(proto.New("auction_started", proto.AuctionStartedPayload{
 		TileIndex:           pos,
@@ -436,6 +447,7 @@ func (t *Table) doNextTurn(pID string) {
 		t.sendTo(pID, proto.NewError("CANT_NEXT", err.Error()))
 		return
 	}
+	t.awaitingBuyDecision = false
 	extraTurn := t.State.IsDoubles && t.State.DoublesGiveExtra
 	if extraTurn {
 		game.FinishTurnKeepPlayer(t.State)
@@ -557,20 +569,19 @@ func (t *Table) executeBotStep() {
 		return
 	}
 
-	// Bot buy decision (after landing on buyable tile)
-	if !t.State.IsAuctionActive && !t.State.IsTurnComplete && t.State.ActiveCard == nil {
+	// Bot buy decision (after landing on a buyable tile). Gated on the explicit
+	// awaitingBuyDecision flag so we never re-run the side-effectful
+	// ResolveLanding (which would re-charge rent/tax) at the start of a turn.
+	if t.awaitingBuyDecision && !t.State.IsAuctionActive && !t.State.IsTurnComplete && t.State.ActiveCard == nil {
 		curPos := ((p.Position % 40) + 40) % 40
-		resolution := game.ResolveLanding(t.State, p.ID, t.State.DiceValues[0]+t.State.DiceValues[1])
-		if resolution == game.ResolutionBuyable {
-			action := game.DecideBotBuyDecision(t.State, curPos)
-			payload, _ := json.Marshal(proto.BuyPropertyPayload{TileIndex: action.TileIndex})
-			t.processAction(IncomingAction{
-				Type:     string(action.Type),
-				Payload:  payload,
-				PlayerID: p.ID,
-			})
-			return
-		}
+		action := game.DecideBotBuyDecision(t.State, curPos)
+		payload, _ := json.Marshal(proto.BuyPropertyPayload{TileIndex: action.TileIndex})
+		t.processAction(IncomingAction{
+			Type:     string(action.Type),
+			Payload:  payload,
+			PlayerID: p.ID,
+		})
+		return
 	}
 
 	actions := game.DecideBotTurn(t.State)
