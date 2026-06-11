@@ -54,7 +54,17 @@
     </div>
   </div>
 
-  <div class="minimap-wrapper">
+  <button
+    class="minimap-toggle-btn"
+    :class="{ 'minimap-toggle-active': minimapOpen }"
+    type="button"
+    @click="minimapOpen = !minimapOpen"
+  >
+    <span class="material-symbols-outlined">map</span>
+    <span>Mapa</span>
+  </button>
+
+  <div class="minimap-wrapper" :class="{ 'minimap-open': minimapOpen }">
     <div class="board-minimap">
       <div class="minimap-header">
         <span>Mapa</span>
@@ -306,6 +316,7 @@ const isSliding = ref(false);
 const isRolling = ref(false);
 const sidebarOpen = ref(false);
 const showHistoryDialog = ref(false);
+const minimapOpen = ref(false);
 
 const activePlayerInJail = computed(() => store.activePlayer?.inJail ?? false);
 const activePlayerCash = computed(() => store.activePlayer?.cash ?? 0);
@@ -1696,6 +1707,10 @@ async function onRollClick() {
   white-space: nowrap;
 }
 
+.minimap-toggle-btn {
+  display: none;
+}
+
 @media (max-width: 720px) {
   .players-hud {
     left: 12px;
@@ -1735,6 +1750,53 @@ async function onRollClick() {
 
   .action-btn {
     min-width: 0;
+  }
+}
+
+@media (max-width: 767px) {
+  .players-hud {
+    display: none;
+  }
+
+  .minimap-toggle-btn {
+    position: absolute;
+    top: 12px;
+    left: 12px;
+    z-index: 132;
+    min-height: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 9px 12px;
+    border: 1px solid rgba(129, 140, 248, 0.3);
+    border-radius: 8px;
+    color: #e9d5ff;
+    background: rgba(49, 46, 129, 0.82);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.28);
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    pointer-events: auto;
+    backdrop-filter: blur(10px);
+  }
+
+  .minimap-toggle-active {
+    color: #111827;
+    background: #86efac;
+    border-color: rgba(134, 239, 172, 0.6);
+  }
+
+  .minimap-wrapper {
+    display: none;
+    top: 58px;
+    left: 12px;
+    width: min(226px, calc(100vw - 24px));
+    z-index: 131;
+  }
+
+  .minimap-wrapper.minimap-open {
+    display: flex;
   }
 }
 </style>
