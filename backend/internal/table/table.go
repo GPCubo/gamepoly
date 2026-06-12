@@ -247,6 +247,7 @@ func (t *Table) processAction(a IncomingAction) {
 		if json.Unmarshal(a.Payload, &p) == nil {
 			if err := game.CanBuildHouse(t.State, pID, p.TileIndex); err == nil {
 				game.BuildHouse(t.State, pID, p.TileIndex)
+				t.Broadcast(proto.New("house_built", proto.HouseBuiltPayload{PlayerID: pID, TileIndex: p.TileIndex}))
 			} else {
 				t.sendTo(pID, proto.NewError("CANT_BUILD", err.Error()))
 			}
@@ -256,6 +257,7 @@ func (t *Table) processAction(a IncomingAction) {
 		if json.Unmarshal(a.Payload, &p) == nil {
 			if err := game.CanBuildHotel(t.State, pID, p.TileIndex); err == nil {
 				game.BuildHotel(t.State, pID, p.TileIndex)
+				t.Broadcast(proto.New("hotel_built", proto.HotelBuiltPayload{PlayerID: pID, TileIndex: p.TileIndex}))
 			} else {
 				t.sendTo(pID, proto.NewError("CANT_BUILD", err.Error()))
 			}
@@ -272,6 +274,7 @@ func (t *Table) processAction(a IncomingAction) {
 		if json.Unmarshal(a.Payload, &p) == nil {
 			if err := game.CanMortgage(t.State, pID, p.TileIndex); err == nil {
 				game.MortgageProperty(t.State, pID, p.TileIndex)
+				t.Broadcast(proto.New("property_mortgaged", proto.PropertyMortgagedPayload{PlayerID: pID, TileIndex: p.TileIndex}))
 			}
 		}
 	case "unmortgage":
@@ -549,10 +552,15 @@ func (t *Table) executeBotStep() {
 			currentBidder := t.State.Auction.ActiveBidders[bidderIdx]
 			if slot, ok := t.Slots[currentBidder]; ok && slot.IsBot {
 				botAction := game.DecideBotAuctionAction(t.State, currentBidder)
+				log.Printf("[bot] %s auction action: %s inc=%d", currentBidder, botAction.Type, botAction.Increment)
 				var payload json.RawMessage
 				if botAction.Type == game.BotPlaceBid {
 					payload, _ = json.Marshal(proto.PlaceBidPayload{Increment: botAction.Increment})
 				}
+				t.Broadcast(proto.New("bot_action", proto.BotActionPayload{
+					PlayerID: currentBidder,
+					Action:   string(botAction.Type),
+				}))
 				t.processAction(IncomingAction{
 					Type:     string(botAction.Type),
 					Payload:  payload,
@@ -572,10 +580,16 @@ func (t *Table) executeBotStep() {
 	// Bot buy decision (after landing on a buyable tile). Gated on the explicit
 	// awaitingBuyDecision flag so we never re-run the side-effectful
 	// ResolveLanding (which would re-charge rent/tax) at the start of a turn.
-	if t.awaitingBuyDecision && !t.State.IsAuctionActive && !t.State.IsTurnComplete && t.State.ActiveCard == nil {
+	if t.awaitingBuyDecision && !t.State.IsAuctionActive && t.State.ActiveCard == nil {
 		curPos := ((p.Position % 40) + 40) % 40
 		action := game.DecideBotBuyDecision(t.State, curPos)
+		log.Printf("[bot] %s buy decision: %s tile=%d cash=%d", p.ID, action.Type, action.TileIndex, p.Cash)
 		payload, _ := json.Marshal(proto.BuyPropertyPayload{TileIndex: action.TileIndex})
+		t.Broadcast(proto.New("bot_action", proto.BotActionPayload{
+			PlayerID: p.ID,
+			Action:   string(action.Type),
+			TileIndex: action.TileIndex,
+		}))
 		t.processAction(IncomingAction{
 			Type:     string(action.Type),
 			Payload:  payload,
@@ -585,6 +599,12 @@ func (t *Table) executeBotStep() {
 	}
 
 	actions := game.DecideBotTurn(t.State)
+	actionNames := make([]string, len(actions))
+	for i, a := range actions {
+		actionNames[i] = string(a.Type)
+	}
+	log.Printf("[bot] %s turn actions: %v (turnComplete=%v cash=%d)", p.ID, actionNames, t.State.IsTurnComplete, p.Cash)
+
 	for _, a := range actions {
 		var payload json.RawMessage
 		actionType := string(a.Type)
@@ -609,6 +629,11 @@ func (t *Table) executeBotStep() {
 		case game.BotAcceptCard:
 			actionType = "accept_card"
 		}
+		t.Broadcast(proto.New("bot_action", proto.BotActionPayload{
+			PlayerID: p.ID,
+			Action:   actionType,
+			TileIndex: a.TileIndex,
+		}))
 		t.processAction(IncomingAction{Type: actionType, Payload: payload, PlayerID: p.ID})
 	}
 }

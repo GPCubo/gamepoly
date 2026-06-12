@@ -164,3 +164,24 @@ type BotThinkingPayload struct {
 	PlayerID string `json:"playerId"`
 	DelayMs  int    `json:"delayMs"`
 }
+
+type BotActionPayload struct {
+	PlayerID string `json:"playerId"`
+	Action   string `json:"action"`
+	TileIndex int   `json:"tileIndex,omitempty"`
+}
+
+type HouseBuiltPayload struct {
+	PlayerID  string `json:"playerId"`
+	TileIndex int    `json:"tileIndex"`
+}
+
+type HotelBuiltPayload struct {
+	PlayerID  string `json:"playerId"`
+	TileIndex int    `json:"tileIndex"`
+}
+
+type PropertyMortgagedPayload struct {
+	PlayerID  string `json:"playerId"`
+	TileIndex int    `json:"tileIndex"`
+}
