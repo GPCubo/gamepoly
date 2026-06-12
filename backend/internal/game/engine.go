@@ -69,26 +69,32 @@ func MovePlayer(gs *GameState, steps int) MoveResult {
 	}
 }
 
-// CheckDoubles handles the doubles / three-doubles logic.
-// Returns true if player gets an extra turn.
-func CheckDoubles(gs *GameState) bool {
+type DoublesResult int
+
+const (
+	DoublesNone  DoublesResult = iota
+	DoublesExtra
+	DoublesJail
+)
+
+func CheckDoubles(gs *GameState) DoublesResult {
 	if !gs.IsDoubles || !gs.DoublesGiveExtra {
 		p := gs.ActivePlayer()
 		if p != nil {
 			p.ConsecutiveDoubles = 0
 		}
-		return false
+		return DoublesNone
 	}
 	p := gs.ActivePlayer()
 	if p == nil {
-		return false
+		return DoublesNone
 	}
 	p.ConsecutiveDoubles++
 	if p.ConsecutiveDoubles >= 3 {
 		SendToJail(gs, p.ID)
-		return false
+		return DoublesJail
 	}
-	return true
+	return DoublesExtra
 }
 
 // SendToJail sends a player to jail.
@@ -127,7 +133,6 @@ func RollFromJail(gs *GameState) string {
 	if gs.IsDoubles {
 		p.InJail = false
 		p.JailTurns = 0
-		p.ConsecutiveDoubles = 1
 		gs.StatusMessage = fmt.Sprintf("¡%s sacó dobles y sale de la cárcel!", p.Name)
 		return "freed"
 	}

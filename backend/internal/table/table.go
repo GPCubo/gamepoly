@@ -334,19 +334,27 @@ func (t *Table) doRollDice(pID string) {
 		}
 	}
 
-	if game.CheckDoubles(t.State) {
-		// Extra turn — don't move yet, let client re-roll
+	doublesResult := game.CheckDoubles(t.State)
+	switch doublesResult {
+	case game.DoublesJail:
+		t.Broadcast(proto.New("player_jailed", proto.PlayerJailedPayload{PlayerID: pID}))
+		t.State.IsTurnComplete = true
 		return
+	case game.DoublesExtra:
+		// Move player and resolve landing. IsTurnComplete will be set to true.
+		// When player/bot calls next_turn, FinishTurnKeepPlayer resets
+		// IsTurnComplete to false and keeps the same player for the extra roll.
+		fallthrough
+	default:
+		mr := game.MovePlayer(t.State, total)
+		t.Broadcast(proto.New("player_moved", proto.PlayerMovedPayload{
+			PlayerID: mr.PlayerID,
+			From:     mr.From,
+			To:       mr.To,
+			Path:     mr.Path,
+		}))
+		t.resolveLanding(pID, total)
 	}
-
-	mr := game.MovePlayer(t.State, total)
-	t.Broadcast(proto.New("player_moved", proto.PlayerMovedPayload{
-		PlayerID: mr.PlayerID,
-		From:     mr.From,
-		To:       mr.To,
-		Path:     mr.Path,
-	}))
-	t.resolveLanding(pID, total)
 }
 
 func (t *Table) resolveLanding(pID string, diceTotal int) {
