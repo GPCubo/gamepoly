@@ -59,6 +59,10 @@ type Table struct {
 	// bot orchestration tell "just landed, decide buy" apart from "turn start,
 	// must roll" without re-running the side-effectful ResolveLanding.
 	awaitingBuyDecision bool
+
+	// botTradeLastProposed tracks when each bot last proposed an exchange,
+	// used to enforce cooldowns and prevent spam.
+	botTradeLastProposed map[string]time.Time
 }
 
 const (
@@ -96,13 +100,14 @@ func NewTable(id string, slots []PlayerSlot, opts game.GameOptions) *Table {
 	}
 
 	t := &Table{
-		ID:           id,
-		State:        gs,
-		Slots:        slotMap,
-		Inbox:        make(chan IncomingAction, 64),
-		quit:         make(chan struct{}),
-		lastActivity: time.Now(),
-		StartedAt:    time.Now(),
+		ID:                   id,
+		State:                gs,
+		Slots:                slotMap,
+		Inbox:                make(chan IncomingAction, 64),
+		quit:                 make(chan struct{}),
+		lastActivity:         time.Now(),
+		StartedAt:            time.Now(),
+		botTradeLastProposed: make(map[string]time.Time),
 	}
 	t.botTimer = time.NewTimer(0)
 	t.botTimer.Stop()
@@ -713,6 +718,22 @@ func (t *Table) executeBotStep() {
 			TileIndex: a.TileIndex,
 		}))
 		t.processAction(IncomingAction{Type: actionType, Payload: payload, PlayerID: p.ID})
+	}
+
+	// After turn completes, difficult bot may propose an exchange (with cooldown)
+	if p.BotDifficulty == game.BotDifficult && t.State.IsTurnComplete &&
+		t.State.ExchangeProposal == nil && t.State.ActiveCard == nil && !t.State.IsAuctionActive {
+		const tradeCooldown = 90 * time.Second
+		lastTrade, hasTraded := t.botTradeLastProposed[p.ID]
+		if !hasTraded || time.Since(lastTrade) >= tradeCooldown {
+			if proposal := game.DecideBotExchangeProposal(t.State, p.ID); proposal != nil {
+				if err := game.CanProposeExchange(t.State, p.ID, *proposal); err == nil {
+					t.State.ExchangeProposal = proposal
+					t.botTradeLastProposed[p.ID] = time.Now()
+					t.Broadcast(proto.New("trade_proposed", proto.TradeProposedPayload{Proposal: *proposal}))
+				}
+			}
+		}
 	}
 }
 

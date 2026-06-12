@@ -445,6 +445,23 @@
       </div>
     </div>
 
+    <!-- Exchange modal -->
+    <ExchangeModal
+      v-if="showExchange && mpStore.state"
+      :active-player="mpStore.myPlayer!"
+      :players="mpStore.activePlayers.filter(p => p.id !== mpStore.myPlayerId)"
+      :property-owners="mpStore.propertyOwners"
+      :property-developments="mpStore.propertyDevelopments"
+      :proposal="mpStore.exchangeProposal"
+      :is-responding="exchangeIsResponding"
+      :spectator-mode="exchangeSpectatorMode"
+      :spectator-result="exchangeSpectatorResult"
+      @propose="onExchangePropose"
+      @accept="onExchangeAccept"
+      @reject="onExchangeReject"
+      @cancel="onExchangeCancel"
+    />
+
     <!-- Connection status badge -->
     <div
       class="conn-badge"
@@ -492,6 +509,16 @@
             >
               <span class="material-symbols-outlined">casino</span>
               <span>Volver al tablero</span>
+            </button>
+
+            <button
+              ref="exchangeBtnRef"
+              class="sidebar-btn cam-btn"
+              :disabled="!mpStore.hasAnyPropertyOwned && !mpStore.myPlayer?.cash"
+              @click="onOpenExchange()"
+            >
+              <span class="material-symbols-outlined">sync_alt</span>
+              <span>Intercambio</span>
             </button>
 
             <button
@@ -889,6 +916,8 @@ import type {
   MPPropertyDevelopment,
 } from "~/stores/multiplayerStore";
 import TileCard from "~/components/TileCard.vue";
+import ExchangeModal from "~/components/ExchangeModal.vue";
+import type { ExchangeProposalShape } from "~/components/ExchangeModal.vue";
 
 const mpStore = useMultiplayerStore();
 const socket = useGameSocket();
@@ -933,7 +962,12 @@ const auctionBidRefs = ref<(HTMLElement | null)[]>([null, null, null]);
 const auctionPassBtnRef = ref<HTMLElement | null>(null);
 const propertySearchInputRef = ref<HTMLElement | null>(null);
 const cameraToggleBtnRef = ref<HTMLElement | null>(null);
+const exchangeBtnRef = ref<HTMLElement | null>(null);
 const sidebarListElements = ref<HTMLElement[]>([]);
+const showExchange = ref(false);
+const exchangeIsResponding = ref(false);
+const exchangeSpectatorMode = ref(false);
+const exchangeSpectatorResult = ref<"accepted" | "rejected" | null>(null);
 let diceHideTimer: ReturnType<typeof setTimeout> | null = null;
 let boardLoadingTimer: ReturnType<typeof setInterval> | null = null;
 let loadedTokenSignature = "";
@@ -1036,6 +1070,7 @@ const overlayKeyboardEnabled = computed(
     !showBuyPrompt.value &&
     !mpStore.activeCard &&
     !mpStore.isAuctionActive &&
+    !showExchange.value &&
     !isMovementLocked.value,
 );
 
@@ -1054,6 +1089,7 @@ const sidebarRefs = computed((): Ref<HTMLElement | null>[] => {
   const refs: Ref<HTMLElement | null>[] = [
     closeSidebarBtnRef,
     cameraToggleBtnRef,
+    exchangeBtnRef,
   ];
   if (activeOwnedTiles.value.length) refs.push(mortgageAllBtnRef);
   refs.push(propertySearchInputRef);
@@ -1078,6 +1114,61 @@ function captureSidebarListEl(el: unknown) {
   if (el) sidebarListElements.value.push(el as HTMLElement);
 }
 
+function onOpenExchange() {
+  showExchange.value = true;
+  exchangeIsResponding.value = false;
+  exchangeSpectatorMode.value = false;
+  exchangeSpectatorResult.value = null;
+  sidebarOpen.value = false;
+}
+
+function onExchangePropose(proposal: ExchangeProposalShape) {
+  send("propose_trade", { proposal });
+  exchangeIsResponding.value = true;
+}
+
+function onExchangeAccept() {
+  send("respond_trade", { accepted: true });
+  showExchange.value = false;
+  exchangeIsResponding.value = false;
+  exchangeSpectatorMode.value = false;
+  exchangeSpectatorResult.value = null;
+}
+
+function onExchangeReject() {
+  send("respond_trade", { accepted: false });
+  showExchange.value = false;
+  exchangeIsResponding.value = false;
+  exchangeSpectatorMode.value = false;
+  exchangeSpectatorResult.value = null;
+}
+
+function onExchangeCancel() {
+  showExchange.value = false;
+  exchangeIsResponding.value = false;
+  exchangeSpectatorMode.value = false;
+  exchangeSpectatorResult.value = null;
+}
+
+watch(
+  () => mpStore.exchangeProposal,
+  (proposal) => {
+    if (!proposal) {
+      if (exchangeIsResponding.value) {
+        showExchange.value = false;
+        exchangeIsResponding.value = false;
+        exchangeSpectatorMode.value = false;
+        exchangeSpectatorResult.value = null;
+      }
+      return;
+    }
+    if (proposal.toPlayerId === mpStore.myPlayerId && !showExchange.value) {
+      exchangeIsResponding.value = true;
+      exchangeSpectatorMode.value = false;
+      showExchange.value = true;
+    }
+  },
+);
 
 useKeyboardNavigation(
   computed(() => [acceptCardBtnRef]),

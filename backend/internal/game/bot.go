@@ -241,12 +241,29 @@ func difficultAuctionBid(gs *GameState, playerID string, tile *config.BoardTile)
 	currentBid := gs.Auction.CurrentBid
 	maxBid := int(float64(p.Cash) * 0.6)
 
-	// Near-completion of color group → bid more aggressively
 	if tile.Type == config.TileTypeProperty {
 		groupTiles := config.GetGroupTiles(tile.Group, config.TileTypeProperty)
 		owned := countOwnedInGroup(gs, playerID, groupTiles)
+
+		// Near-completion of own color group → bid more aggressively
 		if owned == len(groupTiles)-1 {
-			maxBid = int(float64(p.Cash) * 0.8)
+			maxBid = int(float64(p.Cash) * 0.85)
+		}
+
+		// Rival about to complete their group → bid to block (but cap liquidity)
+		for _, opponent := range gs.ActivePlayers() {
+			if opponent.ID == playerID {
+				continue
+			}
+			rivalOwned := countOwnedInGroup(gs, opponent.ID, groupTiles)
+			if rivalOwned == len(groupTiles)-1 {
+				// Block bid capped at 75% of cash to preserve liquidity for rent/taxes
+				blockMax := int(float64(p.Cash) * 0.75)
+				if blockMax > maxBid {
+					maxBid = blockMax
+				}
+				break
+			}
 		}
 	}
 
@@ -371,4 +388,68 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+// DecideBotExchangeProposal looks for a trade that would complete a color group
+// for the bot. Returns nil when no suitable opportunity exists.
+func DecideBotExchangeProposal(gs *GameState, botID string) *ExchangeProposal {
+	if gs.ExchangeProposal != nil {
+		return nil
+	}
+	bot := gs.FindPlayer(botID)
+	if bot == nil || bot.Cash < 50 {
+		return nil
+	}
+
+	for _, tile := range config.BoardTiles {
+		if tile.Type != config.TileTypeProperty || tile.Price == nil {
+			continue
+		}
+		groupTiles := config.GetGroupTiles(tile.Group, config.TileTypeProperty)
+		if len(groupTiles) == 0 {
+			continue
+		}
+		botOwned := countOwnedInGroup(gs, botID, groupTiles)
+		if botOwned != len(groupTiles)-1 {
+			continue
+		}
+		// Find the missing tile
+		var missingTile *config.BoardTile
+		for i := range groupTiles {
+			if gs.PropertyOwners[groupTiles[i].Index] != botID {
+				missingTile = &groupTiles[i]
+				break
+			}
+		}
+		if missingTile == nil {
+			continue
+		}
+		ownerID := gs.PropertyOwners[missingTile.Index]
+		if ownerID == "" || ownerID == botID {
+			continue
+		}
+		owner := gs.FindPlayer(ownerID)
+		if owner == nil || gs.IsBankrupt(ownerID) {
+			continue
+		}
+		dev := gs.GetDevelopment(missingTile.Index)
+		if dev.Mortgaged || dev.Houses > 0 || dev.Hotel {
+			continue
+		}
+		// Build offer: cash equal to property price, capped at 60% of bot cash
+		offerMoney := *missingTile.Price
+		if offerMoney > int(float64(bot.Cash)*0.6) {
+			continue
+		}
+		return &ExchangeProposal{
+			FromPlayerID:    botID,
+			ToPlayerID:      ownerID,
+			OfferProperties: []int{},
+			OfferMoney:      offerMoney,
+			RequestProperties: []int{missingTile.Index},
+			RequestMoney:    0,
+			RenegotiationCount: 0,
+		}
+	}
+	return nil
 }

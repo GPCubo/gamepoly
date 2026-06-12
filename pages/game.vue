@@ -237,6 +237,7 @@ import {
 } from "three";
 import type { Group, Mesh, BufferGeometry, Material } from "three";
 import type { ExchangeProposal } from "~/stores/gameStore";
+import type { ExchangeProposalShape } from "~/components/ExchangeModal.vue";
 
 const store = useGameStore();
 const runtimeConfig = useRuntimeConfig();
@@ -1051,8 +1052,8 @@ function onOpenExchange() {
   exchangeIsResponding.value = false;
 }
 
-function onExchangePropose(proposal: ExchangeProposal) {
-  store.startExchange(proposal);
+function onExchangePropose(proposal: ExchangeProposalShape) {
+  store.startExchange(proposal as ExchangeProposal);
   exchangeIsResponding.value = true;
 }
 

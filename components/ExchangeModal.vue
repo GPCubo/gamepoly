@@ -282,22 +282,46 @@
 import { ref, computed, nextTick, onMounted, watch } from "vue";
 import { BOARD_TILES, type BoardTile, type TileType } from "~/config/boardTilesConfig";
 import { GAME_CONFIG } from "~/config/gameConfig";
-import type { PlayerState, ExchangeProposal, PropertyDevelopmentState } from "~/stores/gameStore";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
 
+export type ExchangePlayerId = number | string;
+
+export interface ExchangePlayer {
+  id: ExchangePlayerId;
+  name: string;
+  tokenModel: string;
+  cash: number;
+}
+
+export interface ExchangeProposalShape {
+  fromPlayerId: ExchangePlayerId;
+  toPlayerId: ExchangePlayerId;
+  offerProperties: number[];
+  offerMoney: number;
+  requestProperties: number[];
+  requestMoney: number;
+  renegotiationCount: number;
+}
+
+export interface ExchangeDevelopmentState {
+  houses: number;
+  hotel: boolean;
+  mortgaged: boolean;
+}
+
 const props = defineProps<{
-  activePlayer: PlayerState;
-  players: PlayerState[];
-  propertyOwners: Record<number, number>;
-  propertyDevelopments: Record<number, PropertyDevelopmentState>;
-  proposal: ExchangeProposal | null;
+  activePlayer: ExchangePlayer;
+  players: ExchangePlayer[];
+  propertyOwners: Record<number, ExchangePlayerId>;
+  propertyDevelopments: Record<number, ExchangeDevelopmentState>;
+  proposal: ExchangeProposalShape | null;
   isResponding: boolean;
   spectatorMode?: boolean;
   spectatorResult?: "accepted" | "rejected" | null;
 }>();
 
 const emit = defineEmits<{
-  (e: "propose", proposal: ExchangeProposal): void;
+  (e: "propose", proposal: ExchangeProposalShape): void;
   (e: "accept"): void;
   (e: "reject"): void;
   (e: "cancel"): void;
@@ -312,7 +336,7 @@ const phase = computed<Phase>(() => {
   return "select";
 });
 
-const selectedTargetId = ref<number | null>(null);
+const selectedTargetId = ref<ExchangePlayerId | null>(null);
 const isRenegotiating = ref(false);
 
 const proposingPlayer = computed(() => {
@@ -441,7 +465,7 @@ function formatMoney(amount: number) {
   return `$${amount.toLocaleString()}`;
 }
 
-function ownedCount(playerId: number) {
+function ownedCount(playerId: ExchangePlayerId) {
   return BOARD_TILES.filter(
     (tile) =>
       isExchangeableTile(tile) &&
@@ -470,7 +494,7 @@ function tradeSideSummary(propertyIndexes: number[], money: number) {
   return parts.length > 0 ? parts.join(" + ") : "Sin elementos";
 }
 
-function developmentWarningsForTransfer(propertyIndexes: number[], ownerId: number) {
+function developmentWarningsForTransfer(propertyIndexes: number[], ownerId: ExchangePlayerId) {
   const transferSet = new Set(propertyIndexes);
   const warnedGroups = new Set<string>();
   const warnings: string[] = [];
