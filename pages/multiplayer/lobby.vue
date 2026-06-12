@@ -148,8 +148,9 @@ import { GAME_CONFIG } from '~/config/gameConfig'
 import { enabledLocalScenarioSeedKeys } from '~/config/localScenarioSeeds'
 
 const mpStore = useMultiplayerStore()
+const route = useRoute()
 
-const mode = ref<'create' | 'join'>('create')
+const mode = ref<'create' | 'join'>(route.query.mode === 'join' ? 'join' : 'create')
 const playerName = ref('')
 const joinCode = ref('')
 const errorMsg = ref('')
@@ -638,8 +639,71 @@ async function joinTable() {
 }
 
 @media (max-width: 600px) {
-  .slots-grid { grid-template-columns: 1fr; }
-  .lobby-card { padding: 20px 16px; }
+  .app-header {
+    padding: 10px 14px;
+    gap: 8px;
+  }
+
+  .header-brand { font-size: 17px; }
+  .header-badge { display: none; }
+
+  .page-body {
+    padding: 12px 10px;
+    align-items: flex-start;
+  }
+
+  .lobby-card {
+    padding: 16px 14px;
+    gap: 14px;
+    border-radius: 18px;
+  }
+
   .main-title { font-size: 20px; }
+  .subtitle { font-size: 13px; }
+
+  .slots-grid { grid-template-columns: 1fr; }
+
+  .section-label { font-size: 10px; }
+
+  .field-input {
+    font-size: 16px; /* prevents iOS zoom on focus */
+    padding: 12px 14px;
+  }
+
+  .action-row {
+    flex-direction: column-reverse;
+    gap: 8px;
+  }
+
+  .start-btn {
+    width: 100%;
+    margin-left: 0;
+    padding: 14px;
+    font-size: 16px;
+    border-radius: 12px;
+  }
+
+  .reset-btn {
+    width: 100%;
+    text-align: center;
+    padding: 12px;
+    border: 1px solid rgba(132, 149, 136, 0.15);
+    border-radius: 12px;
+    color: #849588;
+  }
+
+  .settings-btn {
+    align-self: stretch;
+    justify-content: center;
+  }
+
+  .rules-panel { gap: 10px; padding: 12px; }
+
+  .small-input { width: 68px; font-size: 15px; }
+
+  .range-input { height: 8px; }
+
+  .player-count-bar { gap: 4px; }
+  .count-pill { padding: 10px 6px; font-size: 15px; }
 }
 </style>

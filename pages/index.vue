@@ -47,7 +47,21 @@
           Multijugador
         </button>
       </div>
-      <div class="section-block">
+      <div v-if="activeMode === 'multiplayer'" class="mp-panel">
+        <p class="mp-desc">La configuración completa se hace en el lobby. Crea una nueva mesa o únete con un código compartido.</p>
+        <div class="mp-actions">
+          <button class="mp-btn mp-create" @click="navigateTo('/multiplayer/lobby?mode=create')">
+            <span class="material-symbols-outlined">add_circle</span>
+            Crear mesa
+          </button>
+          <button class="mp-btn mp-join" @click="navigateTo('/multiplayer/lobby?mode=join')">
+            <span class="material-symbols-outlined">login</span>
+            Unirse a mesa
+          </button>
+        </div>
+      </div>
+
+      <div v-if="activeMode !== 'multiplayer'" class="section-block">
         <span class="section-label">NÚMERO DE JUGADORES</span>
         <div class="player-count-bar">
           <button
@@ -64,7 +78,7 @@
       </div>
 
       <!-- Swipeable Player Cards -->
-      <div class="section-block">
+      <div v-if="activeMode !== 'multiplayer'" class="section-block">
         <div class="section-header">
           <span class="section-label">PARTICIPANTES</span>
           <span class="section-hint">{{ playerPage + 1 }}–{{ Math.min(playerPage + 2, selectedCount) }} de {{ selectedCount }}</span>
@@ -162,10 +176,10 @@
         </div>
       </div>
 
-      <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
+      <p v-if="errorMsg && activeMode !== 'multiplayer'" class="error-msg">{{ errorMsg }}</p>
 
-      <!-- Actions -->
-      <div class="action-row">
+      <!-- Actions (hidden in multiplayer mode — CTAs are in mp-panel) -->
+      <div v-if="activeMode !== 'multiplayer'" class="action-row">
         <button class="settings-btn" @click="showSettings = true">
           <span class="material-symbols-outlined">tune</span>
           Reglas
@@ -1458,6 +1472,72 @@ function startGame() {
   transform: scale(0.95) translateY(10px);
 }
 
+/* Multiplayer entry panel */
+.mp-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mp-desc {
+  font-size: 14px;
+  color: #849588;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.mp-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.mp-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 22px 16px;
+  border-radius: 16px;
+  border: 1px solid rgba(132, 149, 136, 0.15);
+  background: rgba(25, 27, 36, 0.6);
+  color: #e1e1ef;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mp-btn .material-symbols-outlined {
+  font-size: 28px;
+}
+
+.mp-create {
+  background: rgba(0, 245, 155, 0.08);
+  border-color: rgba(0, 245, 155, 0.25);
+  color: #00e38f;
+}
+
+.mp-create:hover {
+  background: rgba(0, 245, 155, 0.15);
+  border-color: rgba(0, 245, 155, 0.45);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px -4px rgba(0, 245, 155, 0.2);
+}
+
+.mp-join {
+  color: #e1e1ef;
+}
+
+.mp-join:hover {
+  border-color: rgba(0, 245, 155, 0.3);
+  color: #00e38f;
+  background: rgba(0, 245, 155, 0.05);
+  transform: translateY(-2px);
+}
+
 @media (max-width: 600px) {
   .app-header {
     padding: 10px 16px;
@@ -1471,14 +1551,29 @@ function startGame() {
     font-size: 24px;
   }
 
+  .page-body {
+    align-items: flex-start;
+    padding: 12px;
+  }
+
   .setup-card {
-    padding: 20px 16px;
-    gap: 16px;
+    padding: 18px 14px;
+    gap: 14px;
     border-radius: 18px;
   }
 
   .main-title {
     font-size: 20px;
+  }
+
+  .mode-tab {
+    font-size: 12px;
+    padding: 9px 10px;
+    gap: 4px;
+  }
+
+  .mode-tab .material-symbols-outlined {
+    font-size: 16px;
   }
 
   .carousel-inner {
@@ -1487,10 +1582,17 @@ function startGame() {
 
   .action-row {
     flex-wrap: wrap;
+    gap: 8px;
   }
 
   .start-btn {
     flex: 1;
+    min-width: 0;
+  }
+
+  .settings-btn {
+    padding: 10px 14px;
+    font-size: 11px;
   }
 
   .player-card {
@@ -1500,6 +1602,21 @@ function startGame() {
 
   .player-card-fields {
     gap: 8px;
+  }
+
+  .mp-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .mp-btn {
+    flex-direction: row;
+    padding: 16px 20px;
+    justify-content: flex-start;
+    gap: 14px;
+  }
+
+  .mp-btn .material-symbols-outlined {
+    font-size: 22px;
   }
 }
 </style>
