@@ -60,7 +60,7 @@ func NewCardHistoryItem(player *PlayerState, card config.GameCard) CardHistoryIt
 	item := CardHistoryItem{
 		CardID:    card.ID,
 		Group:     card.Group,
-		Text:      card.Text,
+		Text:      config.ResolveCardText(card),
 		Action:    card.Action,
 		Amount:    card.Amount,
 		TileIndex: card.TileIndex,

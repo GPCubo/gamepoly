@@ -408,12 +408,13 @@ func (t *Table) resolveLanding(pID string, diceTotal int) {
 		group := cardGroupForTile(pos)
 		card := game.DrawCard(t.State, group)
 		if card != nil {
+			cardText := game.ResolveCardTextPublic(*card)
 			t.State.AddCardHistory(game.NewCardHistoryItem(p, *card))
 			t.Broadcast(proto.New("card_drawn", proto.CardDrawnPayload{
 				PlayerID:  pID,
 				CardID:    card.ID,
 				Group:     card.Group,
-				Text:      card.Text,
+				Text:      cardText,
 				Action:    string(card.Action),
 				Amount:    card.Amount,
 				TileIndex: card.TileIndex,

@@ -386,6 +386,7 @@ func DrawCard(gs *GameState, group string) *config.GameCard {
 	idx := (*deck)[0]
 	*deck = (*deck)[1:]
 	card := cards[idx]
+	card.Text = config.ResolveCardText(card)
 	gs.ActiveCard = &card
 	return &card
 }

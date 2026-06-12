@@ -12,9 +12,13 @@ func GetOwnableTilePublic(tileIndex int) *config.BoardTile {
 	return config.GetOwnableTile(tileIndex)
 }
 
+// ResolveCardTextPublic returns card text with board placeholders replaced.
+func ResolveCardTextPublic(card config.GameCard) string {
+	return config.ResolveCardText(card)
+}
+
 // GetTaxAmount returns the tax amount for a given tile index.
 func GetTaxAmount(tileIndex int) int {
 	amounts := map[int]int{4: 200, 38: 100}
 	return amounts[tileIndex]
 }
-
