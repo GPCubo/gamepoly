@@ -103,7 +103,9 @@
         v-if="mpStore.state && !tableroScene && !boardLoadError"
         class="board-loading"
       >
-        Cargando mapa...
+        <span class="board-loading-spinner" aria-hidden="true"></span>
+        <span>{{ currentBoardLoadingMessage }}</span>
+        <span class="board-loading-dots" aria-hidden="true"></span>
       </div>
       <div v-if="boardLoadError" class="board-loading board-error">
         No se pudo cargar el mapa 3D.
@@ -893,6 +895,7 @@ const playerScenes = shallowRef<(Group | null)[]>([]);
 const boardHouseInstancedGroup = shallowRef<Group | null>(null);
 const boardHouseModels = shallowRef<Map<string, Group>>(new Map());
 const boardLoadError = ref(false);
+const boardLoadingIndex = ref(0);
 const cameraRef = shallowRef();
 const controlsRef = shallowRef();
 const playerSceneKeys = computed(() =>
@@ -915,6 +918,7 @@ const mortgageAllBtnRef = ref<HTMLElement | null>(null);
 const historyBtnRef = ref<HTMLElement | null>(null);
 const acceptCardBtnRef = ref<HTMLElement | null>(null);
 let diceHideTimer: ReturnType<typeof setTimeout> | null = null;
+let boardLoadingTimer: ReturnType<typeof setInterval> | null = null;
 let loadedTokenSignature = "";
 let boardLoadRequestId = 0;
 let animationPlayerCount = 0;
@@ -931,6 +935,16 @@ let movementSeq = 0;
 let botThinkingTimer: ReturnType<typeof setTimeout> | null = null;
 const isMovementLocked = computed(
   () => movementAnimating.value || isAnimatingMyMove.value,
+);
+const boardLoadingMessages = [
+  "Cargando tablero 🎲",
+  "Configurando partida ⚙️",
+  "Personalizando mapa ✨",
+  "Ubicando fichas 🚗",
+  "Casi está 🚀",
+];
+const currentBoardLoadingMessage = computed(
+  () => boardLoadingMessages[boardLoadingIndex.value % boardLoadingMessages.length],
 );
 
 const normalizedPlayerTiles = computed(() =>
@@ -2128,6 +2142,11 @@ onMounted(() => {
     return;
   }
 
+  boardLoadingTimer = setInterval(() => {
+    boardLoadingIndex.value =
+      (boardLoadingIndex.value + 1) % boardLoadingMessages.length;
+  }, 1200);
+
   mpStore.setConnection(tableId, playerId);
   socket.connect(tableId, playerId);
 
@@ -2281,6 +2300,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (diceHideTimer) clearTimeout(diceHideTimer);
+  if (boardLoadingTimer) clearInterval(boardLoadingTimer);
   if (botThinkingTimer) clearTimeout(botThinkingTimer);
   stopBoardAssetWatch?.();
   unsubscribeSocket?.();
@@ -2408,6 +2428,11 @@ watch(
   top: 50%;
   z-index: 20;
   transform: translate(-50%, -50%);
+  min-width: 260px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   padding: 10px 14px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 8px;
@@ -2416,6 +2441,45 @@ watch(
   font-size: 13px;
   font-weight: 700;
   pointer-events: none;
+}
+
+.board-loading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(250, 204, 21, 0.28);
+  border-top-color: #facc15;
+  border-radius: 50%;
+  animation: boardLoaderSpin 0.85s linear infinite;
+}
+
+.board-loading-dots::after {
+  content: "";
+  display: inline-block;
+  width: 18px;
+  text-align: left;
+  animation: boardLoaderDots 1.2s steps(4, end) infinite;
+}
+
+@keyframes boardLoaderSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes boardLoaderDots {
+  0% {
+    content: "";
+  }
+  25% {
+    content: ".";
+  }
+  50% {
+    content: "..";
+  }
+  75%,
+  100% {
+    content: "...";
+  }
 }
 
 .board-error {
