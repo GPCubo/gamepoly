@@ -78,3 +78,9 @@ export function applyLocalScenarioSeeds(
 
   return appliedSeeds;
 }
+
+export function enabledLocalScenarioSeedKeys(params: URLSearchParams): string[] {
+  return LOCAL_SCENARIO_SEEDS
+    .filter((seed) => seed.isEnabled(params))
+    .map((seed) => seed.key);
+}

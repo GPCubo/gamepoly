@@ -454,7 +454,7 @@ function startGame() {
   errorMsg.value = "";
 
   if (activeMode.value === 'multiplayer') {
-    navigateTo('/multiplayer/lobby')
+    navigateTo(`/multiplayer/lobby${window.location.search}`)
     return
   }
 

@@ -98,12 +98,13 @@ func (rt *Router) createTable(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		CreatorName string `json:"creatorName"`
 		Config      struct {
-			StartingCash        int  `json:"startingCash"`
-			GoSalary            int  `json:"goSalary"`
-			CanSkipBuy          bool `json:"canSkipBuy"`
-			AuctionOnly         bool `json:"auctionOnly"`
-			DoublesGiveExtraTurn bool `json:"doublesGiveExtraTurn"`
-			JailBailCost        int  `json:"jailBailCost"`
+			StartingCash         int      `json:"startingCash"`
+			GoSalary             int      `json:"goSalary"`
+			CanSkipBuy           bool     `json:"canSkipBuy"`
+			AuctionOnly          bool     `json:"auctionOnly"`
+			DoublesGiveExtraTurn bool     `json:"doublesGiveExtraTurn"`
+			JailBailCost         int      `json:"jailBailCost"`
+			ScenarioSeeds        []string `json:"scenarioSeeds"`
 		} `json:"config"`
 		Slots []struct {
 			Type       string `json:"type"` // "human" | "bot" | "open"
@@ -127,6 +128,7 @@ func (rt *Router) createTable(w http.ResponseWriter, r *http.Request) {
 		CanSkipBuy:       req.Config.CanSkipBuy,
 		AuctionOnly:      req.Config.AuctionOnly,
 		DoublesGiveExtra: req.Config.DoublesGiveExtraTurn,
+		ScenarioSeeds:    req.Config.ScenarioSeeds,
 	}
 	if opts.GoSalary == 0 {
 		opts.GoSalary = 200

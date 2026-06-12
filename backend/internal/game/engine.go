@@ -11,6 +11,27 @@ import (
 // RollDice generates two random dice values and updates state.
 // Returns the total and whether doubles were rolled.
 func RollDice(gs *GameState) (d1, d2 int, isDoubles bool) {
+	if gs.ForceAllDiceRollsToCards {
+		p := gs.ActivePlayer()
+		steps := 2
+		if p != nil {
+			steps = stepsToNextCardTile(p.Position)
+		}
+		d1, d2 = diceValuesForTotal(steps)
+		isDoubles = d1 == d2
+		gs.DiceValues = [2]int{d1, d2}
+		gs.IsDoubles = isDoubles
+		return
+	}
+
+	if gs.ForceAllDiceRollsAsDoubles {
+		d1, d2 = 6, 6
+		isDoubles = true
+		gs.DiceValues = [2]int{d1, d2}
+		gs.IsDoubles = true
+		return
+	}
+
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
 	d1 = r.Intn(6) + 1
 	d2 = r.Intn(6) + 1
@@ -18,6 +39,44 @@ func RollDice(gs *GameState) (d1, d2 int, isDoubles bool) {
 	gs.DiceValues = [2]int{d1, d2}
 	gs.IsDoubles = isDoubles
 	return
+}
+
+func stepsToNextCardTile(position int) int {
+	current := ((position % 40) + 40) % 40
+	best := 40
+	for _, tile := range config.BoardTiles {
+		if tile.Type != config.TileTypeCard {
+			continue
+		}
+		steps := tile.Index - current
+		if steps <= 0 {
+			steps += 40
+		}
+		if steps < best {
+			best = steps
+		}
+	}
+	return best
+}
+
+func diceValuesForTotal(total int) (int, int) {
+	pairs := map[int][2]int{
+		2:  {1, 1},
+		3:  {1, 2},
+		4:  {1, 3},
+		5:  {2, 3},
+		6:  {1, 5},
+		7:  {3, 4},
+		8:  {3, 5},
+		9:  {4, 5},
+		10: {4, 6},
+		11: {5, 6},
+		12: {6, 6},
+	}
+	if pair, ok := pairs[total]; ok {
+		return pair[0], pair[1]
+	}
+	return 1, 1
 }
 
 // MoveResult holds the outcome of moving a player.

@@ -120,11 +120,12 @@ func SetupGame(gs *GameState, slots []SlotConfig, opts GameOptions) {
 
 // GameOptions holds configuration for a new game.
 type GameOptions struct {
-	GoSalary        int
-	JailBailCost    int
-	CanSkipBuy      bool
-	AuctionOnly     bool
+	GoSalary         int
+	JailBailCost     int
+	CanSkipBuy       bool
+	AuctionOnly      bool
 	DoublesGiveExtra bool
+	ScenarioSeeds    []string
 }
 
 func DefaultOptions() GameOptions {

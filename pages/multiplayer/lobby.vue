@@ -145,6 +145,7 @@ import { ref, reactive } from 'vue'
 import { useMultiplayerStore } from '~/stores/multiplayerStore'
 import { getApiBaseUrl } from '~/utils/env'
 import { GAME_CONFIG } from '~/config/gameConfig'
+import { enabledLocalScenarioSeedKeys } from '~/config/localScenarioSeeds'
 
 const mpStore = useMultiplayerStore()
 
@@ -175,6 +176,16 @@ function setSlotCount(n: number) {
 }
 
 const API_BASE = getApiBaseUrl()
+
+function isLocalGameUrl() {
+  if (typeof window === 'undefined') return false
+  return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(window.location.hostname)
+}
+
+function activeLocalScenarioSeeds() {
+  if (!isLocalGameUrl()) return []
+  return enabledLocalScenarioSeedKeys(new URLSearchParams(window.location.search))
+}
 
 function tokenModelForSlot(index: number) {
   return GAME_CONFIG.TOKEN_MODELS[index % GAME_CONFIG.TOKEN_MODELS.length]?.file ?? 'sombrero.glb'
@@ -208,6 +219,7 @@ async function createTable() {
           doublesGiveExtraTurn: doublesGiveExtra.value,
           auctionOnly: auctionOnly.value,
           jailBailCost: 50,
+          scenarioSeeds: activeLocalScenarioSeeds(),
         },
         slots: slotsPayload,
       }),

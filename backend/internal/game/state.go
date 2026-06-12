@@ -81,17 +81,19 @@ type GameState struct {
 	Phase         Phase  `json:"phase"`
 	TableID       string `json:"tableId"`
 
-	Players            []*PlayerState          `json:"players"`
-	ActivePlayerIndex  int                     `json:"activePlayerIndex"`
-	IsTurnComplete     bool                    `json:"isTurnComplete"`
-	IsDoubles          bool                    `json:"isDoubles"`
-	DiceValues         [2]int                  `json:"diceValues"`
-	StatusMessage      string                  `json:"statusMessage"`
-	GoSalary           int                     `json:"goSalary"`
-	JailBailCost       int                     `json:"jailBailCost"`
-	CanSkipBuy         bool                    `json:"canSkipBuy"`
-	AuctionOnly        bool                    `json:"auctionOnly"`
-	DoublesGiveExtra   bool                    `json:"doublesGiveExtraTurn"`
+	Players                     []*PlayerState `json:"players"`
+	ActivePlayerIndex           int            `json:"activePlayerIndex"`
+	IsTurnComplete              bool           `json:"isTurnComplete"`
+	IsDoubles                   bool           `json:"isDoubles"`
+	DiceValues                  [2]int         `json:"diceValues"`
+	StatusMessage               string         `json:"statusMessage"`
+	ForceAllDiceRollsAsDoubles bool           `json:"-"`
+	ForceAllDiceRollsToCards   bool           `json:"-"`
+	GoSalary                    int            `json:"goSalary"`
+	JailBailCost                int            `json:"jailBailCost"`
+	CanSkipBuy                  bool           `json:"canSkipBuy"`
+	AuctionOnly                 bool           `json:"auctionOnly"`
+	DoublesGiveExtra            bool           `json:"doublesGiveExtraTurn"`
 
 	PropertyOwners      map[int]string          `json:"propertyOwners"`
 	PropertyDevelopments map[int]PropertyDevelopment `json:"propertyDevelopments"`

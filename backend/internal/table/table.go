@@ -87,6 +87,7 @@ func NewTable(id string, slots []PlayerSlot, opts game.GameOptions) *Table {
 		}
 	}
 	game.SetupGame(gs, slotConfigs, opts)
+	game.ApplyScenarioSeeds(gs, opts.ScenarioSeeds)
 
 	slotMap := make(map[string]*PlayerSlot, len(slots))
 	for i := range slots {

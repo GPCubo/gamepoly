@@ -370,7 +370,7 @@
 
     <!-- Card overlay -->
     <div
-      v-if="mpStore.activeCard && mpStore.isMyTurn && !isAnimatingMyMove"
+      v-if="mpStore.activeCard && !isAnimatingMyMove"
       class="card-overlay"
     >
       <div class="card-card">
@@ -383,9 +383,10 @@
         <button
           ref="acceptCardBtnRef"
           class="action-btn roll-btn"
+          :disabled="!mpStore.isMyTurn"
           @click="send('accept_card')"
         >
-          Aceptar
+          {{ mpStore.isMyTurn ? "Aceptar" : `Esperando a ${mpStore.activePlayer?.name ?? "jugador"}` }}
         </button>
       </div>
     </div>
