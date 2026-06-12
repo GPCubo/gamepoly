@@ -471,10 +471,9 @@ func ApplyCardEffect(gs *GameState, playerID string, diceTotal int) CardResult {
 	case config.CardMoveTo:
 		if card.TileIndex != nil {
 			target := *card.TileIndex
-			// Check if card says "collect $200" (tile 0 = GO)
-			collectGo := target == 0
-			from := p.Position % 40
-			if collectGo && from > 0 {
+			from := ((p.Position % 40) + 40) % 40
+			passesGo := target == 0 || target < from
+			if passesGo && from > 0 {
 				p.Cash += gs.GoSalary
 				result.PassedGo = true
 				amount := gs.GoSalary
