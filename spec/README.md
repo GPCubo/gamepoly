@@ -22,6 +22,7 @@ Después de generarla, muévela a la carpeta correspondiente y renúmera si es n
 | [`dados/`](#dados) | Visualización y animación de dados | 5 |
 | [`economy/`](#economy) | Compra, alquiler, hipotecas, subasta, deuda | 7 |
 | [`gameoverlay/`](#gameoverlay) | HUD, sidebar, mapa, histórico | 8 |
+| [`server/`](#server) | Despliegue, SSH, nginx, systemd, SSL | 1 |
 | [`multiplayer/`](#multiplayer) | Backend Go, WebSocket, multi-mesa | 1 |
 | [`player/`](#player) | Fichas, animación, cámara, configuración | 11 |
 | [`settings/`](#settings) | Reglas de partida, semillas de debug | 3 |
