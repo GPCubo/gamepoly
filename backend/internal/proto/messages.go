@@ -149,6 +149,7 @@ type TradeRespondedPayload struct {
 
 type PlayerJailedPayload struct {
 	PlayerID string `json:"playerId"`
+	Reason   string `json:"reason,omitempty"`
 }
 
 type PlayerBankruptPayload struct {
