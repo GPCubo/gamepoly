@@ -1074,9 +1074,6 @@ function captureSidebarListEl(el: unknown) {
   if (el) sidebarListElements.value.push(el as HTMLElement);
 }
 
-watch(sidebarOpen, (val) => {
-  if (val) nextTick(() => propertySearchInputRef.value?.focus());
-});
 
 useKeyboardNavigation(
   computed(() => [acceptCardBtnRef]),
@@ -2408,10 +2405,7 @@ watch(
 
 watch(sidebarOpen, (open) => {
   if (open) {
-    nextTick(() => {
-      if (canMortgageAll.value) mortgageAllBtnRef.value?.focus();
-      else closeSidebarBtnRef.value?.focus();
-    });
+    nextTick(() => propertySearchInputRef.value?.focus());
   } else {
     searchTerm.value = "";
     focusPrimaryAction();
