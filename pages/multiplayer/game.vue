@@ -293,6 +293,7 @@
             ref="bailBtnRef"
             class="action-btn bail-btn"
             :disabled="
+              isMovementLocked ||
               (myPlayer?.cash ?? 0) < (mpStore.state?.jailBailCost ?? 50)
             "
             @click="send('pay_bail')"
@@ -305,6 +306,7 @@
           <button
             ref="rollBtnRef"
             class="action-btn roll-btn"
+            :disabled="isMovementLocked"
             @click="send('roll_dice')"
           >
             <span class="material-symbols-outlined">casino</span>
@@ -316,6 +318,7 @@
           <button
             ref="nextBtnRef"
             class="action-btn next-btn"
+            :disabled="isMovementLocked"
             @click="send('next_turn')"
           >
             <span class="material-symbols-outlined">navigate_next</span>
@@ -362,17 +365,14 @@
       :hotel-cost="hotelCost(buyTileIndex)"
       :mortgage-value="mortgageValue(buyTileIndex)"
       :unmortgage-cost="unmortgageCost(buyTileIndex)"
-      @close="passBuy"
-      @buy="confirmBuy"
-      @auction="passBuy"
-      @skip="passBuy"
+      @close="() => passBuy()"
+      @buy="() => confirmBuy()"
+      @auction="() => passBuy()"
+      @skip="() => passBuy()"
     />
 
     <!-- Card overlay -->
-    <div
-      v-if="mpStore.activeCard && !isAnimatingMyMove"
-      class="card-overlay"
-    >
+    <div v-if="mpStore.activeCard && !isAnimatingMyMove" class="card-overlay">
       <div class="card-card">
         <span class="card-group">{{
           mpStore.activeCard.group === "chance"
@@ -386,7 +386,11 @@
           :disabled="!mpStore.isMyTurn"
           @click="send('accept_card')"
         >
-          {{ mpStore.isMyTurn ? "Aceptar" : `Esperando a ${mpStore.activePlayer?.name ?? "jugador"}` }}
+          {{
+            mpStore.isMyTurn
+              ? "Aceptar"
+              : `Esperando a ${mpStore.activePlayer?.name ?? "jugador"}`
+          }}
         </button>
       </div>
     </div>
@@ -488,17 +492,14 @@
 
             <button
               class="sidebar-btn cam-btn"
-              @click="mpStore.isCamFollowActive = !mpStore.isCamFollowActive"
+              :class="{ 'cam-active': mpStore.isCamFollowActive }"
+              @click="mpStore.toggleCameraFollow()"
             >
               <span class="material-symbols-outlined">
-                {{
-                  mpStore.isCamFollowActive
-                    ? "auto_awesome_motion"
-                    : "panorama_fish_eye"
-                }}
+                {{ mpStore.isCamFollowActive ? "videocam" : "videocam_off" }}
               </span>
               <span>{{
-                mpStore.isCamFollowActive ? "Seguir ficha" : "Camara libre"
+                mpStore.isCamFollowActive ? "Camara fija" : "Camara libre"
               }}</span>
             </button>
 
@@ -704,12 +705,10 @@
           <div class="history-dialog-header">
             <div>
               <span class="history-dialog-kicker">Eventos</span>
-              <span class="history-dialog-title">Historico economico</span>
+              <span class="history-dialog-title">Historico</span>
             </div>
             <div class="history-dialog-meta">
-              <span class="history-dialog-count">{{
-                mpStore.economicHistory.length
-              }}</span>
+              <span class="history-dialog-count">{{ activeHistoryCount }}</span>
               <button
                 class="history-dialog-close"
                 @click="showHistoryDialog = false"
@@ -719,14 +718,31 @@
             </div>
           </div>
 
-          <p
-            v-if="mpStore.economicHistory.length === 0"
-            class="history-dialog-empty"
-          >
-            Sin transacciones registradas
+          <div class="history-tabs" role="tablist" aria-label="Historico">
+            <button
+              v-for="tab in historyTabs"
+              :key="tab.key"
+              class="history-tab"
+              :class="{ 'history-tab-active': activeHistoryTab === tab.key }"
+              type="button"
+              role="tab"
+              :aria-selected="activeHistoryTab === tab.key"
+              @click="activeHistoryTab = tab.key"
+            >
+              <span class="material-symbols-outlined">{{ tab.icon }}</span>
+              <span>{{ tab.label }}</span>
+              <strong>{{ tab.count }}</strong>
+            </button>
+          </div>
+
+          <p v-if="activeHistoryCount === 0" class="history-dialog-empty">
+            {{ activeHistoryEmptyText }}
           </p>
 
-          <div v-else class="history-dialog-list">
+          <div
+            v-else-if="activeHistoryTab === 'money'"
+            class="history-dialog-list"
+          >
             <article
               v-for="item in mpStore.economicHistory"
               :key="item.id"
@@ -745,6 +761,50 @@
                 class="history-dialog-item-amount"
               >
                 ${{ item.amount.toLocaleString() }}
+              </span>
+            </article>
+          </div>
+
+          <div
+            v-else-if="activeHistoryTab === 'tiles'"
+            class="history-dialog-list"
+          >
+            <article
+              v-for="item in mpStore.movementHistory"
+              :key="item.id"
+              class="history-dialog-item"
+            >
+              <span
+                class="history-dialog-item-icon material-symbols-outlined"
+                >{{ item.source === "card" ? "style" : "casino" }}</span
+              >
+              <div class="history-dialog-item-copy">
+                <strong>{{ movementHistoryTitle(item) }}</strong>
+                <span>{{ movementHistoryDetail(item) }}</span>
+              </div>
+              <span class="history-dialog-item-amount">
+                {{ tileLabel(item.from) }} -> {{ tileLabel(item.to) }}
+              </span>
+            </article>
+          </div>
+
+          <div v-else class="history-dialog-list">
+            <article
+              v-for="item in mpStore.cardHistory"
+              :key="item.id"
+              class="history-dialog-item"
+            >
+              <span
+                class="history-dialog-item-icon material-symbols-outlined"
+                >{{ item.group === "chance" ? "help" : "inventory_2" }}</span
+              >
+              <div class="history-dialog-item-copy">
+                <strong>{{ cardHistoryTitle(item) }}</strong>
+                <span>{{ item.text }}</span>
+                <span>{{ item.effect }}</span>
+              </div>
+              <span class="history-dialog-item-amount">
+                {{ item.group === "chance" ? "Suerte" : "Arca" }}
               </span>
             </article>
           </div>
@@ -809,7 +869,9 @@ import type {
   BoardHouseAssetType,
 } from "~/config/boardHouseAssets";
 import type {
+  MPCardHistoryItem,
   MPEconomicHistoryItem,
+  MPMovementHistoryItem,
   MPPropertyDevelopment,
 } from "~/stores/multiplayerStore";
 import TileCard from "~/components/TileCard.vue";
@@ -840,6 +902,7 @@ const playerSceneKeys = computed(() =>
 );
 const sidebarOpen = ref(false);
 const showHistoryDialog = ref(false);
+const activeHistoryTab = ref<"money" | "tiles" | "cards">("money");
 const minimapOpen = ref(false);
 const searchTerm = ref("");
 const visibleHistorySnackbars = ref<MPEconomicHistoryItem[]>([]);
@@ -857,11 +920,18 @@ let boardLoadRequestId = 0;
 let animationPlayerCount = 0;
 let fpsFrames = 0;
 let fpsElapsedMs = 0;
-let movementAnimating = false;
+const movementAnimating = ref(false);
 let pendingSnapshot: any = null;
-let pendingBotThinking: { playerId: string; delayMs: number; receivedAt: number } | null = null;
+let pendingBotThinking: {
+  playerId: string;
+  delayMs: number;
+  receivedAt: number;
+} | null = null;
 let movementSeq = 0;
 let botThinkingTimer: ReturnType<typeof setTimeout> | null = null;
+const isMovementLocked = computed(
+  () => movementAnimating.value || isAnimatingMyMove.value,
+);
 
 const normalizedPlayerTiles = computed(() =>
   mpStore.players.map((player) => ((player.position % 40) + 40) % 40),
@@ -882,12 +952,7 @@ const {
   getCurrentScale,
   isAnimating,
   setPosition,
-} = usePieceAnimation({
-  defaultScale: GAME_CONFIG.DEFAULT_SCALE,
-  sharedTileScale: GAME_CONFIG.SHARED_TILE_SCALE,
-  groundY: 0.82,
-  growDurationMs: GAME_CONFIG.GROW_DURATION_MS,
-});
+} = usePieceAnimation();
 
 const { updateCamera } = useCameraFollow(
   {
@@ -917,10 +982,17 @@ const {
 
 const actionRefs = computed(() => {
   const refs: Ref<HTMLElement | null>[] = [];
-  if (mpStore.isMyTurn && !mpStore.isTurnComplete && myPlayer.value?.inJail)
+  if (
+    mpStore.isMyTurn &&
+    !mpStore.isTurnComplete &&
+    myPlayer.value?.inJail &&
+    !isMovementLocked.value
+  )
     refs.push(bailBtnRef);
-  if (mpStore.isMyTurn && !mpStore.isTurnComplete) refs.push(rollBtnRef);
-  if (mpStore.isMyTurn && mpStore.isTurnComplete) refs.push(nextBtnRef);
+  if (mpStore.isMyTurn && !mpStore.isTurnComplete && !isMovementLocked.value)
+    refs.push(rollBtnRef);
+  if (mpStore.isMyTurn && mpStore.isTurnComplete && !isMovementLocked.value)
+    refs.push(nextBtnRef);
   refs.push(configBtnRef);
   return refs;
 });
@@ -932,7 +1004,8 @@ const overlayKeyboardEnabled = computed(
     !showHistoryDialog.value &&
     !showBuyPrompt.value &&
     !mpStore.activeCard &&
-    !mpStore.isAuctionActive,
+    !mpStore.isAuctionActive &&
+    !isMovementLocked.value,
 );
 
 useKeyboardNavigation(actionRefs, {
@@ -1067,7 +1140,7 @@ function syncIdlePiecePositions() {
 }
 
 function onMovementComplete() {
-  movementAnimating = false;
+  movementAnimating.value = false;
   if (pendingSnapshot) {
     const snap = pendingSnapshot;
     pendingSnapshot = null;
@@ -1556,9 +1629,13 @@ function developmentLabel(tileIndex: number) {
 
 function historyIcon(type: MPEconomicHistoryItem["type"]) {
   const icons: Record<string, string> = {
+    go: "flag",
     purchase: "shopping_cart",
     auction: "gavel",
     mortgage: "account_balance",
+    unmortgage: "account_balance_wallet",
+    build: "domain_add",
+    sell_improvement: "real_estate_agent",
     card_gain: "add_card",
     card_loss: "credit_card_off",
     tax: "receipt_long",
@@ -1566,6 +1643,69 @@ function historyIcon(type: MPEconomicHistoryItem["type"]) {
     exchange: "sync_alt",
   };
   return icons[type] ?? "receipt_long";
+}
+
+const historyTabs = computed(() => [
+  {
+    key: "money" as const,
+    label: "Dinero",
+    icon: "payments",
+    count: mpStore.economicHistory.length,
+  },
+  {
+    key: "tiles" as const,
+    label: "Casillas",
+    icon: "casino",
+    count: mpStore.movementHistory.length,
+  },
+  {
+    key: "cards" as const,
+    label: "Tarjetas",
+    icon: "style",
+    count: mpStore.cardHistory.length,
+  },
+]);
+
+const activeHistoryCount = computed(() => {
+  if (activeHistoryTab.value === "tiles") return mpStore.movementHistory.length;
+  if (activeHistoryTab.value === "cards") return mpStore.cardHistory.length;
+  return mpStore.economicHistory.length;
+});
+
+const activeHistoryEmptyText = computed(() => {
+  if (activeHistoryTab.value === "tiles") return "Sin movimientos de casillas";
+  if (activeHistoryTab.value === "cards") return "Sin tarjetas registradas";
+  return "Sin transacciones registradas";
+});
+
+function tileLabel(index: number) {
+  const normalized = ((index % 40) + 40) % 40;
+  return `${normalized + 1}`;
+}
+
+function movementHistoryTitle(item: MPMovementHistoryItem) {
+  if (item.source === "card") {
+    return `${item.playerName} se movio por tarjeta`;
+  }
+  return `${item.playerName} saco ${item.diceTotal}`;
+}
+
+function movementHistoryDetail(item: MPMovementHistoryItem) {
+  const from =
+    BOARD_TILES[((item.from % 40) + 40) % 40]?.name ??
+    `Casilla ${tileLabel(item.from)}`;
+  const to =
+    BOARD_TILES[((item.to % 40) + 40) % 40]?.name ??
+    `Casilla ${tileLabel(item.to)}`;
+  if (item.source === "card") {
+    return `${from} -> ${to}${item.cardText ? ` | ${item.cardText}` : ""}`;
+  }
+  return `Dados ${item.diceValues[0]} + ${item.diceValues[1]} | ${from} -> ${to}`;
+}
+
+function cardHistoryTitle(item: MPCardHistoryItem) {
+  const group = item.group === "chance" ? "Suerte" : "Arca Comunal";
+  return `${item.playerName} robo ${group}`;
 }
 
 const minimapMarkers = computed(() => {
@@ -2007,7 +2147,7 @@ onMounted(() => {
       case "game_snapshot": {
         const payload = msg.payload as { state: any };
         if (payload?.state) {
-          if (movementAnimating) {
+          if (movementAnimating.value) {
             pendingSnapshot = payload.state;
             // Update dice display immediately even while animating
             if (mpStore.state) {
@@ -2048,7 +2188,7 @@ onMounted(() => {
 
           if (currentPos === targetPos) return;
 
-          movementAnimating = true;
+          movementAnimating.value = true;
           const moveId = ++movementSeq;
 
           const isMyPlayer = payload.playerId === mpStore.myPlayerId;
@@ -2057,9 +2197,10 @@ onMounted(() => {
             showBuyPrompt.value = false;
           }
 
-          const movePath = (payload.path && payload.path.length > 0)
-            ? payload.path
-            : [targetPos];
+          const movePath =
+            payload.path && payload.path.length > 0
+              ? payload.path
+              : [targetPos];
 
           const finishMovement = () => {
             if (moveId !== movementSeq) return;
@@ -2087,8 +2228,10 @@ onMounted(() => {
             const nextPos = movePath[stepIdx];
             const fromPos = stepIdx === 0 ? currentPos : movePath[stepIdx - 1];
 
-            const fromCoords = getCasillaCoordinates((fromPos % 40 + 40) % 40);
-            const toCoords = getCasillaCoordinates((nextPos % 40 + 40) % 40);
+            const fromCoords = getCasillaCoordinates(
+              ((fromPos % 40) + 40) % 40,
+            );
+            const toCoords = getCasillaCoordinates(((nextPos % 40) + 40) % 40);
 
             startHop(playerIdx, fromCoords, toCoords);
             mpStore.players[playerIdx].position = nextPos;
@@ -2113,7 +2256,7 @@ onMounted(() => {
         break;
       case "bot_thinking": {
         const p = msg.payload as { playerId: string; delayMs: number };
-        if (movementAnimating) {
+        if (movementAnimating.value) {
           pendingBotThinking = {
             playerId: p.playerId,
             delayMs: p.delayMs,
@@ -2196,11 +2339,7 @@ watch(sidebarOpen, (open) => {
     });
   } else {
     searchTerm.value = "";
-    nextTick(() => {
-      if (mpStore.isMyTurn && mpStore.isTurnComplete) nextBtnRef.value?.focus();
-      else if (mpStore.isMyTurn) rollBtnRef.value?.focus();
-      else configBtnRef.value?.focus();
-    });
+    focusPrimaryAction();
   }
 });
 
@@ -2591,7 +2730,7 @@ watch(
   background: #2563eb;
   box-shadow: 0 12px 22px rgba(37, 99, 235, 0.34);
 }
-.next-btn:hover {
+.next-btn:hover:not(:disabled) {
   background: #1d4ed8;
   transform: translateY(-2px);
 }
@@ -3190,7 +3329,7 @@ watch(
   backdrop-filter: blur(5px);
 }
 .history-dialog {
-  width: min(560px, 100%);
+  width: min(720px, 100%);
   max-height: min(680px, calc(100vh - 36px));
   display: flex;
   flex-direction: column;
@@ -3243,6 +3382,50 @@ watch(
   background: rgba(255, 255, 255, 0.06);
   color: #f8fafc;
   cursor: pointer;
+}
+.history-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+.history-tab {
+  min-width: 0;
+  min-height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.68);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+.history-tab span:not(.material-symbols-outlined) {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.history-tab .material-symbols-outlined {
+  font-size: 18px;
+}
+.history-tab strong {
+  min-width: 22px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+  font-size: 11px;
+}
+.history-tab-active {
+  border-color: rgba(250, 204, 21, 0.52);
+  background: rgba(250, 204, 21, 0.16);
+  color: #fef3c7;
 }
 .history-dialog-empty {
   padding: 26px;
@@ -3816,9 +3999,14 @@ watch(
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
 }
 
-.cam-btn:hover:not(.disabled-btn) {
+.cam-btn:hover:not(.cam-active) {
   background: #334155;
   transform: translateY(-2px);
+}
+
+.cam-active {
+  background: #16a34a;
+  box-shadow: 0 8px 16px rgba(22, 163, 74, 0.28);
 }
 
 .mortgage-all-btn {
@@ -4023,7 +4211,7 @@ watch(
 }
 
 .history-dialog {
-  width: min(520px, 100%);
+  width: min(720px, 100%);
   max-height: min(680px, calc(100vh - 32px));
   border-radius: 12px;
   background: linear-gradient(

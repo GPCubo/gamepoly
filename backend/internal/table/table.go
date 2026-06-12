@@ -351,6 +351,7 @@ func (t *Table) doRollDice(pID string) {
 		fallthrough
 	default:
 		mr := game.MovePlayer(t.State, total)
+		t.addMovementHistory(mr, "dice", "", "")
 		t.Broadcast(proto.New("player_moved", proto.PlayerMovedPayload{
 			PlayerID: mr.PlayerID,
 			From:     mr.From,
@@ -407,10 +408,15 @@ func (t *Table) resolveLanding(pID string, diceTotal int) {
 		group := cardGroupForTile(pos)
 		card := game.DrawCard(t.State, group)
 		if card != nil {
+			t.State.AddCardHistory(game.NewCardHistoryItem(p, *card))
 			t.Broadcast(proto.New("card_drawn", proto.CardDrawnPayload{
-				PlayerID: pID,
-				CardID:   card.ID,
-				Text:     card.Text,
+				PlayerID:  pID,
+				CardID:    card.ID,
+				Group:     card.Group,
+				Text:      card.Text,
+				Action:    string(card.Action),
+				Amount:    card.Amount,
+				TileIndex: card.TileIndex,
 			}))
 		}
 		// Bots accept cards automatically
@@ -525,6 +531,12 @@ func (t *Table) doAcceptCard(pID string) {
 	diceTotal := t.State.DiceValues[0] + t.State.DiceValues[1]
 	result := game.ApplyCardEffect(t.State, pID, diceTotal)
 	if result.Moved {
+		t.addMovementHistory(game.MoveResult{
+			PlayerID: result.PlayerID,
+			From:     result.PrevPos,
+			To:       result.NewPos,
+			Path:     result.Path,
+		}, "card", result.Card.ID, result.Card.Text)
 		t.Broadcast(proto.New("player_moved", proto.PlayerMovedPayload{
 			PlayerID: result.PlayerID,
 			From:     result.PrevPos,
@@ -569,6 +581,24 @@ func (t *Table) delayActiveBotUntilMovementEnds(playerID string, pathLen int) {
 	if delay > t.nextBotDelay {
 		t.nextBotDelay = delay
 	}
+}
+
+func (t *Table) addMovementHistory(mr game.MoveResult, source string, cardID string, cardText string) {
+	p := t.State.FindPlayer(mr.PlayerID)
+	if p == nil {
+		return
+	}
+	t.State.AddMovementHistory(game.MovementHistoryItem{
+		PlayerID:   p.ID,
+		PlayerName: p.Name,
+		Source:     source,
+		DiceValues: t.State.DiceValues,
+		DiceTotal:  t.State.DiceValues[0] + t.State.DiceValues[1],
+		From:       mr.From,
+		To:         mr.To,
+		CardID:     cardID,
+		CardText:   cardText,
+	})
 }
 
 func (t *Table) executeBotStep() {

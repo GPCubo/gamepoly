@@ -111,6 +111,14 @@ func MovePlayer(gs *GameState, steps int) MoveResult {
 	if passedGo {
 		p.Cash += gs.GoSalary
 		gs.StatusMessage = fmt.Sprintf("¡%s pasó por la Salida y cobró $%d!", p.Name, gs.GoSalary)
+		amount := gs.GoSalary
+		gs.AddHistory(EconomicHistoryItem{
+			Type:      HistGo,
+			Title:     fmt.Sprintf("%s cobró Salida", p.Name),
+			Detail:    fmt.Sprintf("%s pasó por GO y recibió $%d", p.Name, amount),
+			Amount:    &amount,
+			PlayerIDs: []string{p.ID},
+		})
 	}
 
 	p.Position = target
@@ -440,14 +448,24 @@ func ApplyCardEffect(gs *GameState, playerID string, diceTotal int) CardResult {
 	case config.CardPayEach:
 		if card.Amount != nil {
 			amount := *card.Amount
+			participants := []string{playerID}
 			for _, other := range gs.ActivePlayers() {
 				if other.ID == playerID {
 					continue
 				}
 				p.Cash -= amount
 				other.Cash += amount
+				participants = append(participants, other.ID)
 			}
 			result.Amount = amount
+			gs.AddHistory(EconomicHistoryItem{
+				Type:      HistCardLoss,
+				Title:     fmt.Sprintf("%s pagó a cada jugador", p.Name),
+				Detail:    card.Text,
+				Amount:    &amount,
+				PlayerIDs: participants,
+			})
+			checkBankruptcy(gs, playerID)
 		}
 	case config.CardMoveTo:
 		if card.TileIndex != nil {
@@ -458,6 +476,14 @@ func ApplyCardEffect(gs *GameState, playerID string, diceTotal int) CardResult {
 			if collectGo && from > 0 {
 				p.Cash += gs.GoSalary
 				result.PassedGo = true
+				amount := gs.GoSalary
+				gs.AddHistory(EconomicHistoryItem{
+					Type:      HistGo,
+					Title:     fmt.Sprintf("%s cobró Salida", p.Name),
+					Detail:    card.Text,
+					Amount:    &amount,
+					PlayerIDs: []string{playerID},
+				})
 			}
 			path := movePath(p.Position, target)
 			p.Position = target
@@ -533,6 +559,14 @@ func BuildHouse(gs *GameState, playerID string, tileIndex int) {
 	d.Hotel = false
 	gs.SetDevelopment(tileIndex, d)
 	gs.StatusMessage = fmt.Sprintf("%s construyó una casa en %s por $%d", p.Name, tile.Name, cost)
+	gs.AddHistory(EconomicHistoryItem{
+		Type:      HistBuild,
+		Title:     fmt.Sprintf("%s construyó casa", p.Name),
+		Detail:    fmt.Sprintf("%s pagó $%d en %s", p.Name, cost, tile.Name),
+		Amount:    &cost,
+		PlayerIDs: []string{playerID},
+	})
+	checkBankruptcy(gs, playerID)
 }
 
 // BuildHotel builds a hotel on a property.
@@ -549,6 +583,14 @@ func BuildHotel(gs *GameState, playerID string, tileIndex int) {
 	d.Hotel = true
 	gs.SetDevelopment(tileIndex, d)
 	gs.StatusMessage = fmt.Sprintf("%s amplió %s a hotel por $%d", p.Name, tile.Name, cost)
+	gs.AddHistory(EconomicHistoryItem{
+		Type:      HistBuild,
+		Title:     fmt.Sprintf("%s construyó hotel", p.Name),
+		Detail:    fmt.Sprintf("%s pagó $%d en %s", p.Name, cost, tile.Name),
+		Amount:    &cost,
+		PlayerIDs: []string{playerID},
+	})
+	checkBankruptcy(gs, playerID)
 }
 
 // SellImprovement sells a house or hotel.
@@ -565,11 +607,25 @@ func SellImprovement(gs *GameState, playerID string, tileIndex int) {
 		d.Houses = 4
 		p.Cash += refund
 		gs.StatusMessage = fmt.Sprintf("%s vendió el hotel de %s por $%d", p.Name, tile.Name, refund)
+		gs.AddHistory(EconomicHistoryItem{
+			Type:      HistSellImprovement,
+			Title:     fmt.Sprintf("%s vendió hotel", p.Name),
+			Detail:    fmt.Sprintf("%s recibió $%d por %s", p.Name, refund, tile.Name),
+			Amount:    &refund,
+			PlayerIDs: []string{playerID},
+		})
 	} else if d.Houses > 0 {
 		refund := config.HouseCostForPrice(*tile.Price) / 2
 		d.Houses = max0(d.Houses-1, 0)
 		p.Cash += refund
 		gs.StatusMessage = fmt.Sprintf("%s vendió una casa de %s por $%d", p.Name, tile.Name, refund)
+		gs.AddHistory(EconomicHistoryItem{
+			Type:      HistSellImprovement,
+			Title:     fmt.Sprintf("%s vendió casa", p.Name),
+			Detail:    fmt.Sprintf("%s recibió $%d por %s", p.Name, refund, tile.Name),
+			Amount:    &refund,
+			PlayerIDs: []string{playerID},
+		})
 	}
 	gs.SetDevelopment(tileIndex, d)
 }
@@ -609,6 +665,14 @@ func UnmortgageProperty(gs *GameState, playerID string, tileIndex int) {
 	gs.SetDevelopment(tileIndex, d)
 	p.Cash -= cost
 	gs.StatusMessage = fmt.Sprintf("%s levantó la hipoteca de %s por $%d", p.Name, tile.Name, cost)
+	gs.AddHistory(EconomicHistoryItem{
+		Type:      HistUnmortgage,
+		Title:     fmt.Sprintf("%s levantó hipoteca", p.Name),
+		Detail:    fmt.Sprintf("%s pagó $%d por %s", p.Name, cost, tile.Name),
+		Amount:    &cost,
+		PlayerIDs: []string{playerID},
+	})
+	checkBankruptcy(gs, playerID)
 }
 
 // DeclareBankruptcy removes a player from the game.

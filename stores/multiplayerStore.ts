@@ -59,6 +59,34 @@ export interface MPEconomicHistoryItem {
   createdAt: number
 }
 
+export interface MPMovementHistoryItem {
+  id: number
+  playerId: string
+  playerName: string
+  source: 'dice' | 'card' | string
+  diceValues: [number, number]
+  diceTotal: number
+  from: number
+  to: number
+  cardId?: string
+  cardText?: string
+  createdAt: number
+}
+
+export interface MPCardHistoryItem {
+  id: number
+  playerId: string
+  playerName: string
+  cardId: string
+  group: 'chance' | 'community'
+  text: string
+  action: string
+  amount?: number
+  tileIndex?: number
+  effect: string
+  createdAt: number
+}
+
 export interface MPGameState {
   phase: 'setup' | 'playing'
   tableId: string
@@ -81,6 +109,8 @@ export interface MPGameState {
   exchangeProposal: MPExchangeProposal | null
   activeCard: MPGameCard | null
   economicHistory: MPEconomicHistoryItem[]
+  movementHistory: MPMovementHistoryItem[]
+  cardHistory: MPCardHistoryItem[]
 }
 
 export const useMultiplayerStore = defineStore('multiplayer', () => {
@@ -91,6 +121,7 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
   const botActionMessage = ref('')
   const playerConnectedEvent = ref<{ playerId: string; name: string } | null>(null)
   const playerDisconnectedEvent = ref<{ playerId: string; gracePeriodMs: number } | null>(null)
+  const isCamFollowActive = ref(true)
 
   // ─── game state (null until connected) ───────────────────────────────────
   const state = ref<MPGameState | null>(null)
@@ -117,6 +148,8 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
   const exchangeProposal = computed(() => state.value?.exchangeProposal ?? null)
   const activeCard = computed(() => state.value?.activeCard ?? null)
   const economicHistory = computed(() => state.value?.economicHistory ?? [])
+  const movementHistory = computed(() => state.value?.movementHistory ?? [])
+  const cardHistory = computed(() => state.value?.cardHistory ?? [])
 
   const activePlayers = computed(() =>
     (state.value?.players ?? []).filter(p => !(state.value?.bankruptPlayers ?? []).includes(p.id))
@@ -164,12 +197,17 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
     playerDisconnectedEvent.value = payload
   }
 
+  function toggleCameraFollow() {
+    isCamFollowActive.value = !isCamFollowActive.value
+  }
+
   function reset() {
     state.value = null
     tableId.value = ''
     myPlayerId.value = ''
     isBotThinking.value = false
     botActionMessage.value = ''
+    isCamFollowActive.value = true
   }
 
   return {
@@ -180,6 +218,7 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
     botActionMessage,
     playerConnectedEvent,
     playerDisconnectedEvent,
+    isCamFollowActive,
     // state
     state,
     // getters
@@ -203,6 +242,8 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
     exchangeProposal,
     activeCard,
     economicHistory,
+    movementHistory,
+    cardHistory,
     activePlayers,
     winner,
     hasAnyPropertyOwned,
@@ -214,6 +255,7 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
     setBotThinking,
     setPlayerConnected,
     setPlayerDisconnected,
+    toggleCameraFollow,
     reset,
   }
 })

@@ -1,6 +1,10 @@
 package game
 
-import "gamepolyweb/backend/internal/config"
+import (
+	"time"
+
+	"gamepolyweb/backend/internal/config"
+)
 
 type Phase string
 
@@ -48,14 +52,18 @@ type ExchangeProposal struct {
 type EconomicHistoryType string
 
 const (
-	HistPurchase EconomicHistoryType = "purchase"
-	HistAuction  EconomicHistoryType = "auction"
-	HistMortgage EconomicHistoryType = "mortgage"
-	HistCardGain EconomicHistoryType = "card_gain"
-	HistCardLoss EconomicHistoryType = "card_loss"
-	HistTax      EconomicHistoryType = "tax"
-	HistRent     EconomicHistoryType = "rent"
-	HistExchange EconomicHistoryType = "exchange"
+	HistPurchase        EconomicHistoryType = "purchase"
+	HistAuction         EconomicHistoryType = "auction"
+	HistMortgage        EconomicHistoryType = "mortgage"
+	HistUnmortgage      EconomicHistoryType = "unmortgage"
+	HistGo              EconomicHistoryType = "go"
+	HistBuild           EconomicHistoryType = "build"
+	HistSellImprovement EconomicHistoryType = "sell_improvement"
+	HistCardGain        EconomicHistoryType = "card_gain"
+	HistCardLoss        EconomicHistoryType = "card_loss"
+	HistTax             EconomicHistoryType = "tax"
+	HistRent            EconomicHistoryType = "rent"
+	HistExchange        EconomicHistoryType = "exchange"
 )
 
 type EconomicHistoryItem struct {
@@ -65,7 +73,7 @@ type EconomicHistoryItem struct {
 	Detail    string              `json:"detail"`
 	Amount    *int                `json:"amount,omitempty"`
 	PlayerIDs []string            `json:"playerIds"`
-	CreatedAt int64               `json:"createdAt"`
+	CreatedAt int64              `json:"createdAt"`
 }
 
 // AuctionState holds all state for an ongoing auction.
@@ -95,9 +103,9 @@ type GameState struct {
 	AuctionOnly                 bool           `json:"auctionOnly"`
 	DoublesGiveExtra            bool           `json:"doublesGiveExtraTurn"`
 
-	PropertyOwners      map[int]string          `json:"propertyOwners"`
+	PropertyOwners       map[int]string              `json:"propertyOwners"`
 	PropertyDevelopments map[int]PropertyDevelopment `json:"propertyDevelopments"`
-	BankruptPlayers     []string                `json:"bankruptPlayers"`
+	BankruptPlayers      []string                    `json:"bankruptPlayers"`
 
 	IsAuctionActive     bool                    `json:"isAuctionActive"`
 	Auction             *AuctionState           `json:"auction,omitempty"`
@@ -107,8 +115,12 @@ type GameState struct {
 	ChanceDeck    []int            `json:"chanceDeck"`
 	CommunityDeck []int            `json:"communityDeck"`
 
-	EconomicHistory []EconomicHistoryItem `json:"economicHistory"`
-	HistoryCounter  int                   `json:"-"`
+	EconomicHistory        []EconomicHistoryItem `json:"economicHistory"`
+	MovementHistory        []MovementHistoryItem `json:"movementHistory"`
+	CardHistory            []CardHistoryItem     `json:"cardHistory"`
+	HistoryCounter         int                   `json:"-"`
+	MovementHistoryCounter int                   `json:"-"`
+	CardHistoryCounter     int                   `json:"-"`
 }
 
 // helpers
@@ -170,6 +182,7 @@ func (gs *GameState) SetDevelopment(tileIndex int, d PropertyDevelopment) {
 func (gs *GameState) AddHistory(item EconomicHistoryItem) {
 	gs.HistoryCounter++
 	item.ID = gs.HistoryCounter
+	item.CreatedAt = time.Now().UnixMilli()
 	gs.EconomicHistory = append([]EconomicHistoryItem{item}, gs.EconomicHistory...)
 	if len(gs.EconomicHistory) > 100 {
 		gs.EconomicHistory = gs.EconomicHistory[:100]
@@ -200,5 +213,7 @@ func NewGameState(tableID string) *GameState {
 		JailBailCost:         50,
 		DoublesGiveExtra:     true,
 		EconomicHistory:      []EconomicHistoryItem{},
+		MovementHistory:      []MovementHistoryItem{},
+		CardHistory:          []CardHistoryItem{},
 	}
 }

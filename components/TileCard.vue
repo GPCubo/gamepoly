@@ -641,11 +641,11 @@ const CURRENCY_SYMBOL = GAME_CONFIG.CURRENCY_SYMBOL;
 
 const props = defineProps<{
   tile: BoardTile;
-  ownerId?: number;
+  ownerId?: number | string;
   ownerName?: string;
   ownerColor?: string;
   rentAmount?: number;
-  activePlayerId: number;
+  activePlayerId: number | string;
   activePlayerCash: number;
   canSkipBuy: boolean;
   auctionOnly: boolean;

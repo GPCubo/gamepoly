@@ -118,7 +118,11 @@ type AuctionEndedPayload struct {
 type CardDrawnPayload struct {
 	PlayerID string `json:"playerId"`
 	CardID   string `json:"cardId"`
+	Group    string `json:"group"`
 	Text     string `json:"text"`
+	Action   string `json:"action"`
+	Amount   *int   `json:"amount,omitempty"`
+	TileIndex *int   `json:"tileIndex,omitempty"`
 }
 
 type RentCollectedPayload struct {
