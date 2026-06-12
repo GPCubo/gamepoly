@@ -185,7 +185,51 @@ func difficultDecideBuy(gs *GameState, playerID string, tile *config.BoardTile) 
 		}
 		return BotAction{Type: BotPassBuy}
 	}
+	if shouldDifficultForceAuction(gs, playerID, tile) {
+		return BotAction{Type: BotPassBuy}
+	}
 	return BotAction{Type: BotBuyProperty, TileIndex: tile.Index}
+}
+
+func shouldDifficultForceAuction(gs *GameState, playerID string, tile *config.BoardTile) bool {
+	p := gs.FindPlayer(playerID)
+	if p == nil || tile.Price == nil {
+		return false
+	}
+	price := *tile.Price
+	if p.Cash < price {
+		return false
+	}
+
+	opponents := 0
+	richestOpponentCash := 0
+	for _, opponent := range gs.ActivePlayers() {
+		if opponent.ID == playerID {
+			continue
+		}
+		opponents++
+		if opponent.Cash > richestOpponentCash {
+			richestOpponentCash = opponent.Cash
+		}
+	}
+	if opponents == 0 {
+		return false
+	}
+
+	maxBid := int(float64(p.Cash) * 0.6)
+	opponentCashThreshold := int(float64(price) * 0.75)
+	if tile.Type == config.TileTypeProperty {
+		groupTiles := config.GetGroupTiles(tile.Group, config.TileTypeProperty)
+		owned := countOwnedInGroup(gs, playerID, groupTiles)
+		if owned == len(groupTiles)-1 {
+			maxBid = int(float64(p.Cash) * 0.8)
+			opponentCashThreshold = int(float64(price) * 0.55)
+		}
+	}
+	if maxBid <= richestOpponentCash+10 {
+		return false
+	}
+	return richestOpponentCash <= opponentCashThreshold
 }
 
 func difficultAuctionBid(gs *GameState, playerID string, tile *config.BoardTile) int {

@@ -2382,7 +2382,7 @@ watch(
 </script>
 
 <style scoped>
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700;800&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1");
 
 .mp-game-page {
   position: relative;
@@ -3333,6 +3333,7 @@ watch(
   max-height: min(680px, calc(100vh - 36px));
   display: flex;
   flex-direction: column;
+  font-family: "JetBrains Mono", monospace;
   border: 1px solid rgba(255, 255, 255, 0.14);
   border-radius: 8px;
   background: rgba(10, 16, 25, 0.96);
