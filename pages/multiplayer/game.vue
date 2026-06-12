@@ -1039,9 +1039,13 @@ const overlayKeyboardEnabled = computed(
     !isMovementLocked.value,
 );
 
+const overlayAutoFocusEnabled = computed(
+  () => overlayKeyboardEnabled.value && mpStore.isMyTurn,
+);
+
 useKeyboardNavigation(actionRefs, {
   direction: "horizontal",
-  autoFocusOn: overlayKeyboardEnabled,
+  autoFocusOn: overlayAutoFocusEnabled,
   enabled: overlayKeyboardEnabled,
   loop: true,
 });
@@ -1662,16 +1666,12 @@ function onMortgageAll() {
 
 function focusPrimaryAction() {
   nextTick(() => {
-    if (!overlayKeyboardEnabled.value) return;
-    if (mpStore.isMyTurn && mpStore.isTurnComplete) {
+    if (!overlayKeyboardEnabled.value || !mpStore.isMyTurn) return;
+    if (mpStore.isTurnComplete) {
       nextBtnRef.value?.focus();
       return;
     }
-    if (mpStore.isMyTurn) {
-      rollBtnRef.value?.focus();
-      return;
-    }
-    configBtnRef.value?.focus();
+    rollBtnRef.value?.focus();
   });
 }
 
