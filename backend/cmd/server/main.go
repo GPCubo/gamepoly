@@ -14,6 +14,9 @@ import (
 	"gamepolyweb/backend/internal/table"
 )
 
+// Compile-time check: store.FinishedGameRepository implements table.FinishedGameRepo.
+var _ table.FinishedGameRepo = (*store.FinishedGameRepository)(nil)
+
 func main() {
 	port := os.Getenv("PORT")
 	if port == "" {
@@ -35,8 +38,31 @@ func main() {
 		log.Printf("✓ Redis connected at %s", redisAddr)
 	}
 
+	// PostgreSQL (optional — enabled by ENABLE_FINISHED_GAME_PERSISTENCE=true)
+	pgCtx, pgCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer pgCancel()
+	pg, err := store.NewPostgresStoreFromEnv(pgCtx)
+	if err != nil {
+		log.Printf("⚠  Postgres not available (%v) — finished game persistence disabled", err)
+	} else if pg != nil {
+		log.Printf("✓ Postgres connected")
+		if err := pg.RunMigrations(pgCtx); err != nil {
+			log.Printf("⚠  Postgres migrations failed: %v", err)
+			pg.Close()
+			pg = nil
+		} else {
+			log.Printf("✓ Postgres migrations OK")
+			defer pg.Close()
+		}
+	}
+
+	var finishedGameRepo table.FinishedGameRepo
+	if pg != nil {
+		finishedGameRepo = store.NewFinishedGameRepository(pg)
+	}
+
 	// Table manager
-	mgr := table.NewManager()
+	mgr := table.NewManager(finishedGameRepo)
 
 	// HTTP router
 	router := api.NewRouter(mgr, rs)

@@ -809,7 +809,11 @@ func ExecuteExchange(gs *GameState) {
 		Detail:    fmt.Sprintf("Props: %v ↔ %v | Cash: $%d ↔ $%d", p.OfferProperties, p.RequestProperties, p.OfferMoney, p.RequestMoney),
 		PlayerIDs: []string{p.FromPlayerID, p.ToPlayerID},
 	})
+	fromID := p.FromPlayerID
+	toID := p.ToPlayerID
 	gs.ExchangeProposal = nil
+	checkBankruptcy(gs, fromID)
+	checkBankruptcy(gs, toID)
 }
 
 // checkBankruptcy declares bankruptcy if the player can't recover.

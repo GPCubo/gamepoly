@@ -72,7 +72,7 @@
           <span class="section-label">SLOTS</span>
           <div class="slots-grid">
             <div
-              v-for="(slot, idx) in slots"
+              v-for="(slot, idx) in visibleSlots"
               :key="idx"
               class="slot-card"
               :class="'slot-accent-' + (idx + 1)"
@@ -141,7 +141,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { computed, ref, reactive } from 'vue'
 import { useMultiplayerStore } from '~/stores/multiplayerStore'
 import { getApiBaseUrl } from '~/utils/env'
 import { GAME_CONFIG } from '~/config/gameConfig'
@@ -171,6 +171,7 @@ const slots = reactive<SlotDef[]>([
   { type: 'bot_regular' },
   { type: 'open' },
 ])
+const visibleSlots = computed(() => slots.slice(0, slotCount.value))
 
 function setSlotCount(n: number) {
   slotCount.value = n

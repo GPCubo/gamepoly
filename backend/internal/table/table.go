@@ -4,6 +4,7 @@
 package table
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
@@ -15,6 +16,12 @@ import (
 
 	gorilla "github.com/gorilla/websocket"
 )
+
+// FinishedGameRepo is implemented by store.FinishedGameRepository.
+// Defined here to avoid an import cycle (table → store → game → table).
+type FinishedGameRepo interface {
+	SaveFinishedGame(ctx context.Context, tableID string, gs *game.GameState, reason string, startedAt time.Time) error
+}
 
 // PlayerConn wraps a WebSocket connection with a buffered send channel.
 type PlayerConn struct {
@@ -63,6 +70,11 @@ type Table struct {
 	// botTradeLastProposed tracks when each bot last proposed an exchange,
 	// used to enforce cooldowns and prevent spam.
 	botTradeLastProposed map[string]time.Time
+
+	// repo persists finished games to PostgreSQL. nil when not configured.
+	repo      FinishedGameRepo
+	// persisted ensures we only write to Postgres once per table lifetime.
+	persisted bool
 }
 
 const (
@@ -76,7 +88,7 @@ const (
 )
 
 // NewTable builds a Table from pre-built slots and starts the game.
-func NewTable(id string, slots []PlayerSlot, opts game.GameOptions) *Table {
+func NewTable(id string, slots []PlayerSlot, opts game.GameOptions, repo FinishedGameRepo) *Table {
 	gs := game.NewGameState(id)
 	slotConfigs := make([]game.SlotConfig, len(slots))
 	for i, s := range slots {
@@ -108,6 +120,7 @@ func NewTable(id string, slots []PlayerSlot, opts game.GameOptions) *Table {
 		lastActivity:         time.Now(),
 		StartedAt:            time.Now(),
 		botTradeLastProposed: make(map[string]time.Time),
+		repo:                 repo,
 	}
 	t.botTimer = time.NewTimer(0)
 	t.botTimer.Stop()
@@ -145,6 +158,7 @@ func (t *Table) Run() {
 
 		case <-t.inactiveTimer.C:
 			log.Printf("table %s: inactivity timeout", t.ID)
+			t.saveFinishedGame("inactivity_timeout")
 			t.Close()
 			return
 
@@ -183,11 +197,26 @@ func (t *Table) RemoveConn(playerID string) {
 	if slot, ok := t.Slots[playerID]; ok {
 		slot.Conn = nil
 	}
+	anyHuman := false
+	for _, s := range t.Slots {
+		if !s.IsBot && s.Conn != nil {
+			anyHuman = true
+			break
+		}
+	}
 	t.mu.Unlock()
+
 	t.Broadcast(proto.New("player_disconnected", proto.PlayerDisconnectedPayload{
 		PlayerID:      playerID,
 		GracePeriodMs: gracePeriodMs,
 	}))
+
+	if !anyHuman {
+		select {
+		case t.Inbox <- IncomingAction{Type: "all_humans_left"}:
+		default:
+		}
+	}
 }
 
 // Broadcast sends a message to all connected players.
@@ -304,9 +333,13 @@ func (t *Table) processAction(a IncomingAction) {
 	case "respond_trade":
 		var p proto.RespondTradePayload
 		if json.Unmarshal(a.Payload, &p) == nil {
-			if p.Accepted {
+			if p.Accepted && t.State.ExchangeProposal != nil {
+				fromID := t.State.ExchangeProposal.FromPlayerID
+				toID := t.State.ExchangeProposal.ToPlayerID
 				game.ExecuteExchange(t.State)
 				t.Broadcast(proto.New("trade_responded", proto.TradeRespondedPayload{Accepted: true, Summary: "Intercambio realizado"}))
+				t.checkBankruptBroadcast(fromID)
+				t.checkBankruptBroadcast(toID)
 			} else {
 				t.State.ExchangeProposal = nil
 				t.Broadcast(proto.New("trade_responded", proto.TradeRespondedPayload{Accepted: false}))
@@ -316,6 +349,9 @@ func (t *Table) processAction(a IncomingAction) {
 		t.doAcceptCard(pID)
 	case "heartbeat":
 		// no-op
+	case "all_humans_left":
+		t.saveFinishedGame("all_humans_left")
+		t.Close()
 	}
 }
 
@@ -346,7 +382,10 @@ func (t *Table) doRollDice(pID string) {
 	doublesResult := game.CheckDoubles(t.State)
 	switch doublesResult {
 	case game.DoublesJail:
-		t.Broadcast(proto.New("player_jailed", proto.PlayerJailedPayload{PlayerID: pID}))
+		t.Broadcast(proto.New("player_jailed", proto.PlayerJailedPayload{
+			PlayerID: pID,
+			Reason:   "Saco dobles tres veces seguidas.",
+		}))
 		t.State.IsTurnComplete = true
 		return
 	case game.DoublesExtra:
@@ -431,7 +470,10 @@ func (t *Table) resolveLanding(pID string, diceTotal int) {
 		}
 
 	case game.ResolutionJail:
-		t.Broadcast(proto.New("player_jailed", proto.PlayerJailedPayload{PlayerID: pID}))
+		t.Broadcast(proto.New("player_jailed", proto.PlayerJailedPayload{
+			PlayerID: pID,
+			Reason:   "Cayo en la casilla 30: Ve a la Carcel.",
+		}))
 		t.State.IsTurnComplete = true
 
 	case game.ResolutionFree:
@@ -553,7 +595,10 @@ func (t *Table) doAcceptCard(pID string) {
 		t.resolveLanding(pID, diceTotal)
 	}
 	if result.Jailed {
-		t.Broadcast(proto.New("player_jailed", proto.PlayerJailedPayload{PlayerID: pID}))
+		t.Broadcast(proto.New("player_jailed", proto.PlayerJailedPayload{
+			PlayerID: pID,
+			Reason:   fmt.Sprintf("Carta de %s: %s", cardGroupLabel(result.Card.Group), result.Card.Text),
+		}))
 		t.State.IsTurnComplete = true
 	}
 	if !result.Moved && !result.Jailed {
@@ -703,6 +748,9 @@ func (t *Table) executeBotStep() {
 		case game.BotMortgage:
 			payload, _ = json.Marshal(proto.MortgagePayload{TileIndex: a.TileIndex})
 			actionType = "mortgage"
+		case game.BotSellImprovement:
+			payload, _ = json.Marshal(proto.BuildPayload{TileIndex: a.TileIndex})
+			actionType = "sell_improvement"
 		case game.BotPayBail:
 			actionType = "pay_bail"
 		case game.BotNextTurn:
@@ -753,7 +801,24 @@ func (t *Table) currentAuctionBidderID() string {
 func (t *Table) checkGameOver() {
 	if w := t.State.Winner(); w != nil {
 		t.Broadcast(proto.New("game_over", proto.GameOverPayload{WinnerID: w.ID}))
+		t.saveFinishedGame("game_over")
 		t.Close()
+	}
+}
+
+// saveFinishedGame persists the game exactly once. Safe to call from the
+// Run() goroutine only (no locking needed for t.persisted).
+func (t *Table) saveFinishedGame(reason string) {
+	if t.repo == nil || t.persisted {
+		return
+	}
+	t.persisted = true
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := t.repo.SaveFinishedGame(ctx, t.ID, t.State, reason, t.StartedAt); err != nil {
+		log.Printf("[postgres] save game %s failed (%s): %v", t.ID, reason, err)
+	} else {
+		log.Printf("[postgres] saved game %s (%s)", t.ID, reason)
 	}
 }
 
@@ -769,6 +834,13 @@ func cardGroupForTile(pos int) string {
 		return "chance"
 	}
 	return "community"
+}
+
+func cardGroupLabel(group string) string {
+	if group == "chance" {
+		return "Suerte"
+	}
+	return "Arca Comunal"
 }
 
 func (t *Table) writePump(conn *PlayerConn) {

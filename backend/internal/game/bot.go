@@ -10,17 +10,18 @@ import (
 type BotActionType string
 
 const (
-	BotRollDice    BotActionType = "roll_dice"
-	BotBuyProperty BotActionType = "buy_property"
-	BotPassBuy     BotActionType = "pass_buy"
-	BotPayBail     BotActionType = "pay_bail"
-	BotNextTurn    BotActionType = "next_turn"
-	BotPlaceBid    BotActionType = "place_bid"
-	BotPassBid     BotActionType = "pass_bid"
-	BotBuildHouse  BotActionType = "build_house"
-	BotBuildHotel  BotActionType = "build_hotel"
-	BotMortgage    BotActionType = "mortgage"
-	BotAcceptCard  BotActionType = "accept_card"
+	BotRollDice       BotActionType = "roll_dice"
+	BotBuyProperty    BotActionType = "buy_property"
+	BotPassBuy        BotActionType = "pass_buy"
+	BotPayBail        BotActionType = "pay_bail"
+	BotNextTurn       BotActionType = "next_turn"
+	BotPlaceBid       BotActionType = "place_bid"
+	BotPassBid        BotActionType = "pass_bid"
+	BotBuildHouse     BotActionType = "build_house"
+	BotBuildHotel     BotActionType = "build_hotel"
+	BotMortgage       BotActionType = "mortgage"
+	BotSellImprovement BotActionType = "sell_improvement"
+	BotAcceptCard     BotActionType = "accept_card"
 )
 
 type BotAction struct {
@@ -46,9 +47,9 @@ func DecideBotTurn(gs *GameState) []BotAction {
 	// Turn complete — check builds/mortgages then next turn
 	if gs.IsTurnComplete {
 		if p.Cash < 0 {
-			// Emergency mortgage
-			mortgages := decideMortgages(gs, p.ID, p.BotDifficulty)
-			actions = append(actions, mortgages...)
+			// Emergency liquidation: sell improvements first, then mortgage
+			liquidation := decideEmergencyLiquidation(gs, p.ID)
+			actions = append(actions, liquidation...)
 		} else {
 			builds := decideBuilds(gs, p.ID, p.BotDifficulty)
 			actions = append(actions, builds...)
@@ -347,8 +348,30 @@ func decideBuilds(gs *GameState, playerID string, difficulty BotDifficulty) []Bo
 	return actions
 }
 
-func decideMortgages(gs *GameState, playerID string, difficulty BotDifficulty) []BotAction {
+// decideEmergencyLiquidation returns sell-improvement and mortgage actions to
+// cover a negative cash balance. It sells improvements first (required before
+// mortgaging a group) and then mortgages free properties. Batched at 3 actions
+// per call so the game loop re-evaluates state after each round.
+func decideEmergencyLiquidation(gs *GameState, playerID string) []BotAction {
 	var actions []BotAction
+
+	// Pass 1: sell improvements (hotels then houses) to unblock mortgaging
+	for _, tile := range config.BoardTiles {
+		if tile.Type != config.TileTypeProperty || tile.Price == nil {
+			continue
+		}
+		if gs.PropertyOwners[tile.Index] != playerID {
+			continue
+		}
+		if CanSellImprovement(gs, playerID, tile.Index) == nil {
+			actions = append(actions, BotAction{Type: BotSellImprovement, TileIndex: tile.Index})
+			if len(actions) >= 3 {
+				return actions
+			}
+		}
+	}
+
+	// Pass 2: mortgage unencumbered properties
 	for _, tile := range config.BoardTiles {
 		if tile.Price == nil {
 			continue
@@ -358,11 +381,12 @@ func decideMortgages(gs *GameState, playerID string, difficulty BotDifficulty) [
 		}
 		if CanMortgage(gs, playerID, tile.Index) == nil {
 			actions = append(actions, BotAction{Type: BotMortgage, TileIndex: tile.Index})
-			if len(actions) >= 2 {
-				break
+			if len(actions) >= 3 {
+				return actions
 			}
 		}
 	}
+
 	return actions
 }
 

@@ -23,6 +23,11 @@ Guía completa para subir el servidor Go a producción. Cubre tres escenarios en
 | `REDIS_PASSWORD` | _(vacío)_ | Contraseña Redis (requerida en prod) |
 | `JWT_SECRET` | `dev-secret-change-in-production` | **Cambiar siempre en producción** |
 | `ENVIRONMENT` | _(no definido)_ | Poner `production` para deshabilitar CORS abierto |
+| `ENABLE_FINISHED_GAME_PERSISTENCE` | `false` | Activar guardado en PostgreSQL al terminar partidas |
+| `POSTGRES_DSN` | _(vacío)_ | Cadena de conexión: `postgres://user:pass@host:5432/db?sslmode=disable` |
+| `POSTGRES_MAX_CONNS` | `10` | Máximo de conexiones en el pool |
+| `POSTGRES_MIN_CONNS` | `1` | Mínimo de conexiones en el pool |
+| `POSTGRES_CONNECT_TIMEOUT_SECONDS` | `5` | Timeout de conexión en segundos |
 
 ---
 
@@ -436,6 +441,177 @@ ss -tnp | grep 8080 | wc -l
 
 # Memoria Redis
 redis-cli -a TU_PASSWORD info memory | grep used_memory_human
+```
+
+---
+
+## Acceso al servidor Tarragona
+
+El servidor de producción está configurado como alias `Tarragona_server` en `~/.ssh/config`.
+
+### Conectar
+
+```bash
+ssh Tarragona_server
+```
+
+### Ver IPs del servidor (una vez dentro)
+
+```bash
+# IP pública principal
+curl -s ifconfig.me && echo
+
+# Todas las interfaces de red
+ip addr show | grep 'inet ' | awk '{print $2}'
+
+# Sólo la IP de la interfaz eth0 (o ens3/ens18 según el VPS)
+ip addr show eth0 | grep 'inet ' | awk '{print $2}' | cut -d/ -f1
+```
+
+### Comandos útiles desde fuera (sin entrar)
+
+```bash
+# Ver logs del backend en tiempo real
+ssh Tarragona_server "journalctl -u gamepoly -f"
+
+# Reiniciar el backend
+ssh Tarragona_server "sudo systemctl restart gamepoly"
+
+# Estado de todos los servicios relevantes
+ssh Tarragona_server "systemctl status gamepoly redis postgresql --no-pager"
+
+# Uso de disco
+ssh Tarragona_server "df -h / /var"
+```
+
+---
+
+## PostgreSQL — Persistencia de partidas finalizadas
+
+Partidas terminadas (por victoria, abandono de todos los humanos o timeout de inactividad) se guardan en PostgreSQL cuando `ENABLE_FINISHED_GAME_PERSISTENCE=true`.
+
+### Instalar PostgreSQL
+
+```bash
+ssh Tarragona_server
+sudo apt update
+sudo apt install -y postgresql postgresql-contrib
+sudo systemctl enable postgresql
+sudo systemctl start postgresql
+sudo systemctl status postgresql --no-pager
+```
+
+### Crear usuario y base de datos
+
+```bash
+sudo -u postgres psql
+```
+
+Dentro de `psql`:
+
+```sql
+CREATE USER gamepoly WITH PASSWORD 'CAMBIA_ESTA_PASSWORD';
+CREATE DATABASE gamepoly OWNER gamepoly;
+GRANT ALL PRIVILEGES ON DATABASE gamepoly TO gamepoly;
+\q
+```
+
+### Probar conexión
+
+```bash
+psql "postgres://gamepoly:CAMBIA_ESTA_PASSWORD@127.0.0.1:5432/gamepoly?sslmode=disable" \
+  -c "SELECT NOW();"
+```
+
+### Agregar variables al servicio systemd
+
+```bash
+sudo systemctl edit gamepoly
+```
+
+Añadir (reemplaza la password real):
+
+```ini
+[Service]
+Environment=ENABLE_FINISHED_GAME_PERSISTENCE=true
+Environment=POSTGRES_DSN=postgres://gamepoly:CAMBIA_ESTA_PASSWORD@127.0.0.1:5432/gamepoly?sslmode=disable
+Environment=POSTGRES_MAX_CONNS=10
+Environment=POSTGRES_MIN_CONNS=1
+Environment=POSTGRES_CONNECT_TIMEOUT_SECONDS=5
+```
+
+Recargar y reiniciar:
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart gamepoly
+sudo journalctl -u gamepoly -f
+# Debe aparecer: ✓ Postgres connected
+#                ✓ Postgres migrations OK
+```
+
+### Compilar con la nueva dependencia pgx
+
+La primera vez después de agregar `pgx/v5` hay que descargar los módulos:
+
+```bash
+ssh Tarragona_server "cd /home/gamepoly && git pull && cd backend && go mod tidy && go mod download"
+```
+
+Después el build normal ya funciona:
+
+```bash
+ssh Tarragona_server "cd /home/gamepoly/backend && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /usr/local/bin/gamepoly-server ./cmd/server && systemctl restart gamepoly && echo OK"
+```
+
+### Verificar datos guardados (prueba manual)
+
+```bash
+# Conectar a psql
+ssh Tarragona_server "psql 'postgres://gamepoly:CAMBIA_ESTA_PASSWORD@127.0.0.1:5432/gamepoly?sslmode=disable'"
+```
+
+Consultas de verificación dentro de `psql`:
+
+```sql
+-- Ver partidas guardadas
+SELECT table_id, finish_reason, player_count, turn_count, winner_player_id, finished_at
+FROM finished_games
+ORDER BY finished_at DESC
+LIMIT 10;
+
+-- Ver jugadores de la última partida
+SELECT player_name, is_bot, bot_difficulty, final_cash, is_bankrupt, is_winner, property_count
+FROM finished_game_players
+WHERE table_id = (SELECT table_id FROM finished_games ORDER BY finished_at DESC LIMIT 1);
+
+-- Ver historial económico de la última partida
+SELECT event_seq, event_type, title, amount
+FROM finished_game_economic_events
+WHERE table_id = (SELECT table_id FROM finished_games ORDER BY finished_at DESC LIMIT 1)
+ORDER BY event_seq
+LIMIT 20;
+
+-- Contar eventos de la última partida
+SELECT
+  (SELECT COUNT(*) FROM finished_game_economic_events WHERE table_id = fg.table_id) AS economic_events,
+  (SELECT COUNT(*) FROM finished_game_movements       WHERE table_id = fg.table_id) AS movements,
+  (SELECT COUNT(*) FROM finished_game_cards           WHERE table_id = fg.table_id) AS cards
+FROM finished_games fg
+ORDER BY finished_at DESC
+LIMIT 1;
+
+-- Ver migraciones aplicadas
+SELECT * FROM schema_migrations;
+
+-- Salir
+\q
+```
+
+### Backup manual de la base de datos
+
+```bash
+ssh Tarragona_server "pg_dump -U gamepoly -h 127.0.0.1 gamepoly | gzip > /home/gamepoly/backup-gamepoly-\$(date +%Y%m%d).sql.gz"
 ```
 
 ---

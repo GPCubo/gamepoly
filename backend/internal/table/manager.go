@@ -13,11 +13,13 @@ import (
 type Manager struct {
 	tables map[string]*Table
 	mu     sync.RWMutex
+	repo   FinishedGameRepo // nil when Postgres not configured
 }
 
-func NewManager() *Manager {
+func NewManager(repo FinishedGameRepo) *Manager {
 	return &Manager{
 		tables: make(map[string]*Table),
+		repo:   repo,
 	}
 }
 
@@ -71,7 +73,7 @@ func (m *Manager) Create(req CreateRequest) (*CreateResult, error) {
 		creatorPlayerID = slots[0].ID
 	}
 
-	t := NewTable(tableID, slots, req.Opts)
+	t := NewTable(tableID, slots, req.Opts, m.repo)
 	m.mu.Lock()
 	m.tables[tableID] = t
 	m.mu.Unlock()

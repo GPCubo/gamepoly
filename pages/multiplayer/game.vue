@@ -279,6 +279,19 @@
         <p>{{ mpStore.statusMessage }}</p>
       </div>
 
+      <!-- Debt warning: shown when player has recoverable negative cash -->
+      <div v-if="isMyDebtPending && mpStore.isMyTurn" class="debt-warning">
+        <span class="material-symbols-outlined debt-warning-icon">account_balance_wallet</span>
+        <div class="debt-warning-copy">
+          <strong>Deuda pendiente: ${{ Math.abs(myPlayer?.cash ?? 0).toLocaleString() }}</strong>
+          <span>Vende mejoras o hipoteca propiedades en <strong>Configuración</strong> para cubrir la deuda.</span>
+        </div>
+        <button class="debt-config-btn" @click="sidebarOpen = true">
+          <span class="material-symbols-outlined">settings</span>
+          Gestionar
+        </button>
+      </div>
+
       <div class="action-buttons">
         <!-- Bot thinking -->
         <div v-if="mpStore.isBotThinking" class="bot-thinking-indicator">
@@ -320,7 +333,7 @@
           <button
             ref="nextBtnRef"
             class="action-btn next-btn"
-            :disabled="isMovementLocked"
+            :disabled="isMovementLocked || isMyDebtPending"
             @click="send('next_turn')"
           >
             <span class="material-symbols-outlined">navigate_next</span>
@@ -919,6 +932,16 @@ import TileCard from "~/components/TileCard.vue";
 import ExchangeModal from "~/components/ExchangeModal.vue";
 import type { ExchangeProposalShape } from "~/components/ExchangeModal.vue";
 
+type SnackbarItem = {
+  id: number;
+  type: string;
+  title: string;
+  detail: string;
+  amount?: number;
+  playerIds?: string[];
+  createdAt?: number;
+};
+
 const mpStore = useMultiplayerStore();
 const socket = useGameSocket();
 const route = useRoute();
@@ -949,7 +972,7 @@ const showHistoryDialog = ref(false);
 const activeHistoryTab = ref<"money" | "tiles" | "cards">("money");
 const minimapOpen = ref(false);
 const searchTerm = ref("");
-const visibleHistorySnackbars = ref<MPEconomicHistoryItem[]>([]);
+const visibleHistorySnackbars = ref<SnackbarItem[]>([]);
 const rollBtnRef = ref<HTMLElement | null>(null);
 const nextBtnRef = ref<HTMLElement | null>(null);
 const bailBtnRef = ref<HTMLElement | null>(null);
@@ -986,6 +1009,12 @@ let movementSeq = 0;
 let botThinkingTimer: ReturnType<typeof setTimeout> | null = null;
 const isMovementLocked = computed(
   () => movementAnimating.value || isAnimatingMyMove.value,
+);
+const isMyDebtPending = computed(
+  () =>
+    myPlayer.value !== null &&
+    (myPlayer.value?.cash ?? 0) < 0 &&
+    !mpStore.isBankrupt(mpStore.myPlayerId),
 );
 const boardLoadingMessages = [
   "Cargando tablero 🎲",
@@ -1784,7 +1813,7 @@ function developmentLabel(tileIndex: number) {
   return "Sin mejoras";
 }
 
-function historyIcon(type: MPEconomicHistoryItem["type"]) {
+function historyIcon(type: string) {
   const icons: Record<string, string> = {
     go: "flag",
     purchase: "shopping_cart",
@@ -1798,6 +1827,7 @@ function historyIcon(type: MPEconomicHistoryItem["type"]) {
     tax: "receipt_long",
     rent: "payments",
     exchange: "sync_alt",
+    jail: "lock",
   };
   return icons[type] ?? "receipt_long";
 }
@@ -2275,6 +2305,18 @@ function passBuy() {
   showBuyPrompt.value = false;
 }
 
+function pushSnackbar(item: SnackbarItem, durationMs = 5200) {
+  visibleHistorySnackbars.value = [
+    item,
+    ...visibleHistorySnackbars.value,
+  ].slice(0, 3);
+  window.setTimeout(() => {
+    visibleHistorySnackbars.value = visibleHistorySnackbars.value.filter(
+      (candidate) => candidate.id !== item.id,
+    );
+  }, durationMs);
+}
+
 let unsubscribeSocket: (() => void) | null = null;
 let stopBoardAssetWatch: (() => void) | null = null;
 
@@ -2416,6 +2458,19 @@ onMounted(() => {
       case "player_disconnected":
         mpStore.setPlayerDisconnected(msg.payload as any);
         break;
+      case "player_jailed": {
+        const payload = msg.payload as { playerId: string; reason?: string };
+        const player = mpStore.players.find((p) => p.id === payload.playerId);
+        pushSnackbar({
+          id: Date.now(),
+          type: "jail",
+          title: `${player?.name ?? "Jugador"} va a la carcel`,
+          detail: payload.reason ?? "Fue enviado a la carcel.",
+          playerIds: [payload.playerId],
+          createdAt: Date.now(),
+        });
+        break;
+      }
       case "bot_thinking": {
         const p = msg.payload as { playerId: string; delayMs: number };
         if (movementAnimating.value) {
@@ -2468,15 +2523,7 @@ watch(
   () => {
     const item = mpStore.economicHistory[0];
     if (!item) return;
-    visibleHistorySnackbars.value = [
-      item,
-      ...visibleHistorySnackbars.value,
-    ].slice(0, 3);
-    window.setTimeout(() => {
-      visibleHistorySnackbars.value = visibleHistorySnackbars.value.filter(
-        (candidate) => candidate.id !== item.id,
-      );
-    }, 5200);
+    pushSnackbar(item);
   },
 );
 
@@ -2893,6 +2940,69 @@ watch(
   text-align: center;
 }
 
+.debt-warning {
+  width: min(680px, 100%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(251, 113, 133, 0.12);
+  border: 1px solid rgba(251, 113, 133, 0.4);
+  border-radius: 14px;
+  padding: 12px 16px;
+  pointer-events: auto;
+}
+
+.debt-warning-icon {
+  font-size: 22px;
+  color: #fb7185;
+  flex-shrink: 0;
+  font-variation-settings: "FILL" 1, "wght" 400;
+}
+
+.debt-warning-copy {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.debt-warning-copy strong {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fb7185;
+}
+
+.debt-warning-copy span {
+  font-size: 11px;
+  color: rgba(251, 113, 133, 0.75);
+  line-height: 1.4;
+}
+
+.debt-config-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: rgba(251, 113, 133, 0.15);
+  border: 1px solid rgba(251, 113, 133, 0.35);
+  border-radius: 10px;
+  color: #fb7185;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.debt-config-btn:hover {
+  background: rgba(251, 113, 133, 0.25);
+}
+
+.debt-config-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+
 .action-buttons {
   display: flex;
   flex-wrap: wrap;
@@ -3040,6 +3150,11 @@ watch(
   border-radius: 8px;
   color: #111827;
   background: #facc15;
+}
+
+.history-jail .material-symbols-outlined {
+  color: #fee2e2;
+  background: #b91c1c;
 }
 
 .history-snackbar strong {
@@ -3957,6 +4072,11 @@ watch(
 .history-snackbar .material-symbols-outlined {
   color: #93c5fd;
   background: rgba(148, 163, 184, 0.14);
+}
+
+.history-jail .material-symbols-outlined {
+  color: #fee2e2;
+  background: #b91c1c;
 }
 
 .history-snackbar strong {
