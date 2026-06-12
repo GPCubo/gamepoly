@@ -419,8 +419,9 @@
         </div>
         <div v-if="isMyAuctionTurn" class="auction-actions">
           <button
-            v-for="inc in [10, 50, 100]"
+            v-for="(inc, bidIdx) in [10, 50, 100]"
             :key="inc"
+            :ref="(el) => { auctionBidRefs[bidIdx] = el as HTMLElement | null; }"
             class="bid-btn"
             :disabled="(myPlayer?.cash ?? 0) < mpStore.auction.currentBid + inc"
             @click="send('place_bid', { increment: inc })"
@@ -432,6 +433,7 @@
         </div>
         <button
           v-if="isMyAuctionTurn"
+          ref="auctionPassBtnRef"
           class="pass-bid-btn"
           @click="send('pass_bid')"
         >
@@ -493,6 +495,7 @@
             </button>
 
             <button
+              ref="cameraToggleBtnRef"
               class="sidebar-btn cam-btn"
               :class="{ 'cam-active': mpStore.isCamFollowActive }"
               @click="mpStore.toggleCameraFollow()"
@@ -536,6 +539,7 @@
             <label class="property-search">
               <span class="material-symbols-outlined">search</span>
               <input
+                ref="propertySearchInputRef"
                 v-model="searchTerm"
                 type="search"
                 placeholder="Buscar por nombre, color o estado"
@@ -572,6 +576,7 @@
 
                 <div v-if="canShowGroupActions(group)" class="group-actions">
                   <button
+                    :ref="captureSidebarListEl"
                     class="mini-action build-action"
                     :class="{ 'disabled-btn': !canBuildGroup(group) }"
                     :disabled="!canBuildGroup(group)"
@@ -581,6 +586,7 @@
                     <span>Comprar grupo ${{ groupBuildCost(group) }}</span>
                   </button>
                   <button
+                    :ref="captureSidebarListEl"
                     class="mini-action sell-action"
                     :class="{ 'disabled-btn': !canSellGroup(group) }"
                     :disabled="!canSellGroup(group)"
@@ -621,6 +627,7 @@
                           !developmentFor(tile.index).hotel &&
                           developmentFor(tile.index).houses < 4
                         "
+                        :ref="captureSidebarListEl"
                         class="mini-action build-action"
                         :class="{ 'disabled-btn': !canBuildHouse(tile.index) }"
                         :disabled="!canBuildHouse(tile.index)"
@@ -636,6 +643,7 @@
                           !developmentFor(tile.index).hotel &&
                           developmentFor(tile.index).houses >= 4
                         "
+                        :ref="captureSidebarListEl"
                         class="mini-action hotel-action"
                         :class="{ 'disabled-btn': !canBuildHotel(tile.index) }"
                         :disabled="!canBuildHotel(tile.index)"
@@ -651,6 +659,7 @@
                           (developmentFor(tile.index).hotel ||
                             developmentFor(tile.index).houses > 0)
                         "
+                        :ref="captureSidebarListEl"
                         class="mini-action sell-action"
                         :class="{
                           'disabled-btn': !canSellImprovement(tile.index),
@@ -666,6 +675,7 @@
 
                       <button
                         v-if="!developmentFor(tile.index).mortgaged"
+                        :ref="captureSidebarListEl"
                         class="mini-action mortgage-action"
                         :class="{ 'disabled-btn': !canMortgage(tile.index) }"
                         :disabled="!canMortgage(tile.index)"
@@ -679,6 +689,7 @@
 
                       <button
                         v-else
+                        :ref="captureSidebarListEl"
                         class="mini-action mortgage-action"
                         :class="{ 'disabled-btn': !canUnmortgage(tile.index) }"
                         :disabled="!canUnmortgage(tile.index)"
@@ -824,6 +835,7 @@ import {
   computed,
   onMounted,
   onUnmounted,
+  onBeforeUpdate,
   watch,
   nextTick,
   type Ref,
@@ -917,6 +929,11 @@ const closeSidebarBtnRef = ref<HTMLElement | null>(null);
 const mortgageAllBtnRef = ref<HTMLElement | null>(null);
 const historyBtnRef = ref<HTMLElement | null>(null);
 const acceptCardBtnRef = ref<HTMLElement | null>(null);
+const auctionBidRefs = ref<(HTMLElement | null)[]>([null, null, null]);
+const auctionPassBtnRef = ref<HTMLElement | null>(null);
+const propertySearchInputRef = ref<HTMLElement | null>(null);
+const cameraToggleBtnRef = ref<HTMLElement | null>(null);
+const sidebarListElements = ref<HTMLElement[]>([]);
 let diceHideTimer: ReturnType<typeof setTimeout> | null = null;
 let boardLoadingTimer: ReturnType<typeof setInterval> | null = null;
 let loadedTokenSignature = "";
@@ -1029,9 +1046,16 @@ useKeyboardNavigation(actionRefs, {
   loop: true,
 });
 
-const sidebarRefs = computed(() => {
-  const refs: Ref<HTMLElement | null>[] = [closeSidebarBtnRef];
+const sidebarRefs = computed((): Ref<HTMLElement | null>[] => {
+  const refs: Ref<HTMLElement | null>[] = [
+    closeSidebarBtnRef,
+    cameraToggleBtnRef,
+  ];
   if (activeOwnedTiles.value.length) refs.push(mortgageAllBtnRef);
+  refs.push(propertySearchInputRef);
+  for (const el of sidebarListElements.value) {
+    refs.push({ value: el } as Ref<HTMLElement | null>);
+  }
   return refs;
 });
 
@@ -1040,6 +1064,18 @@ useKeyboardNavigation(sidebarRefs, {
   allowBothAxes: true,
   enabled: computed(() => sidebarOpen.value),
   loop: true,
+});
+
+onBeforeUpdate(() => {
+  sidebarListElements.value = [];
+});
+
+function captureSidebarListEl(el: unknown) {
+  if (el) sidebarListElements.value.push(el as HTMLElement);
+}
+
+watch(sidebarOpen, (val) => {
+  if (val) nextTick(() => propertySearchInputRef.value?.focus());
 });
 
 useKeyboardNavigation(
@@ -1051,6 +1087,25 @@ useKeyboardNavigation(
     loop: true,
   },
 );
+
+const isAuctionKeyboardEnabled = computed(
+  () => mpStore.isAuctionActive && isMyAuctionTurn.value,
+);
+
+const auctionRefs = computed((): Ref<HTMLElement | null>[] => [
+  ...auctionBidRefs.value.map(
+    (el) => ({ value: el }) as Ref<HTMLElement | null>,
+  ),
+  auctionPassBtnRef,
+]);
+
+useKeyboardNavigation(auctionRefs, {
+  direction: "horizontal",
+  allowBothAxes: true,
+  enabled: isAuctionKeyboardEnabled,
+  autoFocusOn: isAuctionKeyboardEnabled,
+  loop: true,
+});
 
 const boardHouseModelVariantFiles = import.meta.glob(
   "../../public/models/{casa_detallada,hotel_detallado}_*.glb",

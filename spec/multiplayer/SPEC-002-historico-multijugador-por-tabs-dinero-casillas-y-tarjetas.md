@@ -1,5 +1,5 @@
 ---
-id: SPEC-014
+id: SPEC-002
 title: Historico multijugador por tabs dinero casillas y tarjetas
 created_at: 2026-06-12T07:27:41
 status: in-progress
