@@ -6,5 +6,7 @@ dist
 /imageToia
 .codex-dev-server.err.log
 .codex-dev-server.log
+.env
 .env.production
 .env.development
+.env.local
