@@ -98,6 +98,14 @@ _Sin specs aún. Área reservada para cartas Suerte y Arca Comunal._
 
 ---
 
+## server
+
+| ID | Título | Estado |
+|---|---|---|
+| [SPEC-001](./server/SPEC-001-despliegue-servidor-tarragona.md) | Despliegue servidor Tarragona (gamepoly.chamvea.dev) | ✅ done |
+
+---
+
 ## multiplayer
 
 | ID | Título | Estado |
