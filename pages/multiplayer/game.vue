@@ -369,7 +369,10 @@
     />
 
     <!-- Card overlay -->
-    <div v-if="mpStore.activeCard && mpStore.isMyTurn && !isAnimatingMyMove" class="card-overlay">
+    <div
+      v-if="mpStore.activeCard && mpStore.isMyTurn && !isAnimatingMyMove"
+      class="card-overlay"
+    >
       <div class="card-card">
         <span class="card-group">{{
           mpStore.activeCard.group === "chance"
@@ -885,9 +888,15 @@ const {
 
 const { updateCamera } = useCameraFollow(
   {
-    get isCamFollowActive() { return mpStore.isCamFollowActive },
-    get activePlayerIndex() { return mpStore.activePlayerIndex },
-    get players() { return mpStore.players },
+    get isCamFollowActive() {
+      return mpStore.isCamFollowActive;
+    },
+    get activePlayerIndex() {
+      return mpStore.activePlayerIndex;
+    },
+    get players() {
+      return mpStore.players;
+    },
   },
   {
     cameraRef,
@@ -1911,7 +1920,8 @@ async function loadBoardAssets() {
 }
 
 const buyTileResolved = computed(
-  () => BOARD_TILES.find((t) => t.index === buyTileIndex.value) ?? BOARD_TILES[0],
+  () =>
+    BOARD_TILES.find((t) => t.index === buyTileIndex.value) ?? BOARD_TILES[0],
 );
 
 const auctionTileName = computed(() => {
@@ -2002,6 +2012,7 @@ onMounted(() => {
           playerId: string;
           from: number;
           to: number;
+          path?: number[];
         };
         const playerIdx = mpStore.players.findIndex(
           (player) => player.id === payload.playerId,
@@ -2009,7 +2020,8 @@ onMounted(() => {
         if (playerIdx >= 0) {
           ensureAnimationState();
 
-          const currentPos = payload.from ?? mpStore.players[playerIdx].position;
+          const currentPos =
+            payload.from ?? mpStore.players[playerIdx].position;
           const targetPos = payload.to;
 
           if (currentPos === targetPos) return;
@@ -2023,13 +2035,11 @@ onMounted(() => {
             showBuyPrompt.value = false;
           }
 
-          const direction = Math.sign(targetPos - currentPos);
-          let currentStep = currentPos;
-          let stepCount = 0;
-          const totalSteps = Math.abs(targetPos - currentPos);
+          const movePath = (payload.path && payload.path.length > 0)
+            ? payload.path
+            : [targetPos];
 
           const finishMovement = () => {
-            // Only the latest movement settles the state; stale chains are no-ops
             if (moveId !== movementSeq) return;
             onMovementComplete();
             if (isMyPlayer) {
@@ -2047,24 +2057,22 @@ onMounted(() => {
             }
           };
 
-          if (totalSteps === 0) {
-            setTimeout(finishMovement, 250 + REVEAL_DELAY_MS);
-            return;
-          }
+          let stepIdx = 0;
 
           const animateNextStep = () => {
-            if (stepCount >= totalSteps) return;
+            if (stepIdx >= movePath.length) return;
 
-            stepCount++;
-            currentStep += direction;
+            const nextPos = movePath[stepIdx];
+            const fromPos = stepIdx === 0 ? currentPos : movePath[stepIdx - 1];
 
-            const fromCoords = getCasillaCoordinates(currentStep - direction);
-            const toCoords = getCasillaCoordinates(currentStep);
+            const fromCoords = getCasillaCoordinates((fromPos % 40 + 40) % 40);
+            const toCoords = getCasillaCoordinates((nextPos % 40 + 40) % 40);
 
             startHop(playerIdx, fromCoords, toCoords);
-            mpStore.players[playerIdx].position = currentStep;
+            mpStore.players[playerIdx].position = nextPos;
 
-            if (stepCount < totalSteps) {
+            stepIdx++;
+            if (stepIdx < movePath.length) {
               setTimeout(animateNextStep, 300);
             } else {
               setTimeout(finishMovement, 250 + REVEAL_DELAY_MS);
