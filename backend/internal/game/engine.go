@@ -498,7 +498,7 @@ func ApplyCardEffect(gs *GameState, playerID string, diceTotal int) CardResult {
 		if card.Amount != nil {
 			steps := *card.Amount
 			target := ((p.Position+steps)%40 + 40) % 40
-			path := movePath(p.Position%40, target)
+			path := movePathBySteps(p.Position, steps)
 			p.Position = p.Position + steps
 			p.InJail = false
 			result.Moved = true
@@ -865,6 +865,27 @@ func movePath(from, to int) []int {
 	cur := from
 	for cur != to {
 		cur = (cur + 1) % 40
+		path = append(path, cur)
+	}
+	return path
+}
+
+func movePathBySteps(from, steps int) []int {
+	from = ((from % 40) + 40) % 40
+	path := []int{}
+	if steps == 0 {
+		return path
+	}
+
+	direction := 1
+	if steps < 0 {
+		direction = -1
+		steps = -steps
+	}
+
+	cur := from
+	for i := 0; i < steps; i++ {
+		cur = ((cur + direction) % 40 + 40) % 40
 		path = append(path, cur)
 	}
 	return path

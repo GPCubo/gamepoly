@@ -558,6 +558,26 @@ func (t *Table) doAcceptCard(pID string) {
 // ─── bot automation ───────────────────────────────────────────────────────────
 
 func (t *Table) maybeScheduleBotTurn() {
+	if t.State.IsAuctionActive && t.State.Auction != nil {
+		bidderID := t.currentAuctionBidderID()
+		if bidderID == "" {
+			t.nextBotDelay = 0
+			return
+		}
+		if slot, ok := t.Slots[bidderID]; !ok || !slot.IsBot {
+			t.nextBotDelay = 0
+			return
+		}
+		delay := t.nextBotDelay + game.BotThinkDelay()
+		t.nextBotDelay = 0
+		t.botTimer.Reset(delay)
+		t.Broadcast(proto.New("bot_thinking", proto.BotThinkingPayload{
+			PlayerID: bidderID,
+			DelayMs:  int(delay.Milliseconds()),
+		}))
+		return
+	}
+
 	p := t.State.ActivePlayer()
 	if p == nil || !p.IsBot || t.State.Winner() != nil {
 		t.nextBotDelay = 0
@@ -604,28 +624,28 @@ func (t *Table) addMovementHistory(mr game.MoveResult, source string, cardID str
 func (t *Table) executeBotStep() {
 	// Auction bot turn
 	if t.State.IsAuctionActive && t.State.Auction != nil {
-		bidderIdx := t.State.Auction.BidderIdx
-		if bidderIdx < len(t.State.Auction.ActiveBidders) {
-			currentBidder := t.State.Auction.ActiveBidders[bidderIdx]
-			if slot, ok := t.Slots[currentBidder]; ok && slot.IsBot {
-				botAction := game.DecideBotAuctionAction(t.State, currentBidder)
-				log.Printf("[bot] %s auction action: %s inc=%d", currentBidder, botAction.Type, botAction.Increment)
-				var payload json.RawMessage
-				if botAction.Type == game.BotPlaceBid {
-					payload, _ = json.Marshal(proto.PlaceBidPayload{Increment: botAction.Increment})
-				}
-				t.Broadcast(proto.New("bot_action", proto.BotActionPayload{
-					PlayerID: currentBidder,
-					Action:   string(botAction.Type),
-				}))
-				t.processAction(IncomingAction{
-					Type:     string(botAction.Type),
-					Payload:  payload,
-					PlayerID: currentBidder,
-				})
-				return
-			}
+		currentBidder := t.currentAuctionBidderID()
+		if currentBidder == "" {
+			return
 		}
+		if slot, ok := t.Slots[currentBidder]; ok && slot.IsBot {
+			botAction := game.DecideBotAuctionAction(t.State, currentBidder)
+			log.Printf("[bot] %s auction action: %s inc=%d", currentBidder, botAction.Type, botAction.Increment)
+			var payload json.RawMessage
+			if botAction.Type == game.BotPlaceBid {
+				payload, _ = json.Marshal(proto.PlaceBidPayload{Increment: botAction.Increment})
+			}
+			t.Broadcast(proto.New("bot_action", proto.BotActionPayload{
+				PlayerID: currentBidder,
+				Action:   string(botAction.Type),
+			}))
+			t.processAction(IncomingAction{
+				Type:     string(botAction.Type),
+				Payload:  payload,
+				PlayerID: currentBidder,
+			})
+		}
+		return
 	}
 
 	// Regular bot turn
@@ -696,6 +716,17 @@ func (t *Table) executeBotStep() {
 }
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
+
+func (t *Table) currentAuctionBidderID() string {
+	if t.State == nil || t.State.Auction == nil {
+		return ""
+	}
+	bidderIdx := t.State.Auction.BidderIdx
+	if bidderIdx < 0 || bidderIdx >= len(t.State.Auction.ActiveBidders) {
+		return ""
+	}
+	return t.State.Auction.ActiveBidders[bidderIdx]
+}
 
 func (t *Table) checkGameOver() {
 	if w := t.State.Winner(); w != nil {
