@@ -858,7 +858,9 @@ let fpsFrames = 0;
 let fpsElapsedMs = 0;
 let movementAnimating = false;
 let pendingSnapshot: any = null;
+let pendingBotThinking: { playerId: string; delayMs: number; receivedAt: number } | null = null;
 let movementSeq = 0;
+let botThinkingTimer: ReturnType<typeof setTimeout> | null = null;
 
 const normalizedPlayerTiles = computed(() =>
   mpStore.players.map((player) => ((player.position % 40) + 40) % 40),
@@ -1071,6 +1073,25 @@ function onMovementComplete() {
     mpStore.applySnapshot(snap);
     syncIdlePiecePositions();
   }
+  flushPendingBotThinking();
+}
+
+function showBotThinking(delayMs: number) {
+  if (botThinkingTimer) clearTimeout(botThinkingTimer);
+  mpStore.setBotThinking(true, "Bot pensando...");
+  botThinkingTimer = setTimeout(() => {
+    mpStore.setBotThinking(false);
+    botThinkingTimer = null;
+  }, delayMs + 200);
+}
+
+function flushPendingBotThinking() {
+  if (!pendingBotThinking) return;
+  const pending = pendingBotThinking;
+  pendingBotThinking = null;
+  const elapsed = Date.now() - pending.receivedAt;
+  const remaining = Math.max(0, pending.delayMs - elapsed);
+  showBotThinking(remaining);
 }
 
 function onRenderTick({ delta }: { delta: number }) {
@@ -2091,8 +2112,15 @@ onMounted(() => {
         break;
       case "bot_thinking": {
         const p = msg.payload as { playerId: string; delayMs: number };
-        mpStore.setBotThinking(true, "Bot pensando...");
-        setTimeout(() => mpStore.setBotThinking(false), p.delayMs + 200);
+        if (movementAnimating) {
+          pendingBotThinking = {
+            playerId: p.playerId,
+            delayMs: p.delayMs,
+            receivedAt: Date.now(),
+          };
+          break;
+        }
+        showBotThinking(p.delayMs);
         break;
       }
       case "auction_started": {
@@ -2109,6 +2137,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   if (diceHideTimer) clearTimeout(diceHideTimer);
+  if (botThinkingTimer) clearTimeout(botThinkingTimer);
   stopBoardAssetWatch?.();
   unsubscribeSocket?.();
   socket.disconnect();

@@ -7,3 +7,4 @@ dist
 .codex-dev-server.err.log
 .codex-dev-server.log
 .env.production
+.env.development

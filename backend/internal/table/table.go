@@ -52,6 +52,7 @@ type Table struct {
 	mu            sync.RWMutex
 	lastActivity  time.Time
 	StartedAt     time.Time
+	nextBotDelay  time.Duration
 
 	// awaitingBuyDecision is true after the active player lands on an unowned
 	// buyable tile and the game is waiting for a buy/pass action. It lets the
@@ -66,6 +67,8 @@ const (
 	writeWait         = 10 * time.Second
 	pongWait          = 60 * time.Second
 	pingPeriod        = 50 * time.Second
+	clientMoveStep    = 300 * time.Millisecond
+	clientMoveReveal  = 600 * time.Millisecond
 )
 
 // NewTable builds a Table from pre-built slots and starts the game.
@@ -353,6 +356,7 @@ func (t *Table) doRollDice(pID string) {
 			To:       mr.To,
 			Path:     mr.Path,
 		}))
+		t.delayActiveBotUntilMovementEnds(mr.PlayerID, len(mr.Path))
 		t.resolveLanding(pID, total)
 	}
 }
@@ -526,6 +530,7 @@ func (t *Table) doAcceptCard(pID string) {
 			To:       result.NewPos,
 			Path:     result.Path,
 		}))
+		t.delayActiveBotUntilMovementEnds(result.PlayerID, len(result.Path))
 		t.resolveLanding(pID, diceTotal)
 	}
 	if result.Jailed {
@@ -542,14 +547,27 @@ func (t *Table) doAcceptCard(pID string) {
 func (t *Table) maybeScheduleBotTurn() {
 	p := t.State.ActivePlayer()
 	if p == nil || !p.IsBot || t.State.Winner() != nil {
+		t.nextBotDelay = 0
 		return
 	}
-	delay := game.BotThinkDelay()
+	delay := t.nextBotDelay + game.BotThinkDelay()
+	t.nextBotDelay = 0
 	t.botTimer.Reset(delay)
 	t.Broadcast(proto.New("bot_thinking", proto.BotThinkingPayload{
 		PlayerID: p.ID,
 		DelayMs:  int(delay.Milliseconds()),
 	}))
+}
+
+func (t *Table) delayActiveBotUntilMovementEnds(playerID string, pathLen int) {
+	p := t.State.ActivePlayer()
+	if p == nil || p.ID != playerID || !p.IsBot || pathLen <= 0 {
+		return
+	}
+	delay := time.Duration(pathLen-1)*clientMoveStep + clientMoveReveal
+	if delay > t.nextBotDelay {
+		t.nextBotDelay = delay
+	}
 }
 
 func (t *Table) executeBotStep() {
