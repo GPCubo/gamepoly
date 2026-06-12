@@ -141,7 +141,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive } from 'vue'
+import { computed, ref, reactive, onMounted } from 'vue'
 import { useMultiplayerStore } from '~/stores/multiplayerStore'
 import { getApiBaseUrl } from '~/utils/env'
 import { GAME_CONFIG } from '~/config/gameConfig'
@@ -149,8 +149,11 @@ import { enabledLocalScenarioSeedKeys } from '~/config/localScenarioSeeds'
 
 const mpStore = useMultiplayerStore()
 const route = useRoute()
+const { track } = useAnalytics()
 
 const mode = ref<'create' | 'join'>(route.query.mode === 'join' ? 'join' : 'create')
+
+onMounted(() => track('lobby_opened'))
 const playerName = ref('')
 const joinCode = ref('')
 const errorMsg = ref('')
@@ -235,6 +238,7 @@ async function createTable() {
 
     const data = await res.json()
     mpStore.setConnection(data.tableId, data.playerId)
+    track('table_created')
     navigateTo(`/multiplayer/game?tableId=${data.tableId}&playerId=${data.playerId}`)
   } catch (e) {
     errorMsg.value = 'No se pudo conectar al servidor'
@@ -270,6 +274,7 @@ async function joinTable() {
 
     const data = await res.json()
     mpStore.setConnection(joinCode.value.trim(), data.playerId)
+    track('table_joined')
     navigateTo(`/multiplayer/game?tableId=${joinCode.value.trim()}&playerId=${data.playerId}`)
   } catch (e) {
     errorMsg.value = 'No se pudo conectar al servidor'

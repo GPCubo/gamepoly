@@ -57,8 +57,10 @@ func main() {
 	}
 
 	var finishedGameRepo table.FinishedGameRepo
+	var clientErrorRepo *store.ClientErrorRepository
 	if pg != nil {
 		finishedGameRepo = store.NewFinishedGameRepository(pg)
+		clientErrorRepo = store.NewClientErrorRepository(pg)
 	}
 
 	// Table manager
@@ -66,6 +68,9 @@ func main() {
 
 	// HTTP router
 	router := api.NewRouter(mgr, rs)
+	if clientErrorRepo != nil {
+		router.SetClientErrorRepo(clientErrorRepo)
+	}
 	mux := http.NewServeMux()
 	router.RegisterRoutes(mux)
 

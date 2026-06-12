@@ -1,5 +1,6 @@
 import { ref, onUnmounted } from 'vue'
 import { getWsBaseUrl } from '~/utils/env'
+import { useAnalytics } from '~/composables/useAnalytics'
 
 export interface SocketMessage {
   v: number
@@ -19,6 +20,7 @@ export function useGameSocket() {
   const connected = ref(false)
   const reconnectAttempts = ref(0)
   const lastError = ref<string | null>(null)
+  const { track } = useAnalytics()
 
   let ws: WebSocket | null = null
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null
@@ -48,6 +50,7 @@ export function useGameSocket() {
       reconnectAttempts.value = 0
       lastError.value = null
       startHeartbeat()
+      track('websocket_connected')
     }
 
     ws.onmessage = (event) => {
@@ -62,6 +65,7 @@ export function useGameSocket() {
     ws.onclose = (event) => {
       connected.value = false
       stopHeartbeat()
+      track('websocket_disconnected', { clean: event.wasClean ? 1 : 0 })
       if (!event.wasClean && reconnectAttempts.value < MAX_RECONNECT_ATTEMPTS) {
         scheduleReconnect()
       }
@@ -70,6 +74,7 @@ export function useGameSocket() {
     ws.onerror = (event) => {
       lastError.value = 'WebSocket error'
       console.error('[GameSocket] error', event)
+      track('websocket_error')
     }
   }
 

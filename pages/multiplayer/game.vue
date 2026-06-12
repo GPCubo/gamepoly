@@ -945,6 +945,7 @@ type SnackbarItem = {
 const mpStore = useMultiplayerStore();
 const socket = useGameSocket();
 const route = useRoute();
+const { track } = useAnalytics();
 
 const tableId = route.query.tableId as string;
 const playerId = route.query.playerId as string;
@@ -1154,10 +1155,12 @@ function onOpenExchange() {
 function onExchangePropose(proposal: ExchangeProposalShape) {
   send("propose_trade", { proposal });
   exchangeIsResponding.value = true;
+  track("trade_proposed");
 }
 
 function onExchangeAccept() {
   send("respond_trade", { accepted: true });
+  track("trade_accepted");
   showExchange.value = false;
   exchangeIsResponding.value = false;
   exchangeSpectatorMode.value = false;
@@ -2298,6 +2301,7 @@ function send(type: string, payload?: Record<string, unknown>) {
 function confirmBuy() {
   send("buy_property", { tileIndex: buyTileIndex.value });
   showBuyPrompt.value = false;
+  track("property_bought");
 }
 
 function passBuy() {
@@ -2326,6 +2330,7 @@ onMounted(() => {
     navigateTo("/multiplayer/lobby");
     return;
   }
+  track("multiplayer_game_started");
 
   boardLoadingTimer = setInterval(() => {
     boardLoadingIndex.value =
@@ -2366,6 +2371,7 @@ onMounted(() => {
         break;
       }
       case "dice_rolled": {
+        if (mpStore.isMyTurn) track("dice_rolled");
         diceVisible.value = true;
         if (diceHideTimer) clearTimeout(diceHideTimer);
         diceHideTimer = setTimeout(() => {
@@ -2486,6 +2492,7 @@ onMounted(() => {
       }
       case "auction_started": {
         showBuyPrompt.value = false;
+        track("auction_started");
         break;
       }
       case "auction_ended": {
@@ -2507,6 +2514,9 @@ onUnmounted(() => {
 });
 
 watch(boardHousePlacements, rebuildBoardHouseInstances, { deep: true });
+
+watch(() => mpStore.winner, (w) => { if (w) track("game_finished"); });
+watch(isMyDebtPending, (v) => { if (v) track("bankruptcy_triggered"); }, { once: false });
 
 watch(
   () =>

@@ -1,11 +1,14 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"strings"
+	"sync"
 	"time"
 
 	"gamepolyweb/backend/internal/game"
@@ -23,10 +26,42 @@ var upgrader = gorilla.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
+// clientErrRateLimiter is a simple per-key sliding-window rate limiter.
+type clientErrRateLimiter struct {
+	mu      sync.Mutex
+	buckets map[string][]time.Time
+}
+
+func newClientErrRateLimiter() *clientErrRateLimiter {
+	return &clientErrRateLimiter{buckets: make(map[string][]time.Time)}
+}
+
+func (rl *clientErrRateLimiter) Allow(key string, limit int, window time.Duration) bool {
+	rl.mu.Lock()
+	defer rl.mu.Unlock()
+	now := time.Now()
+	cutoff := now.Add(-window)
+	prev := rl.buckets[key]
+	valid := prev[:0]
+	for _, t := range prev {
+		if t.After(cutoff) {
+			valid = append(valid, t)
+		}
+	}
+	if len(valid) >= limit {
+		rl.buckets[key] = valid
+		return false
+	}
+	rl.buckets[key] = append(valid, now)
+	return true
+}
+
 type Router struct {
-	Manager *table.Manager
-	Store   *store.RedisStore
-	jwtKey  []byte
+	Manager         *table.Manager
+	Store           *store.RedisStore
+	jwtKey          []byte
+	clientErrorRepo *store.ClientErrorRepository
+	clientErrRL     *clientErrRateLimiter
 }
 
 func NewRouter(mgr *table.Manager, rs *store.RedisStore) *Router {
@@ -37,15 +72,85 @@ func NewRouter(mgr *table.Manager, rs *store.RedisStore) *Router {
 	return &Router{Manager: mgr, Store: rs, jwtKey: []byte(key)}
 }
 
+// SetClientErrorRepo enables the client error reporting endpoint.
+func (rt *Router) SetClientErrorRepo(repo *store.ClientErrorRepository) {
+	rt.clientErrorRepo = repo
+	rt.clientErrRL = newClientErrRateLimiter()
+}
+
 func (rt *Router) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/auth/guest", rt.handleGuestAuth)
 	mux.HandleFunc("/api/v1/tables", rt.handleTables)
 	mux.HandleFunc("/api/v1/tables/", rt.handleTable)
+	mux.HandleFunc("/api/v1/client-errors", rt.handleClientErrors)
 	mux.HandleFunc("/ws", rt.handleWS)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
+}
+
+// ─── client error reporting ───────────────────────────────────────────────────
+
+var allowedSeverity = map[string]bool{"error": true, "warning": true, "info": true}
+var allowedSource = map[string]bool{
+	"vue": true, "window": true, "unhandled_rejection": true, "manual": true,
+}
+var sensitiveContextKeys = map[string]bool{
+	"token": true, "jwt": true, "password": true, "secret": true, "auth": true, "session": true,
+}
+
+func (rt *Router) handleClientErrors(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	// Always respond 204 when persistence is off — frontend keeps working.
+	if rt.clientErrorRepo == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	// Per-IP rate limit: 30 req/min.
+	ip := r.RemoteAddr
+	if fwd := r.Header.Get("X-Forwarded-For"); fwd != "" {
+		ip = strings.TrimSpace(strings.SplitN(fwd, ",", 2)[0])
+	}
+	if !rt.clientErrRL.Allow(ip, 30, time.Minute) {
+		http.Error(w, "rate limit exceeded", http.StatusTooManyRequests)
+		return
+	}
+
+	const maxBody = 32768
+	r.Body = http.MaxBytesReader(w, r.Body, maxBody)
+
+	var payload store.ClientErrorPayload
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		http.Error(w, "invalid payload", http.StatusBadRequest)
+		return
+	}
+
+	if !allowedSeverity[payload.Severity] {
+		payload.Severity = "error"
+	}
+	if !allowedSource[payload.Source] {
+		payload.Source = "unknown"
+	}
+	for k := range payload.Context {
+		if sensitiveContextKeys[strings.ToLower(k)] {
+			delete(payload.Context, k)
+		}
+	}
+
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+
+	if err := rt.clientErrorRepo.Save(ctx, payload); err != nil {
+		log.Printf("[client-errors] save failed: %v", err)
+	}
+
+	w.WriteHeader(http.StatusNoContent)
 }
 
 // ─── auth ─────────────────────────────────────────────────────────────────────
