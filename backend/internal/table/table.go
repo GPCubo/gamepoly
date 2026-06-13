@@ -260,6 +260,8 @@ func (t *Table) sendTo(playerID string, msg proto.OutgoingMsg) {
 func (t *Table) processAction(a IncomingAction) {
 	pID := a.PlayerID
 	switch a.Type {
+	case "roll_start_order":
+		t.doRollStartOrder(pID)
 	case "roll_dice":
 		t.doRollDice(pID)
 	case "buy_property":
@@ -356,6 +358,29 @@ func (t *Table) processAction(a IncomingAction) {
 }
 
 // ─── handlers ────────────────────────────────────────────────────────────────
+
+func (t *Table) doRollStartOrder(pID string) {
+	roll, err := game.RollStartOrderRandom(t.State, pID)
+	if err != nil {
+		t.sendTo(pID, proto.NewError("CANT_ROLL_START_ORDER", err.Error()))
+		return
+	}
+	t.Broadcast(proto.New("start_order_rolled", proto.StartOrderRolledPayload{
+		PlayerID:   roll.PlayerID,
+		PlayerName: roll.PlayerName,
+		DiceValues: roll.DiceValues,
+		Total:      roll.Total,
+		Round:      roll.Round,
+	}))
+	t.rollStartOrderBots()
+	if t.State.Phase == game.PhasePlaying {
+		if p := t.State.ActivePlayer(); p != nil {
+			t.Broadcast(proto.New("game_started", proto.GameStartedPayload{
+				FirstPlayerID: p.ID,
+			}))
+		}
+	}
+}
 
 func (t *Table) doRollDice(pID string) {
 	if err := game.CanRollDice(t.State, pID); err != nil {
@@ -608,7 +633,60 @@ func (t *Table) doAcceptCard(pID string) {
 
 // ─── bot automation ───────────────────────────────────────────────────────────
 
+func (t *Table) onLobbyChanged() {
+	game.EnsureStartOrder(t.State)
+	t.rollStartOrderBots()
+	if t.State.Phase == game.PhasePlaying {
+		if p := t.State.ActivePlayer(); p != nil {
+			t.Broadcast(proto.New("game_started", proto.GameStartedPayload{
+				FirstPlayerID: p.ID,
+			}))
+		}
+	}
+	t.Broadcast(proto.NewSnapshot(t.State))
+}
+
+func (t *Table) rollStartOrderBots() {
+	for guard := 0; guard < 20; guard++ {
+		if t.State.Phase != game.PhaseSetup ||
+			t.State.StartOrder == nil ||
+			t.State.StartOrder.Status == game.StartOrderWaiting {
+			return
+		}
+
+		rolledAny := false
+		for _, playerID := range t.State.StartOrder.RequiredPlayerIDs {
+			slot, ok := t.Slots[playerID]
+			if !ok || !slot.IsBot || game.HasStartOrderRollThisRound(t.State, playerID) {
+				continue
+			}
+			roll, err := game.RollStartOrderRandom(t.State, playerID)
+			if err != nil {
+				continue
+			}
+			rolledAny = true
+			t.Broadcast(proto.New("start_order_rolled", proto.StartOrderRolledPayload{
+				PlayerID:   roll.PlayerID,
+				PlayerName: roll.PlayerName,
+				DiceValues: roll.DiceValues,
+				Total:      roll.Total,
+				Round:      roll.Round,
+			}))
+			if t.State.Phase == game.PhasePlaying {
+				return
+			}
+		}
+		if !rolledAny {
+			return
+		}
+	}
+}
+
 func (t *Table) maybeScheduleBotTurn() {
+	if t.State.Phase != game.PhasePlaying {
+		t.nextBotDelay = 0
+		return
+	}
 	if t.State.IsAuctionActive && t.State.Auction != nil {
 		bidderID := t.currentAuctionBidderID()
 		if bidderID == "" {
@@ -673,6 +751,9 @@ func (t *Table) addMovementHistory(mr game.MoveResult, source string, cardID str
 }
 
 func (t *Table) executeBotStep() {
+	if t.State.Phase != game.PhasePlaying {
+		return
+	}
 	// Auction bot turn
 	if t.State.IsAuctionActive && t.State.Auction != nil {
 		currentBidder := t.currentAuctionBidderID()

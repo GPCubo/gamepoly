@@ -85,6 +85,33 @@ type AuctionState struct {
 	BidderIdx    int      `json:"bidderIdx"`
 }
 
+type StartOrderStatus string
+
+const (
+	StartOrderWaiting  StartOrderStatus = "waiting"
+	StartOrderRolling  StartOrderStatus = "rolling"
+	StartOrderTiebreak StartOrderStatus = "tiebreak"
+	StartOrderComplete StartOrderStatus = "complete"
+)
+
+type StartOrderRoll struct {
+	PlayerID   string `json:"playerId"`
+	PlayerName string `json:"playerName"`
+	DiceValues [2]int `json:"diceValues"`
+	Total      int    `json:"total"`
+	Round      int    `json:"round"`
+	RolledAt   int64  `json:"rolledAt"`
+}
+
+type StartOrderState struct {
+	Status            StartOrderStatus `json:"status"`
+	Round             int              `json:"round"`
+	RequiredPlayerIDs []string         `json:"requiredPlayerIds"`
+	TiedPlayerIDs     []string         `json:"tiedPlayerIds"`
+	WinnerID          string           `json:"winnerId,omitempty"`
+	Rolls             []StartOrderRoll `json:"rolls"`
+}
+
 type GameState struct {
 	Phase         Phase  `json:"phase"`
 	TableID       string `json:"tableId"`
@@ -110,6 +137,7 @@ type GameState struct {
 	IsAuctionActive     bool                    `json:"isAuctionActive"`
 	Auction             *AuctionState           `json:"auction,omitempty"`
 	ExchangeProposal    *ExchangeProposal       `json:"exchangeProposal,omitempty"`
+	StartOrder          *StartOrderState        `json:"startOrder,omitempty"`
 
 	ActiveCard    *config.GameCard `json:"activeCard,omitempty"`
 	ChanceDeck    []int            `json:"chanceDeck"`

@@ -10,20 +10,20 @@
 
 ## Datos del servidor
 
-| Campo | Valor |
-|---|---|
-| Host SSH | `Tarragona_server` (en `~/.ssh/config`) |
-| IP | `65.109.171.106` |
-| Usuario | `root` |
-| Clave SSH | `~/.ssh/id_ed25519` |
-| OS | Debian GNU/Linux 10 (buster) |
-| Go | 1.21.13 (`/usr/local/go/bin/go`) |
-| Node | 20.20.2 (nvm) |
-| Redis | 7+ (`127.0.0.1:6379`, sin contraseña) |
-| Nginx | 1.14.2 |
-| Backend binario | `/usr/local/bin/gamepoly-server` |
-| Frontend estático | `/var/www/gamepoly/dist/` |
-| Repo en servidor | `/home/gamepoly/` |
+| Campo             | Valor                                   |
+| ----------------- | --------------------------------------- |
+| Host SSH          | `Tarragona_server` (en `~/.ssh/config`) |
+| IP                | `65.109.171.106`                        |
+| Usuario           | `root`                                  |
+| Clave SSH         | `~/.ssh/id_ed25519`                     |
+| OS                | Debian GNU/Linux 10 (buster)            |
+| Go                | 1.21.13 (`/usr/local/go/bin/go`)        |
+| Node              | 20.20.2 (nvm)                           |
+| Redis             | 7+ (`127.0.0.1:6379`, sin contraseña)   |
+| Nginx             | 1.14.2                                  |
+| Backend binario   | `/usr/local/bin/gamepoly-server`        |
+| Frontend estático | `/var/www/gamepoly/dist/`               |
+| Repo en servidor  | `/home/gamepoly/`                       |
 
 ---
 
@@ -48,7 +48,7 @@ ENVIRONMENT=production
 ### Backend + Frontend (completo)
 
 ```bash
-ssh Tarragona_server "cd /home/gamepoly && git pull && cd backend && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /usr/local/bin/gamepoly-server ./cmd/server && systemctl restart gamepoly && cd /home/gamepoly && source ~/.nvm/nvm.sh && nvm use 20 && npm run generate 2>&1 | tail -5 && rsync -a --delete .output/public/ /var/www/gamepoly/dist/ && echo 'ALL DEPLOYED'"
+ssh Tarragona_server "cd /home/gamepoly && git pull && cd backend && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /usr/local/bin/gamepoly-server ./cmd/server && systemctl restart gamepoly && cd /home/gamepoly && source ~/.nvm/nvm.sh && nvm use 24.3.0 && npm run generate 2>&1 | tail -5 && rsync -a --delete .output/public/ /var/www/gamepoly/dist/ && echo 'ALL DEPLOYED'"
 ```
 
 ### Solo backend
@@ -60,7 +60,7 @@ ssh Tarragona_server "cd /home/gamepoly && git pull && cd backend && CGO_ENABLED
 ### Solo frontend
 
 ```bash
-ssh Tarragona_server "cd /home/gamepoly && git pull && source ~/.nvm/nvm.sh && nvm use 20 && npm run generate 2>&1 | tail -5 && rsync -a --delete .output/public/ /var/www/gamepoly/dist/ && echo 'FRONTEND DEPLOYED'"
+ssh Tarragona_server "cd /home/gamepoly && git pull && source ~/.nvm/nvm.sh && nvm use 24.3.0 && npm run generate 2>&1 | tail -5 && rsync -a --delete .output/public/ /var/www/gamepoly/dist/ && echo 'FRONTEND DEPLOYED'"
 ```
 
 ### Verificar estado
@@ -196,13 +196,13 @@ El composable `utils/env.ts` usa estas variables:
 
 ```ts
 export function getApiBaseUrl(): string {
-  return import.meta.env.VITE_API_URL || window.location.origin
+  return import.meta.env.VITE_API_URL || window.location.origin;
 }
 
 export function getWsBaseUrl(): string {
-  if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL
-  const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
-  return `${proto}//${window.location.host}`
+  if (import.meta.env.VITE_WS_URL) return import.meta.env.VITE_WS_URL;
+  const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+  return `${proto}//${window.location.host}`;
 }
 ```
 
@@ -213,7 +213,7 @@ export function getWsBaseUrl(): string {
 Activar logs de WebSocket en la consola:
 
 ```js
-localStorage.mpDebug = '1'
+localStorage.mpDebug = "1";
 ```
 
 Recargar la página. Se verán todos los mensajes `↓ recv` y `↑ send` con tipo y payload.
@@ -221,7 +221,7 @@ Recargar la página. Se verán todos los mensajes `↓ recv` y `↑ send` con ti
 Para desactivar:
 
 ```js
-localStorage.mpDebug = '0'
+localStorage.mpDebug = "0";
 ```
 
 ---
@@ -243,38 +243,38 @@ localStorage.mpDebug = '0'
 
 ## WebSocket — Eventos principales
 
-| Evento | Dirección | Descripción |
-|---|---|---|
-| `game_snapshot` | ↓ server→client | Estado completo del juego |
-| `dice_rolled` | ↓ | Resultado de tirar dados |
-| `player_moved` | ↓ | Animación de movimiento (con `path`) |
-| `bot_thinking` | ↓ | Bot está "pensando" + delay |
-| `bot_action` | ↓ | Acción que ejecuta el bot |
-| `property_purchased` | ↓ | Propiedad comprada |
-| `house_built` | ↓ | Casa construida |
-| `hotel_built` | ↓ | Hotel construido |
-| `property_mortgaged` | ↓ | Propiedad hipotecada |
-| `auction_started` | ↓ | Subasta iniciada |
-| `bid_placed` | ↓ | Puja realizada |
-| `auction_ended` | ↓ | Subasta terminada |
-| `card_drawn` | ↓ | Carta robada |
-| `rent_collected` | ↓ | Alquiler cobrado |
-| `tax_paid` | ↓ | Impuesto pagado |
-| `player_jailed` | ↓ | Jugador enviado a la cárcel |
-| `player_connected` | ↓ | Jugador conectado |
-| `player_disconnected` | ↓ | Jugador desconectado |
-| `game_over` | ↓ | Partida terminada |
-| `roll_dice` | ↑ client→server | Tirar dados |
-| `buy_property` | ↑ | Comprar propiedad |
-| `pass_buy` | ↑ | Pasar compra |
-| `next_turn` | ↑ | Siguiente turno |
-| `pay_bail` | ↑ | Pagar fianza |
-| `place_bid` | ↑ | Pujar en subasta |
-| `pass_bid` | ↑ | Pasar en subasta |
-| `build_house` | ↑ | Construir casa |
-| `build_hotel` | ↑ | Construir hotel |
-| `mortgage` | ↑ | Hipotecar |
-| `heartbeat` | ↑ | Keepalive |
+| Evento                | Dirección       | Descripción                          |
+| --------------------- | --------------- | ------------------------------------ |
+| `game_snapshot`       | ↓ server→client | Estado completo del juego            |
+| `dice_rolled`         | ↓               | Resultado de tirar dados             |
+| `player_moved`        | ↓               | Animación de movimiento (con `path`) |
+| `bot_thinking`        | ↓               | Bot está "pensando" + delay          |
+| `bot_action`          | ↓               | Acción que ejecuta el bot            |
+| `property_purchased`  | ↓               | Propiedad comprada                   |
+| `house_built`         | ↓               | Casa construida                      |
+| `hotel_built`         | ↓               | Hotel construido                     |
+| `property_mortgaged`  | ↓               | Propiedad hipotecada                 |
+| `auction_started`     | ↓               | Subasta iniciada                     |
+| `bid_placed`          | ↓               | Puja realizada                       |
+| `auction_ended`       | ↓               | Subasta terminada                    |
+| `card_drawn`          | ↓               | Carta robada                         |
+| `rent_collected`      | ↓               | Alquiler cobrado                     |
+| `tax_paid`            | ↓               | Impuesto pagado                      |
+| `player_jailed`       | ↓               | Jugador enviado a la cárcel          |
+| `player_connected`    | ↓               | Jugador conectado                    |
+| `player_disconnected` | ↓               | Jugador desconectado                 |
+| `game_over`           | ↓               | Partida terminada                    |
+| `roll_dice`           | ↑ client→server | Tirar dados                          |
+| `buy_property`        | ↑               | Comprar propiedad                    |
+| `pass_buy`            | ↑               | Pasar compra                         |
+| `next_turn`           | ↑               | Siguiente turno                      |
+| `pay_bail`            | ↑               | Pagar fianza                         |
+| `place_bid`           | ↑               | Pujar en subasta                     |
+| `pass_bid`            | ↑               | Pasar en subasta                     |
+| `build_house`         | ↑               | Construir casa                       |
+| `build_hotel`         | ↑               | Construir hotel                      |
+| `mortgage`            | ↑               | Hipotecar                            |
+| `heartbeat`           | ↑               | Keepalive                            |
 
 ---
 

@@ -77,7 +77,11 @@ type SlotConfig struct {
 }
 
 func SetupGame(gs *GameState, slots []SlotConfig, opts GameOptions) {
-	gs.Phase = PhasePlaying
+	if opts.StartInSetup {
+		gs.Phase = PhaseSetup
+	} else {
+		gs.Phase = PhasePlaying
+	}
 	gs.ActivePlayerIndex = 0
 	gs.IsTurnComplete = false
 	gs.IsDoubles = false
@@ -87,6 +91,7 @@ func SetupGame(gs *GameState, slots []SlotConfig, opts GameOptions) {
 	gs.IsAuctionActive = false
 	gs.Auction = nil
 	gs.ExchangeProposal = nil
+	gs.StartOrder = nil
 	gs.ActiveCard = nil
 	gs.EconomicHistory = []EconomicHistoryItem{}
 	gs.HistoryCounter = 0
@@ -116,6 +121,9 @@ func SetupGame(gs *GameState, slots []SlotConfig, opts GameOptions) {
 	if len(players) > 0 {
 		gs.StatusMessage = "¡" + players[0].Name + " comienza!"
 	}
+	if gs.Phase == PhaseSetup {
+		EnsureStartOrder(gs)
+	}
 }
 
 // GameOptions holds configuration for a new game.
@@ -126,6 +134,7 @@ type GameOptions struct {
 	AuctionOnly      bool
 	DoublesGiveExtra bool
 	ScenarioSeeds    []string
+	StartInSetup     bool
 }
 
 func DefaultOptions() GameOptions {

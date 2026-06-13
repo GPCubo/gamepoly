@@ -39,21 +39,25 @@ type SlotConfig struct {
 
 // CreateResult holds the IDs generated for a new table.
 type CreateResult struct {
-	TableID  string
-	PlayerID string // ID for the first human slot (creator)
-	Token    string // JWT (minted by caller)
+	TableID     string
+	PlayerID    string // ID for the first human slot (creator)
+	Token       string // JWT (minted by caller)
+	Phase       game.Phase
+	AutoStarted bool
 }
 
 // Create creates a new table and starts its goroutine.
 func (m *Manager) Create(req CreateRequest) (*CreateResult, error) {
 	tableID := "T-" + uuid.New().String()[:8]
 	creatorPlayerID := ""
+	hasOpenSlot := false
 
 	slots := make([]PlayerSlot, 0, len(req.Slots))
 	for i, sc := range req.Slots {
 		pid := uuid.New().String()[:8]
 		isBot := sc.Type == "bot"
 		if sc.Type == "open" {
+			hasOpenSlot = true
 			isBot = false // placeholder slot; will be filled when someone joins
 		}
 		if i == 0 && sc.Type == "human" {
@@ -73,6 +77,7 @@ func (m *Manager) Create(req CreateRequest) (*CreateResult, error) {
 		creatorPlayerID = slots[0].ID
 	}
 
+	req.Opts.StartInSetup = hasOpenSlot
 	t := NewTable(tableID, slots, req.Opts, m.repo)
 	m.mu.Lock()
 	m.tables[tableID] = t
@@ -81,19 +86,25 @@ func (m *Manager) Create(req CreateRequest) (*CreateResult, error) {
 	go t.Run()
 
 	return &CreateResult{
-		TableID:  tableID,
-		PlayerID: creatorPlayerID,
+		TableID:     tableID,
+		PlayerID:    creatorPlayerID,
+		Phase:       t.State.Phase,
+		AutoStarted: t.State.Phase == game.PhasePlaying,
 	}, nil
 }
 
+type JoinResult struct {
+	PlayerID string
+	Phase    game.Phase
+}
+
 // Join assigns an "open" slot to a new human player.
-func (m *Manager) Join(tableID, playerName string) (string, error) {
+func (m *Manager) Join(tableID, playerName string) (*JoinResult, error) {
 	t := m.Get(tableID)
 	if t == nil {
-		return "", errors.New("mesa no encontrada")
+		return nil, errors.New("mesa no encontrada")
 	}
 	t.mu.Lock()
-	defer t.mu.Unlock()
 
 	for _, slot := range t.Slots {
 		if !slot.IsBot && slot.Conn == nil {
@@ -104,11 +115,15 @@ func (m *Manager) Join(tableID, playerName string) (string, error) {
 				if p := t.State.FindPlayer(slot.ID); p != nil {
 					p.Name = playerName
 				}
-				return slot.ID, nil
+				playerID := slot.ID
+				t.mu.Unlock()
+				t.onLobbyChanged()
+				return &JoinResult{PlayerID: playerID, Phase: t.State.Phase}, nil
 			}
 		}
 	}
-	return "", errors.New("mesa llena")
+	t.mu.Unlock()
+	return nil, errors.New("mesa llena")
 }
 
 // Get retrieves a table by ID.

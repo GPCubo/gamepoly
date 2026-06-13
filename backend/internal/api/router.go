@@ -266,9 +266,11 @@ func (rt *Router) createTable(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeJSON(w, map[string]string{
-		"tableId":  result.TableID,
-		"playerId": result.PlayerID,
+	writeJSON(w, map[string]any{
+		"tableId":     result.TableID,
+		"playerId":    result.PlayerID,
+		"phase":       result.Phase,
+		"autoStarted": result.AutoStarted,
 	})
 }
 
@@ -300,12 +302,12 @@ func (rt *Router) handleTable(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "playerName required", http.StatusBadRequest)
 			return
 		}
-		playerID, err := rt.Manager.Join(tableID, req.PlayerName)
+		result, err := rt.Manager.Join(tableID, req.PlayerName)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusConflict)
 			return
 		}
-		writeJSON(w, map[string]string{"playerId": playerID})
+		writeJSON(w, map[string]any{"playerId": result.PlayerID, "phase": result.Phase})
 
 	case r.Method == http.MethodDelete && len(parts) == 1:
 		rt.Manager.Remove(tableID)

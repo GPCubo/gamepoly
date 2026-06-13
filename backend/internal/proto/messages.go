@@ -82,6 +82,18 @@ type DiceRolledPayload struct {
 	IsDoubles bool   `json:"isDoubles"`
 }
 
+type StartOrderRolledPayload struct {
+	PlayerID   string `json:"playerId"`
+	PlayerName string `json:"playerName"`
+	DiceValues [2]int `json:"diceValues"`
+	Total      int    `json:"total"`
+	Round      int    `json:"round"`
+}
+
+type GameStartedPayload struct {
+	FirstPlayerID string `json:"firstPlayerId"`
+}
+
 type PlayerMovedPayload struct {
 	PlayerID string `json:"playerId"`
 	From     int    `json:"from"`

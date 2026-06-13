@@ -7,8 +7,94 @@
     <AppHeader back-to="/" badge="Multijugador" />
 
     <div class="page-body">
+      <!-- Room view -->
+      <div v-if="roomTableId" class="lobby-card lobby-room-card">
+        <div class="card-header room-header">
+          <div>
+            <h1 class="main-title">Sala {{ roomTableId }}</h1>
+            <p class="subtitle">{{ roomSubtitle }}</p>
+          </div>
+          <span class="room-favicon material-symbols-outlined">casino</span>
+        </div>
+
+        <div class="invite-panel">
+          <div class="invite-copy">
+            <span class="section-label">INVITACION</span>
+            <strong>{{ roomTableId }}</strong>
+            <span>{{ inviteUrl }}</span>
+          </div>
+          <button class="copy-btn" @click="copyInviteUrl">
+            <span class="material-symbols-outlined">{{
+              inviteCopied ? "check" : "content_copy"
+            }}</span>
+            {{ inviteCopied ? "Copiado" : "Copiar URL" }}
+          </button>
+        </div>
+
+        <div class="section-block">
+          <span class="section-label">CASILLAS</span>
+          <div class="slots-grid room-slots-grid">
+            <div
+              v-for="(player, idx) in roomPlayers"
+              :key="player.id"
+              class="slot-card room-slot-card"
+              :class="[
+                'slot-accent-' + (idx + 1),
+                {
+                  'room-slot-open': isOpenRoomPlayer(player),
+                  'room-slot-winner': startOrderWinnerId === player.id,
+                  'room-slot-tied': isTiedPlayer(player.id),
+                },
+              ]"
+            >
+              <div class="slot-top">
+                <span class="slot-num">{{ idx + 1 }}</span>
+                <span v-if="player.id === roomPlayerId" class="slot-you-badge"
+                  >Tu</span
+                >
+                <span v-if="startOrderWinnerId === player.id" class="first-badge"
+                  >Va primero</span
+                >
+              </div>
+              <strong class="room-player-name">{{ roomPlayerName(player) }}</strong>
+              <span class="slot-type-label">
+                <span class="material-symbols-outlined">{{
+                  isOpenRoomPlayer(player)
+                    ? "person_add"
+                    : player.isBot
+                      ? "smart_toy"
+                      : "person"
+                }}</span>
+                {{ roomPlayerStatus(player) }}
+              </span>
+              <span v-if="rollForPlayer(player.id)" class="roll-pill">
+                {{ rollForPlayer(player.id)?.diceValues.join(" + ") }} =
+                {{ rollForPlayer(player.id)?.total }}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <div class="start-order-panel">
+          <div>
+            <span class="section-label">ORDEN INICIAL</span>
+            <p>{{ startOrderMessage }}</p>
+          </div>
+          <button
+            class="start-btn"
+            :disabled="!canRollStartOrder"
+            @click="rollStartOrder"
+          >
+            <span class="material-symbols-outlined">casino</span>
+            {{ startOrderButtonLabel }}
+          </button>
+        </div>
+
+        <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
+      </div>
+
       <!-- Join view -->
-      <div v-if="mode === 'join'" class="lobby-card">
+      <div v-else-if="mode === 'join'" class="lobby-card">
         <div class="card-header">
           <h1 class="main-title">Unirse a mesa</h1>
           <p class="subtitle">
@@ -172,13 +258,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive, onMounted } from "vue";
+import { computed, ref, reactive, onMounted, onUnmounted, watch } from "vue";
 import { useMultiplayerStore } from "~/stores/multiplayerStore";
 import { getApiBaseUrl } from "~/utils/env";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import { enabledLocalScenarioSeedKeys } from "~/config/localScenarioSeeds";
+import { useGameSocket } from "~/composables/useGameSocket";
+import type { MPPlayerState } from "~/stores/multiplayerStore";
 
 const mpStore = useMultiplayerStore();
+const socket = useGameSocket();
 const route = useRoute();
 const { track } = useAnalytics();
 
@@ -186,7 +275,17 @@ const mode = ref<"create" | "join">(
   route.query.mode === "join" ? "join" : "create",
 );
 
-onMounted(() => track("lobby_opened"));
+onMounted(() => {
+  track("lobby_opened");
+  if (typeof route.query.tableId === "string" && route.query.tableId.trim()) {
+    if (typeof route.query.playerId === "string" && route.query.playerId.trim()) {
+      connectRoom(route.query.tableId.trim(), route.query.playerId.trim());
+      return;
+    }
+    mode.value = "join";
+    joinCode.value = route.query.tableId.trim();
+  }
+});
 const playerName = ref("");
 const joinCode = ref("");
 const errorMsg = ref("");
@@ -194,6 +293,11 @@ const creating = ref(false);
 const joining = ref(false);
 const showRules = ref(false);
 const slotCount = ref(2);
+const roomTableId = ref("");
+const roomPlayerId = ref("");
+const inviteCopied = ref(false);
+let unsubscribeSocket: (() => void) | null = null;
+let copiedTimer: ReturnType<typeof setTimeout> | null = null;
 
 const startingCash = ref(1500);
 const goSalary = ref(200);
@@ -216,6 +320,138 @@ function setSlotCount(n: number) {
 }
 
 const API_BASE = getApiBaseUrl();
+
+const roomPlayers = computed(() => mpStore.players);
+const startOrder = computed(() => mpStore.startOrder);
+const startOrderWinnerId = computed(() => startOrder.value?.winnerId ?? "");
+const inviteUrl = computed(() => {
+  if (typeof window === "undefined" || !roomTableId.value) return "";
+  const url = new URL("/multiplayer/lobby", window.location.origin);
+  url.searchParams.set("mode", "join");
+  url.searchParams.set("tableId", roomTableId.value);
+  return url.toString();
+});
+const joinSubtitle = computed(() =>
+  joinCode.value
+    ? `Te invitaron a la mesa ${joinCode.value}. Ingresa tu nombre para unirte.`
+    : "Ingresa el codigo de la mesa que te compartieron.",
+);
+const roomSubtitle = computed(() => {
+  if (!mpStore.state) return "Preparando sala...";
+  if (mpStore.phase === "setup") return "Comparte la sala y definan quien juega primero.";
+  return "Partida lista. Entrando al tablero...";
+});
+const currentRoundRolls = computed(() =>
+  (startOrder.value?.rolls ?? []).filter(
+    (roll) => roll.round === startOrder.value?.round,
+  ),
+);
+const hasOpenRoomSlots = computed(() =>
+  roomPlayers.value.some((player) => isOpenRoomPlayer(player)),
+);
+const canRollStartOrder = computed(() => {
+  if (!roomPlayerId.value || mpStore.phase !== "setup" || hasOpenRoomSlots.value)
+    return false;
+  const order = startOrder.value;
+  if (!order || order.status === "waiting" || order.status === "complete")
+    return false;
+  if (!order.requiredPlayerIds.includes(roomPlayerId.value)) return false;
+  return !currentRoundRolls.value.some(
+    (roll) => roll.playerId === roomPlayerId.value,
+  );
+});
+const startOrderButtonLabel = computed(() => {
+  if (hasOpenRoomSlots.value) return "Esperando jugadores";
+  if (startOrder.value?.status === "complete") return "Orden definido";
+  if (!canRollStartOrder.value) return "Esperando tiradas";
+  return startOrder.value?.status === "tiebreak" ? "Desempatar" : "Tirar dados";
+});
+const startOrderMessage = computed(() => {
+  if (hasOpenRoomSlots.value) return "Aun hay casillas abiertas para invitados.";
+  const order = startOrder.value;
+  if (!order) return "Preparando tirada inicial.";
+  if (order.status === "complete") {
+    const winner = roomPlayers.value.find((p) => p.id === order.winnerId);
+    return `${winner?.name ?? "El ganador"} va primero.`;
+  }
+  if (order.status === "tiebreak") {
+    return "Hay empate en la tirada mayor. Solo los empatados vuelven a tirar.";
+  }
+  return "Cada participante tira una vez. El total mas alto empieza.";
+});
+
+function isOpenRoomPlayer(player: MPPlayerState) {
+  return !player.name || player.name === "open";
+}
+
+function isTiedPlayer(playerId: string) {
+  return (startOrder.value?.tiedPlayerIds ?? []).includes(playerId);
+}
+
+function rollForPlayer(playerId: string) {
+  return currentRoundRolls.value.find((roll) => roll.playerId === playerId);
+}
+
+function roomPlayerName(player: MPPlayerState) {
+  if (isOpenRoomPlayer(player)) return "Esperando jugador";
+  return player.name;
+}
+
+function roomPlayerStatus(player: MPPlayerState) {
+  if (isOpenRoomPlayer(player)) return "Abierto para invitado";
+  if (startOrderWinnerId.value === player.id) return "Primer turno";
+  if (isTiedPlayer(player.id)) return "Empatado";
+  if (rollForPlayer(player.id)) return "Tirada lista";
+  if ((startOrder.value?.requiredPlayerIds ?? []).includes(player.id))
+    return player.isBot ? "Bot participa" : "Pendiente de tirar";
+  return player.isBot ? "Bot" : "Conectado";
+}
+
+function connectRoom(tableId: string, playerId: string) {
+  roomTableId.value = tableId;
+  roomPlayerId.value = playerId;
+  mpStore.setConnection(tableId, playerId);
+  unsubscribeSocket?.();
+  unsubscribeSocket = socket.onMessage((msg) => {
+    if (msg.type === "game_snapshot") {
+      const payload = msg.payload as { state?: any };
+      if (payload?.state) mpStore.applySnapshot(payload.state);
+    }
+  });
+  socket.connect(tableId, playerId);
+}
+
+async function copyInviteUrl() {
+  if (!inviteUrl.value) return;
+  await navigator.clipboard.writeText(inviteUrl.value);
+  inviteCopied.value = true;
+  if (copiedTimer) clearTimeout(copiedTimer);
+  copiedTimer = setTimeout(() => {
+    inviteCopied.value = false;
+  }, 1800);
+}
+
+function rollStartOrder() {
+  if (!canRollStartOrder.value) return;
+  socket.send("roll_start_order");
+}
+
+watch(
+  () => mpStore.phase,
+  (phase) => {
+    if (phase === "playing" && roomTableId.value && roomPlayerId.value) {
+      navigateTo(
+        `/multiplayer/game?tableId=${roomTableId.value}&playerId=${roomPlayerId.value}`,
+      );
+    }
+  },
+);
+
+onUnmounted(() => {
+  if (copiedTimer) clearTimeout(copiedTimer);
+  unsubscribeSocket?.();
+  socket.disconnect();
+});
 
 function isLocalGameUrl() {
   if (typeof window === "undefined") return false;
@@ -288,11 +524,15 @@ async function createTable() {
     }
 
     const data = await res.json();
-    mpStore.setConnection(data.tableId, data.playerId);
     track("table_created");
-    navigateTo(
-      `/multiplayer/game?tableId=${data.tableId}&playerId=${data.playerId}`,
-    );
+    if (data.autoStarted || data.phase === "playing") {
+      mpStore.setConnection(data.tableId, data.playerId);
+      navigateTo(
+        `/multiplayer/game?tableId=${data.tableId}&playerId=${data.playerId}`,
+      );
+      return;
+    }
+    connectRoom(data.tableId, data.playerId);
   } catch (e) {
     errorMsg.value = "No se pudo conectar al servidor";
     console.error(e);
@@ -329,11 +569,15 @@ async function joinTable() {
     }
 
     const data = await res.json();
-    mpStore.setConnection(joinCode.value.trim(), data.playerId);
     track("table_joined");
-    navigateTo(
-      `/multiplayer/game?tableId=${joinCode.value.trim()}&playerId=${data.playerId}`,
-    );
+    if (data.phase === "playing") {
+      mpStore.setConnection(joinCode.value.trim(), data.playerId);
+      navigateTo(
+        `/multiplayer/game?tableId=${joinCode.value.trim()}&playerId=${data.playerId}`,
+      );
+      return;
+    }
+    connectRoom(joinCode.value.trim(), data.playerId);
   } catch (e) {
     errorMsg.value = "No se pudo conectar al servidor";
     console.error(e);
@@ -445,6 +689,131 @@ async function joinTable() {
   gap: 20px;
   box-shadow: 0 32px 64px -12px rgba(0, 0, 0, 0.5);
   animation: lobbyCardEnter 0.9s cubic-bezier(0.18, 1, 0.22, 1) both;
+}
+
+.lobby-room-card {
+  max-width: 760px;
+}
+
+.room-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.room-favicon {
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  padding: 6px;
+  color: #00f59b;
+}
+
+.invite-panel,
+.start-order-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid rgba(132, 149, 136, 0.12);
+  border-radius: 14px;
+  background: rgba(17, 19, 28, 0.5);
+}
+
+.invite-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.invite-copy strong {
+  font-family: "JetBrains Mono", monospace;
+  color: #00f59b;
+}
+
+.invite-copy span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #849588;
+  font-size: 12px;
+}
+
+.copy-btn {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(0, 245, 155, 0.24);
+  background: rgba(0, 245, 155, 0.1);
+  color: #00f59b;
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.room-slots-grid {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.room-slot-card {
+  min-height: 150px;
+}
+
+.room-slot-open {
+  opacity: 0.7;
+  border-style: dashed;
+}
+
+.room-slot-winner {
+  border-color: rgba(0, 245, 155, 0.58);
+  box-shadow: 0 0 0 1px rgba(0, 245, 155, 0.22);
+}
+
+.room-slot-tied {
+  border-color: rgba(255, 209, 101, 0.48);
+}
+
+.room-player-name {
+  color: #e1e1ef;
+  font-size: 14px;
+}
+
+.first-badge,
+.roll-pill {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  border-radius: 5px;
+  padding: 3px 6px;
+}
+
+.first-badge {
+  color: #003920;
+  background: #00f59b;
+}
+
+.roll-pill {
+  align-self: flex-start;
+  color: #ffd165;
+  background: rgba(255, 209, 101, 0.12);
+  border: 1px solid rgba(255, 209, 101, 0.22);
+}
+
+.start-order-panel p {
+  margin: 5px 0 0;
+  color: #e1e1ef;
+  font-size: 14px;
 }
 
 .main-title {
@@ -863,6 +1232,20 @@ async function joinTable() {
   .slots-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
+  }
+
+  .room-slots-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .invite-panel,
+  .start-order-panel {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .copy-btn {
+    justify-content: center;
   }
 
   .slot-card {

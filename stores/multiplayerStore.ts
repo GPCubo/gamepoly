@@ -30,6 +30,24 @@ export interface MPAuctionState {
   bidderIdx: number
 }
 
+export interface MPStartOrderRoll {
+  playerId: string
+  playerName: string
+  diceValues: [number, number]
+  total: number
+  round: number
+  rolledAt: number
+}
+
+export interface MPStartOrderState {
+  status: 'waiting' | 'rolling' | 'tiebreak' | 'complete'
+  round: number
+  requiredPlayerIds: string[]
+  tiedPlayerIds: string[]
+  winnerId?: string
+  rolls: MPStartOrderRoll[]
+}
+
 export interface MPExchangeProposal {
   fromPlayerId: string
   toPlayerId: string
@@ -107,6 +125,7 @@ export interface MPGameState {
   isAuctionActive: boolean
   auction: MPAuctionState | null
   exchangeProposal: MPExchangeProposal | null
+  startOrder: MPStartOrderState | null
   activeCard: MPGameCard | null
   economicHistory: MPEconomicHistoryItem[]
   movementHistory: MPMovementHistoryItem[]
@@ -146,6 +165,7 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
   const isAuctionActive = computed(() => state.value?.isAuctionActive ?? false)
   const auction = computed(() => state.value?.auction ?? null)
   const exchangeProposal = computed(() => state.value?.exchangeProposal ?? null)
+  const startOrder = computed(() => state.value?.startOrder ?? null)
   const activeCard = computed(() => state.value?.activeCard ?? null)
   const economicHistory = computed(() => state.value?.economicHistory ?? [])
   const movementHistory = computed(() => state.value?.movementHistory ?? [])
@@ -240,6 +260,7 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
     isAuctionActive,
     auction,
     exchangeProposal,
+    startOrder,
     activeCard,
     economicHistory,
     movementHistory,

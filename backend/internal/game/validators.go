@@ -26,10 +26,14 @@ var (
 	ErrBidTooLow          = errors.New("oferta demasiado baja")
 	ErrNotInJail          = errors.New("no estas en la carcel")
 	ErrGameOver           = errors.New("partida terminada")
+	ErrGameNotStarted     = errors.New("la partida aun no inicia")
 )
 
 // CanRollDice checks if the active player can roll.
 func CanRollDice(gs *GameState, playerID string) error {
+	if gs.Phase != PhasePlaying {
+		return ErrGameNotStarted
+	}
 	p := gs.ActivePlayer()
 	if p == nil {
 		return ErrGameOver
@@ -45,6 +49,9 @@ func CanRollDice(gs *GameState, playerID string) error {
 
 // CanBuyProperty checks if playerID can buy tileIndex.
 func CanBuyProperty(gs *GameState, playerID string, tileIndex int) error {
+	if gs.Phase != PhasePlaying {
+		return ErrGameNotStarted
+	}
 	p := gs.ActivePlayer()
 	if p == nil || p.ID != playerID {
 		return ErrNotYourTurn
@@ -68,6 +75,9 @@ func CanBuyProperty(gs *GameState, playerID string, tileIndex int) error {
 
 // CanNextTurn checks if playerID can advance to next turn.
 func CanNextTurn(gs *GameState, playerID string) error {
+	if gs.Phase != PhasePlaying {
+		return ErrGameNotStarted
+	}
 	p := gs.ActivePlayer()
 	if p == nil || p.ID != playerID {
 		return ErrNotYourTurn

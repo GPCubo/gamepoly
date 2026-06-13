@@ -26,9 +26,11 @@
     <AppHeader>
       <template #actions>
         <nav class="header-nav" aria-label="Navegacion principal">
-        <button @click="scrollToSection('features')">Modos</button>
-        <button @click="scrollToSection('showcase')">Experiencia</button>
-        <button class="nav-primary" @click="navigateTo('/setup')">Jugar</button>
+          <button @click="scrollToSection('features')">Modos</button>
+          <button @click="scrollToSection('showcase')">Experiencia</button>
+          <button class="nav-primary" @click="navigateTo('/setup')">
+            Jugar
+          </button>
         </nav>
       </template>
     </AppHeader>
@@ -63,14 +65,14 @@
           <div class="hero-actions">
             <button class="hero-primary" @click="navigateTo('/setup')">
               <span class="material-symbols-outlined">play_arrow</span>
-              Configurar partida
+              Modo Individual
             </button>
             <button
               class="hero-secondary"
               @click="navigateTo('/multiplayer/lobby?mode=create')"
             >
               <span class="material-symbols-outlined">wifi</span>
-              Crear mesa online
+              Jugar con amigos
             </button>
           </div>
         </div>

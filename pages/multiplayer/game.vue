@@ -959,6 +959,13 @@ type SnackbarItem = {
   createdAt?: number;
 };
 
+type PlayerMovedPayload = {
+  playerId: string;
+  from?: number;
+  to: number;
+  path?: number[];
+};
+
 const mpStore = useMultiplayerStore();
 const socket = useGameSocket();
 const route = useRoute();
@@ -1018,6 +1025,7 @@ let fpsFrames = 0;
 let fpsElapsedMs = 0;
 const movementAnimating = ref(false);
 let pendingSnapshot: any = null;
+const movementQueue: PlayerMovedPayload[] = [];
 let pendingBotThinking: {
   playerId: string;
   delayMs: number;
@@ -1106,7 +1114,6 @@ const actionRefs = computed(() => {
     refs.push(rollBtnRef);
   if (mpStore.isMyTurn && mpStore.isTurnComplete && !isMovementLocked.value)
     refs.push(nextBtnRef);
-  refs.push(configBtnRef);
   return refs;
 });
 
@@ -1352,6 +1359,10 @@ function syncIdlePiecePositions() {
 
 function onMovementComplete() {
   movementAnimating.value = false;
+  if (movementQueue.length > 0) {
+    runNextQueuedMovement();
+    return;
+  }
   if (pendingSnapshot) {
     const snap = pendingSnapshot;
     pendingSnapshot = null;
@@ -1377,6 +1388,98 @@ function flushPendingBotThinking() {
   const elapsed = Date.now() - pending.receivedAt;
   const remaining = Math.max(0, pending.delayMs - elapsed);
   showBotThinking(remaining);
+}
+
+function enqueueMovement(payload: PlayerMovedPayload) {
+  movementQueue.push(payload);
+  if (!movementAnimating.value) {
+    runNextQueuedMovement();
+  }
+}
+
+function runNextQueuedMovement() {
+  if (movementAnimating.value) return;
+  const payload = movementQueue.shift();
+  if (!payload) {
+    onMovementComplete();
+    return;
+  }
+
+  const playerIdx = mpStore.players.findIndex(
+    (player) => player.id === payload.playerId,
+  );
+  if (playerIdx < 0) {
+    runNextQueuedMovement();
+    return;
+  }
+
+  ensureAnimationState();
+
+  const currentPos = payload.from ?? mpStore.players[playerIdx].position;
+  const targetPos = payload.to;
+  const movePath =
+    payload.path && payload.path.length > 0
+      ? payload.path
+      : currentPos === targetPos
+        ? []
+        : [targetPos];
+
+  if (movePath.length === 0) {
+    runNextQueuedMovement();
+    return;
+  }
+
+  movementAnimating.value = true;
+  const moveId = ++movementSeq;
+
+  const isMyPlayer = payload.playerId === mpStore.myPlayerId;
+  if (isMyPlayer) {
+    isAnimatingMyMove.value = true;
+    showBuyPrompt.value = false;
+  }
+
+  const finishMovement = () => {
+    if (moveId !== movementSeq) return;
+    if (isMyPlayer) {
+      const pos = ((payload.to % 40) + 40) % 40;
+      const tile = BOARD_TILES[pos];
+      if (
+        isOwnableTile(tile) &&
+        mpStore.propertyOwners[tile.index] === undefined &&
+        mpStore.isMyTurn
+      ) {
+        buyTileIndex.value = tile.index;
+        showBuyPrompt.value = true;
+      }
+      isAnimatingMyMove.value = false;
+    }
+    onMovementComplete();
+  };
+
+  let stepIdx = 0;
+
+  const animateNextStep = () => {
+    if (moveId !== movementSeq) return;
+    if (stepIdx >= movePath.length) return;
+
+    const nextPos = movePath[stepIdx];
+    const fromPos = stepIdx === 0 ? currentPos : movePath[stepIdx - 1];
+
+    const fromCoords = getCasillaCoordinates(((fromPos % 40) + 40) % 40);
+    const toCoords = getCasillaCoordinates(((nextPos % 40) + 40) % 40);
+
+    startHop(playerIdx, fromCoords, toCoords);
+    mpStore.players[playerIdx].position = nextPos;
+
+    stepIdx++;
+    if (stepIdx < movePath.length) {
+      setTimeout(animateNextStep, 300);
+    } else {
+      setTimeout(finishMovement, 250 + REVEAL_DELAY_MS);
+    }
+  };
+
+  animateNextStep();
 }
 
 function onRenderTick({ delta }: { delta: number }) {
@@ -2374,6 +2477,12 @@ onMounted(() => {
       case "game_snapshot": {
         const payload = msg.payload as { state: any };
         if (payload?.state) {
+          if (payload.state.phase === "setup") {
+            navigateTo(
+              `/multiplayer/lobby?tableId=${tableId}&playerId=${playerId}`,
+            );
+            break;
+          }
           if (movementAnimating.value) {
             pendingSnapshot = payload.state;
             // Update dice display immediately even while animating
@@ -2398,82 +2507,7 @@ onMounted(() => {
         break;
       }
       case "player_moved": {
-        const payload = msg.payload as {
-          playerId: string;
-          from: number;
-          to: number;
-          path?: number[];
-        };
-        const playerIdx = mpStore.players.findIndex(
-          (player) => player.id === payload.playerId,
-        );
-        if (playerIdx >= 0) {
-          ensureAnimationState();
-
-          const currentPos =
-            payload.from ?? mpStore.players[playerIdx].position;
-          const targetPos = payload.to;
-
-          if (currentPos === targetPos) return;
-
-          movementAnimating.value = true;
-          const moveId = ++movementSeq;
-
-          const isMyPlayer = payload.playerId === mpStore.myPlayerId;
-          if (isMyPlayer) {
-            isAnimatingMyMove.value = true;
-            showBuyPrompt.value = false;
-          }
-
-          const movePath =
-            payload.path && payload.path.length > 0
-              ? payload.path
-              : [targetPos];
-
-          const finishMovement = () => {
-            if (moveId !== movementSeq) return;
-            onMovementComplete();
-            if (isMyPlayer) {
-              const pos = ((payload.to % 40) + 40) % 40;
-              const tile = BOARD_TILES[pos];
-              if (
-                isOwnableTile(tile) &&
-                mpStore.propertyOwners[tile.index] === undefined &&
-                mpStore.isMyTurn
-              ) {
-                buyTileIndex.value = tile.index;
-                showBuyPrompt.value = true;
-              }
-              isAnimatingMyMove.value = false;
-            }
-          };
-
-          let stepIdx = 0;
-
-          const animateNextStep = () => {
-            if (stepIdx >= movePath.length) return;
-
-            const nextPos = movePath[stepIdx];
-            const fromPos = stepIdx === 0 ? currentPos : movePath[stepIdx - 1];
-
-            const fromCoords = getCasillaCoordinates(
-              ((fromPos % 40) + 40) % 40,
-            );
-            const toCoords = getCasillaCoordinates(((nextPos % 40) + 40) % 40);
-
-            startHop(playerIdx, fromCoords, toCoords);
-            mpStore.players[playerIdx].position = nextPos;
-
-            stepIdx++;
-            if (stepIdx < movePath.length) {
-              setTimeout(animateNextStep, 300);
-            } else {
-              setTimeout(finishMovement, 250 + REVEAL_DELAY_MS);
-            }
-          };
-
-          animateNextStep();
-        }
+        enqueueMovement(msg.payload as PlayerMovedPayload);
         break;
       }
       case "player_connected":
