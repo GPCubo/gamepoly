@@ -9,7 +9,7 @@ import (
 func TestRollStartOrderBotsParticipateInSetup(t *testing.T) {
 	tbl := NewTable("T-test", []PlayerSlot{
 		{ID: "p1", Name: "Ana", TokenModel: "sombrero.glb", IsBot: false},
-		{ID: "b1", Name: "Bot", TokenModel: "cat.glb", IsBot: true, Difficulty: game.BotRegular},
+		{ID: "b1", Name: "Bot", TokenModel: "coffee.glb", IsBot: true, Difficulty: game.BotRegular},
 	}, game.GameOptions{GoSalary: 200, JailBailCost: 50, StartInSetup: true}, nil)
 
 	tbl.rollStartOrderBots()

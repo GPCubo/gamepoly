@@ -297,12 +297,13 @@ func (rt *Router) handleTable(w http.ResponseWriter, r *http.Request) {
 	case r.Method == http.MethodPost && len(parts) == 2 && parts[1] == "join":
 		var req struct {
 			PlayerName string `json:"playerName"`
+			TokenModel string `json:"tokenModel"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil || req.PlayerName == "" {
 			http.Error(w, "playerName required", http.StatusBadRequest)
 			return
 		}
-		result, err := rt.Manager.Join(tableID, req.PlayerName)
+		result, err := rt.Manager.Join(tableID, req.PlayerName, req.TokenModel)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusConflict)
 			return

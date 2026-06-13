@@ -57,6 +57,10 @@
                 >
               </div>
               <strong class="room-player-name">{{ roomPlayerName(player) }}</strong>
+              <span v-if="!isOpenRoomPlayer(player)" class="token-pill">
+                <span>{{ tokenIcon(player.tokenModel) }}</span>
+                {{ tokenName(player.tokenModel) }}
+              </span>
               <span class="slot-type-label">
                 <span class="material-symbols-outlined">{{
                   isOpenRoomPlayer(player)
@@ -97,9 +101,7 @@
       <div v-else-if="mode === 'join'" class="lobby-card">
         <div class="card-header">
           <h1 class="main-title">Unirse a mesa</h1>
-          <p class="subtitle">
-            Ingresa el código de la mesa que te compartieron.
-          </p>
+          <p class="subtitle">{{ joinSubtitle }}</p>
         </div>
         <div class="field-group">
           <label class="field-label">TU NOMBRE</label>
@@ -109,6 +111,22 @@
             placeholder="Cómo te llamas?"
             maxlength="20"
           />
+        </div>
+        <div class="field-group">
+          <label class="field-label">TU FICHA</label>
+          <div class="token-choice-grid">
+            <button
+              v-for="token in tokenModels"
+              :key="token.file"
+              type="button"
+              class="token-choice-btn"
+              :class="{ active: joinTokenModel === token.file }"
+              @click="joinTokenModel = token.file"
+            >
+              <span>{{ token.icon }}</span>
+              {{ token.name }}
+            </button>
+          </div>
         </div>
         <div class="field-group">
           <label class="field-label">CÓDIGO DE MESA</label>
@@ -148,13 +166,29 @@
             maxlength="20"
           />
         </div>
+        <div class="field-group">
+          <label class="field-label">TU FICHA</label>
+          <div class="token-choice-grid">
+            <button
+              v-for="token in tokenModels"
+              :key="token.file"
+              type="button"
+              class="token-choice-btn"
+              :class="{ active: playerTokenModel === token.file }"
+              @click="playerTokenModel = token.file"
+            >
+              <span>{{ token.icon }}</span>
+              {{ token.name }}
+            </button>
+          </div>
+        </div>
 
         <!-- Slot count -->
         <div class="section-block">
           <span class="section-label">NÚMERO DE SLOTS</span>
           <div class="player-count-bar">
             <button
-              v-for="n in 4"
+              v-for="n in maxLobbySlots"
               :key="n"
               class="count-pill"
               :class="{ active: n === slotCount, disabled: n < 2 }"
@@ -293,6 +327,10 @@ const creating = ref(false);
 const joining = ref(false);
 const showRules = ref(false);
 const slotCount = ref(2);
+const tokenModels = GAME_CONFIG.TOKEN_MODELS;
+const playerTokenModel = ref(tokenModels[0]?.file ?? "sombrero.glb");
+const joinTokenModel = ref(tokenModels[0]?.file ?? "sombrero.glb");
+const maxLobbySlots = GAME_CONFIG.TOKEN_MODELS.length;
 const roomTableId = ref("");
 const roomPlayerId = ref("");
 const inviteCopied = ref(false);
@@ -474,6 +512,22 @@ function tokenModelForSlot(index: number) {
   );
 }
 
+function nextUnusedTokenModel(used: Set<string>, preferredIndex: number) {
+  for (let offset = 0; offset < tokenModels.length; offset++) {
+    const token = tokenModels[(preferredIndex + offset) % tokenModels.length];
+    if (token && !used.has(token.file)) return token.file;
+  }
+  return tokenModelForSlot(preferredIndex);
+}
+
+function tokenIcon(file: string) {
+  return tokenModels.find((token) => token.file === file)?.icon ?? "●";
+}
+
+function tokenName(file: string) {
+  return tokenModels.find((token) => token.file === file)?.name ?? "Ficha";
+}
+
 async function createTable() {
   errorMsg.value = "";
   if (!playerName.value.trim()) {
@@ -482,13 +536,21 @@ async function createTable() {
   }
   creating.value = true;
   try {
+    const usedTokenModels = new Set<string>();
+    const creatorTokenModel = playerTokenModel.value || tokenModelForSlot(0);
+    usedTokenModels.add(creatorTokenModel);
     const slotsPayload = Array.from({ length: slotCount.value }, (_, i) => {
-      const tokenModel = tokenModelForSlot(i);
       if (i === 0)
-        return { type: "human", name: playerName.value.trim(), tokenModel };
+        return {
+          type: "human",
+          name: playerName.value.trim(),
+          tokenModel: creatorTokenModel,
+        };
       const s = slots[i];
-      if (s.type === "open") return { type: "open", name: "", tokenModel };
+      if (s.type === "open") return { type: "open", name: "", tokenModel: "" };
       const diff = s.type === "bot_difficult" ? "difficult" : "regular";
+      const tokenModel = nextUnusedTokenModel(usedTokenModels, i);
+      usedTokenModels.add(tokenModel);
       return {
         type: "bot",
         difficulty: diff,
@@ -558,7 +620,10 @@ async function joinTable() {
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ playerName: playerName.value.trim() }),
+        body: JSON.stringify({
+          playerName: playerName.value.trim(),
+          tokenModel: joinTokenModel.value,
+        }),
       },
     );
 
@@ -877,6 +942,46 @@ async function joinTable() {
   letter-spacing: 0.08em;
 }
 
+.token-choice-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.token-choice-btn {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 10px;
+  border: 1px solid rgba(132, 149, 136, 0.14);
+  border-radius: 12px;
+  background: rgba(17, 19, 28, 0.55);
+  color: #e1e1ef;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    border-color 0.2s,
+    background 0.2s,
+    color 0.2s;
+}
+
+.token-choice-btn span {
+  font-size: 18px;
+}
+
+.token-choice-btn:hover {
+  border-color: rgba(0, 245, 155, 0.35);
+}
+
+.token-choice-btn.active {
+  border-color: rgba(0, 245, 155, 0.72);
+  background: rgba(0, 245, 155, 0.12);
+  color: #00f59b;
+}
+
 .select-wrapper {
   position: relative;
 }
@@ -996,6 +1101,20 @@ async function joinTable() {
   color: rgba(255, 255, 255, 0.5);
   font-size: 12px;
   font-weight: 500;
+}
+
+.token-pill {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 7px;
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #e1e1ef;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .settings-btn {

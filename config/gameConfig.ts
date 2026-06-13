@@ -9,13 +9,8 @@ export const GAME_CONFIG = {
   TOKEN_MODELS: [
     { file: "sombrero.glb", name: "Sombrero", icon: "🎩", color: "#ef4444" },
     { file: "dedal.glb", name: "Dedal", icon: "🧵", color: "#3b82f6" },
-    // { file: "pork.glb", name: "Alcancía", icon: "🐷", color: "#ec4899" },
-    // { file: "key.glb", name: "Llave", icon: "🔑", color: "#eab308" },
-    // { file: "dog.glb", name: "Perro", icon: "🐶", color: "#a16207" },
-    { file: "tacon.glb", name: "Tacón", icon: "👠", color: "#be123c" },
-    { file: "cat.glb", name: "Gato", icon: "🐱", color: "#64748b" },
     { file: "coffee.glb", name: "Vaso de café", icon: "☕", color: "#15803d" },
-    { file: "train.glb", name: "Locomotora", icon: "🚂", color: "#475569" },
+    { file: "soccer_ball.glb", name: "Balón de fútbol", icon: "⚽", color: "#111827" },
   ] as const,
 
   LABEL_FONT_SIZE: 34,

@@ -9,6 +9,11 @@ import (
 	"github.com/google/uuid"
 )
 
+var (
+	errInvalidTokenModel = errors.New("ficha invalida")
+	errTokenAlreadyUsed  = errors.New("esa ficha ya esta en uso")
+)
+
 // Manager holds all active tables.
 type Manager struct {
 	tables map[string]*Table
@@ -51,14 +56,23 @@ func (m *Manager) Create(req CreateRequest) (*CreateResult, error) {
 	tableID := "T-" + uuid.New().String()[:8]
 	creatorPlayerID := ""
 	hasOpenSlot := false
+	usedTokens := make(map[string]bool)
 
 	slots := make([]PlayerSlot, 0, len(req.Slots))
 	for i, sc := range req.Slots {
 		pid := uuid.New().String()[:8]
 		isBot := sc.Type == "bot"
+		tokenModel := ""
 		if sc.Type == "open" {
 			hasOpenSlot = true
 			isBot = false // placeholder slot; will be filled when someone joins
+		} else {
+			var err error
+			tokenModel, err = chooseTokenModel(sc.TokenModel, i, usedTokens)
+			if err != nil {
+				return nil, err
+			}
+			usedTokens[tokenModel] = true
 		}
 		if i == 0 && sc.Type == "human" {
 			creatorPlayerID = pid
@@ -66,7 +80,7 @@ func (m *Manager) Create(req CreateRequest) (*CreateResult, error) {
 		slots = append(slots, PlayerSlot{
 			ID:         pid,
 			Name:       sc.Name,
-			TokenModel: normalizeTokenModel(sc.TokenModel, i),
+			TokenModel: tokenModel,
 			IsBot:      isBot,
 			Difficulty: sc.Difficulty,
 		})
@@ -99,21 +113,43 @@ type JoinResult struct {
 }
 
 // Join assigns an "open" slot to a new human player.
-func (m *Manager) Join(tableID, playerName string) (*JoinResult, error) {
+func (m *Manager) Join(tableID, playerName string, tokenModel string) (*JoinResult, error) {
 	t := m.Get(tableID)
 	if t == nil {
 		return nil, errors.New("mesa no encontrada")
 	}
 	t.mu.Lock()
+	usedTokens := make(map[string]bool)
+	hasOpenSlot := false
+	for _, slot := range t.Slots {
+		if slot.IsBot || !isOpenPlayerName(slot.Name) {
+			usedTokens[slot.TokenModel] = true
+			continue
+		}
+		if !slot.IsBot && slot.Conn == nil {
+			hasOpenSlot = true
+		}
+	}
+	if !hasOpenSlot {
+		t.mu.Unlock()
+		return nil, errors.New("mesa llena")
+	}
+	chosenToken, err := chooseTokenModel(tokenModel, 0, usedTokens)
+	if err != nil {
+		t.mu.Unlock()
+		return nil, err
+	}
 
 	for _, slot := range t.Slots {
 		if !slot.IsBot && slot.Conn == nil {
 			// Check if this slot is truly unoccupied (player's name starts with "Esperando")
-			if slot.Name == "" || slot.Name == "open" {
+			if isOpenPlayerName(slot.Name) {
 				slot.Name = playerName
+				slot.TokenModel = chosenToken
 				// Update the GameState player name too
 				if p := t.State.FindPlayer(slot.ID); p != nil {
 					p.Name = playerName
+					p.TokenModel = chosenToken
 				}
 				playerID := slot.ID
 				t.mu.Unlock()
