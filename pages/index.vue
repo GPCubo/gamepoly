@@ -1,530 +1,440 @@
 <template>
-  <div class="setup-page">
+  <div class="landing-page">
     <div class="ambient-glow ambient-1" />
     <div class="ambient-glow ambient-2" />
-
-    <header class="app-header">
-      <div class="header-left">
-        <span class="material-symbols-outlined header-logo">casino</span>
-        <span class="header-brand">GamePoly</span>
-      </div>
-      <div class="header-right">
-        <span class="header-version">v1.0</span>
-      </div>
-    </header>
-
-    <div class="page-body">
-    <div class="setup-card">
-      <div class="card-header">
-        <h1 class="main-title">Configuración de Partida</h1>
-        <p class="subtitle">Ajusta los parámetros de tu próxima sesión.</p>
-      </div>
-
-      <!-- Game Mode Tabs -->
-      <div class="mode-tabs">
-        <button
-          class="mode-tab"
-          :class="{ active: activeMode === 'bots' }"
-          @click="selectMode('bots')"
-        >
-          <span class="material-symbols-outlined">smart_toy</span>
-          Bots
-        </button>
-        <button
-          class="mode-tab"
-          :class="{ active: activeMode === 'familiar' }"
-          @click="selectMode('familiar')"
-        >
-          <span class="material-symbols-outlined">groups</span>
-          Familiar
-        </button>
-        <button
-          class="mode-tab"
-          :class="{ active: activeMode === 'multiplayer' }"
-          @click="selectMode('multiplayer')"
-        >
-          <span class="material-symbols-outlined">wifi</span>
-          Multijugador
-        </button>
-      </div>
-      <div v-if="activeMode === 'multiplayer'" class="mp-panel">
-        <p class="mp-desc">La configuración completa se hace en el lobby. Crea una nueva mesa o únete con un código compartido.</p>
-        <div class="mp-actions">
-          <button class="mp-btn mp-create" @click="navigateTo('/multiplayer/lobby?mode=create')">
-            <span class="material-symbols-outlined">add_circle</span>
-            Crear mesa
-          </button>
-          <button class="mp-btn mp-join" @click="navigateTo('/multiplayer/lobby?mode=join')">
-            <span class="material-symbols-outlined">login</span>
-            Unirse a mesa
-          </button>
-        </div>
-      </div>
-
-      <div v-if="activeMode !== 'multiplayer'" class="section-block">
-        <span class="section-label">NÚMERO DE JUGADORES</span>
-        <div class="player-count-bar">
-          <button
-            v-for="n in GAME_CONFIG.MAX_PLAYERS"
-            :key="n"
-            class="count-pill"
-            :class="{ active: n === selectedCount, disabled: n < 2 }"
-            :disabled="n < 2"
-            @click="selectCount(n)"
-          >
-            {{ n }}
-          </button>
-        </div>
-      </div>
-
-      <!-- Swipeable Player Cards -->
-      <div v-if="activeMode !== 'multiplayer'" class="section-block">
-        <div class="section-header">
-          <span class="section-label">PARTICIPANTES</span>
-          <span class="section-hint">{{ playerPage + 1 }}–{{ Math.min(playerPage + 2, selectedCount) }} de {{ selectedCount }}</span>
-        </div>
-        <div class="carousel-wrapper">
-          <button
-            class="carousel-arrow"
-            :class="{ hidden: playerPage === 0 }"
-            @click="prevPlayers"
-          >
-            <span class="material-symbols-outlined">chevron_left</span>
-          </button>
-
-          <div class="carousel-track">
-            <TransitionGroup name="slide" tag="div" class="carousel-inner">
-<div
-                  v-for="idx in visiblePlayers"
-                  :key="idx"
-                  class="player-card"
-                  :class="'player-accent-' + idx"
-                >
-                  <div class="player-card-top">
-                    <div class="player-num-badge">{{ idx }}</div>
-                    <div class="player-card-title">Jugador {{ idx }}</div>
-                    <span class="material-symbols-outlined player-icon">{{ playerTypes[idx - 1] === 'human' ? 'person' : 'smart_toy' }}</span>
-                  </div>
-                  <div class="player-card-fields">
-                    <!-- Bot type selector (Bots mode only) -->
-                    <div v-if="activeMode === 'bots'" class="field-group">
-                      <label class="field-label">TIPO</label>
-                      <div class="select-wrapper">
-                        <select
-                          v-model="playerTypes[idx - 1]"
-                          class="field-input field-select"
-                          @change="onPlayerTypeChange"
-                        >
-                          <option value="human">Humano</option>
-                          <option value="regular">Bot Regular</option>
-                          <option value="difficult">Bot Difícil</option>
-                        </select>
-                        <span class="material-symbols-outlined select-arrow">expand_more</span>
-                      </div>
-                    </div>
-                    <div class="field-group">
-                      <label class="field-label">NOMBRE</label>
-                      <input
-                        v-model="playerNames[idx - 1]"
-                        class="field-input"
-                        :placeholder="(playerTypes[idx - 1] !== 'human' && activeMode === 'bots') ? (playerTypes[idx - 1] === 'difficult' ? 'Bot Difícil ' + idx : 'Bot Regular ' + idx) : 'Jugador ' + idx"
-                        :disabled="activeMode === 'bots' && playerTypes[idx - 1] !== 'human'"
-                        maxlength="20"
-                      />
-                    </div>
-                    <div class="field-group">
-                      <label class="field-label">FICHA</label>
-                      <div class="select-wrapper">
-                        <select
-                          v-model="playerTokens[idx - 1]"
-                          class="field-input field-select"
-                        >
-                          <option value="" disabled>Elegir ficha</option>
-                          <option
-                            v-for="token in availableTokens(idx - 1)"
-                            :key="token.file"
-                            :value="token.file"
-                          >
-                            {{ token.icon }} {{ token.name }}
-                          </option>
-                        </select>
-                        <span class="material-symbols-outlined select-arrow">expand_more</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-            </TransitionGroup>
+    <div class="ambient-glow ambient-3" />
+    <Transition name="page-loader">
+      <div
+        v-if="heroModelsLoading"
+        class="page-loader"
+        :style="{ '--loader-color': currentHeroMessage.color }"
+      >
+        <div class="page-loader-panel">
+          <div class="google-loader" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+            <span />
           </div>
-
-          <button
-            class="carousel-arrow"
-            :class="{ hidden: playerPage >= maxPlayerPage }"
-            @click="nextPlayers"
-          >
-            <span class="material-symbols-outlined">chevron_right</span>
-          </button>
+          <span class="loader-label">
+            {{ heroModelsError ? "Error al cargar" : "Cargando" }}
+          </span>
         </div>
+      </div>
+    </Transition>
 
-        <div class="carousel-dots">
+    <AppHeader>
+      <template #actions>
+        <nav class="header-nav" aria-label="Navegacion principal">
+        <button @click="scrollToSection('features')">Modos</button>
+        <button @click="scrollToSection('showcase')">Experiencia</button>
+        <button class="nav-primary" @click="navigateTo('/setup')">Jugar</button>
+        </nav>
+      </template>
+    </AppHeader>
+
+    <main>
+      <section class="landing-hero">
+        <div class="hero-copy reveal-on-scroll">
           <span
-            v-for="p in maxPlayerPage + 1"
-            :key="p"
-            class="dot"
-            :class="{ active: p - 1 === playerPage }"
-            @click="playerPage = p - 1"
-          />
-        </div>
-      </div>
-
-      <p v-if="errorMsg && activeMode !== 'multiplayer'" class="error-msg">{{ errorMsg }}</p>
-
-      <!-- Actions (hidden in multiplayer mode — CTAs are in mp-panel) -->
-      <div v-if="activeMode !== 'multiplayer'" class="action-row">
-        <button class="settings-btn" @click="showSettings = true">
-          <span class="material-symbols-outlined">tune</span>
-          Reglas
-        </button>
-        <button class="reset-btn" @click="resetForm">RESTABLECER</button>
-        <button ref="startBtnRef" class="start-btn" tabindex="0" @click="startGame">
-          <span class="material-symbols-outlined start-icon">play_arrow</span>
-          INICIAR
-        </button>
-      </div>
-    </div>
-    </div>
-
-    <!-- Settings Modal -->
-    <Teleport to="body">
-      <Transition name="modal">
-        <div v-if="showSettings" class="modal-backdrop" @click.self="showSettings = false">
-          <div class="modal-card">
-            <div class="modal-header">
-              <h2 class="modal-title">Reglas Avanzadas</h2>
-              <button class="modal-close" @click="showSettings = false">
-                <span class="material-symbols-outlined">close</span>
-              </button>
-            </div>
-
-            <div class="modal-body">
-              <!-- Starting Cash -->
-              <div class="setting-card">
-                <div class="setting-top">
-                  <div class="setting-icon-wrap setting-icon-primary">
-                    <span class="material-symbols-outlined">payments</span>
-                  </div>
-                  <span class="setting-title">Dinero inicial</span>
-                  <span class="setting-value">${{ startingCash.toLocaleString() }}</span>
-                </div>
-                <input
-                  v-model.number="startingCash"
-                  class="range-input"
-                  type="range"
-                  min="500"
-                  max="5000"
-                  step="100"
-                />
-                <div class="range-labels">
-                  <span>$500</span>
-                  <span>$5,000</span>
-                </div>
-              </div>
-
-              <!-- Go Salary -->
-              <div class="setting-card">
-                <div class="setting-top">
-                  <div class="setting-icon-wrap setting-icon-secondary">
-                    <span class="material-symbols-outlined">stadium</span>
-                  </div>
-                  <span class="setting-title">Salario (Salida)</span>
-                  <div class="salary-input-wrap">
-                    <span class="salary-prefix">$</span>
-                    <input
-                      v-model.number="goSalary"
-                      class="salary-input"
-                      type="number"
-                      min="0"
-                      step="50"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <!-- Toggle: Skip Buy -->
-              <div class="setting-toggle-card">
-                <div class="toggle-info">
-                  <span class="toggle-title">Permitir omitir compra</span>
-                  <span class="toggle-desc">Los jugadores pueden declinar comprar propiedades</span>
-                </div>
-                <label class="toggle-label">
-                  <input type="checkbox" v-model="canSkipBuy" class="toggle-input" />
-                  <span class="toggle-track">
-                    <span class="toggle-thumb" />
-                  </span>
-                </label>
-              </div>
-
-              <!-- Toggle: Auction Only -->
-              <div class="setting-toggle-card">
-                <div class="toggle-info">
-                  <span class="toggle-title">Solo Subastas</span>
-                  <span class="toggle-desc">Las propiedades libres solo pueden entrar en subasta</span>
-                </div>
-                <label class="toggle-label">
-                  <input type="checkbox" v-model="auctionOnly" class="toggle-input" />
-                  <span class="toggle-track">
-                    <span class="toggle-thumb" />
-                  </span>
-                </label>
-              </div>
-
-              <!-- Toggle: Doubles Extra Turn -->
-              <div class="setting-toggle-card">
-                <div class="toggle-info">
-                  <span class="toggle-title">Dobles dan turno extra</span>
-                  <span class="toggle-desc">Sacar dobles permite tirar de nuevo; 3 dobles seguidos van a la cárcel</span>
-                </div>
-                <label class="toggle-label">
-                  <input type="checkbox" v-model="doublesGiveExtraTurn" class="toggle-input" />
-                  <span class="toggle-track">
-                    <span class="toggle-thumb" />
-                  </span>
-                </label>
-              </div>
-            </div>
-
-            <button class="modal-done-btn" @click="showSettings = false">
-              LISTO
+            class="hero-kicker hero-kicker-live"
+            :style="{ '--kicker-color': currentHeroMessage.color }"
+          >
+            <span
+              :key="`${heroMessageIndex}-icon`"
+              class="material-symbols-outlined"
+              :style="{ color: currentHeroMessage.color }"
+            >
+              {{ currentHeroMessage.icon }}
+            </span>
+            <span
+              :key="`${heroMessageIndex}-text`"
+              :style="{ color: currentHeroMessage.color }"
+            >
+              {{ currentHeroMessage.text }}
+            </span>
+          </span>
+          <h1 class="hero-title reveal-title">GamePoly</h1>
+          <p class="hero-subtitle">
+            Crea partidas con bots, juega en familia o arma una mesa
+            multijugador con subastas, tarjetas, historico y fichas 3D en
+            movimiento.
+          </p>
+          <div class="hero-actions">
+            <button class="hero-primary" @click="navigateTo('/setup')">
+              <span class="material-symbols-outlined">play_arrow</span>
+              Configurar partida
+            </button>
+            <button
+              class="hero-secondary"
+              @click="navigateTo('/multiplayer/lobby?mode=create')"
+            >
+              <span class="material-symbols-outlined">wifi</span>
+              Crear mesa online
             </button>
           </div>
         </div>
-      </Transition>
-    </Teleport>
+
+        <div
+          ref="heroStageRef"
+          class="hero-stage reveal-on-scroll"
+          @pointerdown="startHeroDrag"
+          @pointermove="updateHeroDrag"
+          @pointerup="endHeroDrag"
+          @pointerleave="endHeroDrag"
+          @pointercancel="endHeroDrag"
+        >
+          <div class="stage-grid" />
+          <div class="stage-orbit orbit-a" />
+          <div class="stage-orbit orbit-b" />
+          <ClientOnly>
+            <TresCanvas
+              class="hero-canvas"
+              clear-color="#11131c"
+              alpha
+              shadows
+              @loop="onHeroRenderTick"
+            >
+              <TresPerspectiveCamera
+                :position="[4.8, 5.1, 6.8]"
+                :fov="42"
+                :near="0.1"
+                :far="120"
+              />
+              <OrbitControls
+                :target="[0, 0, 0]"
+                :enable-damping="true"
+                :enable-zoom="false"
+                :enable-pan="false"
+                :enable-rotate="false"
+              />
+              <TresAmbientLight :intensity="1.8" />
+              <TresDirectionalLight
+                :position="[5, 8, 6]"
+                :intensity="3"
+                cast-shadow
+              />
+              <TresPointLight
+                :position="[-4, 3, 4]"
+                :intensity="1.2"
+                color="#00f59b"
+              />
+              <TresGroup :rotation="[heroRigPitch, heroRigYaw, heroRigRoll]">
+                <primitive
+                  v-if="heroBoardScene"
+                  :object="heroBoardScene"
+                  :position="[-0.2, -0.82, 0]"
+                  :rotation="[-0.34, 0.48, 0.08]"
+                  :scale="0.68"
+                />
+                <primitive
+                  v-if="heroHatScene"
+                  :object="heroHatScene"
+                  :position="[1.08, 0.98, 0.5]"
+                  :rotation="[0.08, -0.62, 0.18]"
+                  :scale="1.9"
+                />
+                <primitive
+                  v-if="heroDedalScene"
+                  :object="heroDedalScene"
+                  :position="[-1.04, 0.88, 0.18]"
+                  :rotation="[0.04, 0.55, -0.12]"
+                  :scale="1.82"
+                />
+              </TresGroup>
+            </TresCanvas>
+          </ClientOnly>
+          <div class="stage-caption">
+            <span class="material-symbols-outlined">view_in_ar</span>
+            Interactua con el tablero
+          </div>
+        </div>
+      </section>
+
+      <section id="features" class="landing-strip">
+        <article class="feature-chip reveal-on-scroll">
+          <span class="material-symbols-outlined">casino</span>
+          <strong>Dados y dobles</strong>
+          <small>Turnos con reglas completas y ritmo visual.</small>
+        </article>
+        <article class="feature-chip reveal-on-scroll">
+          <span class="material-symbols-outlined">style</span>
+          <strong>Suerte y Arca</strong>
+          <small>Tarjetas visibles para todos en multiplayer.</small>
+        </article>
+        <article class="feature-chip reveal-on-scroll">
+          <span class="material-symbols-outlined">gavel</span>
+          <strong>Subastas</strong>
+          <small>Compra, pasa o compite por propiedades.</small>
+        </article>
+        <article class="feature-chip reveal-on-scroll">
+          <span class="material-symbols-outlined">groups</span>
+          <strong>Multijugador</strong>
+          <small>Mesas online con bots y humanos.</small>
+        </article>
+      </section>
+
+      <section id="showcase" class="scroll-showcase">
+        <div class="showcase-card reveal-on-scroll">
+          <span class="material-symbols-outlined">monitoring</span>
+          <h2>Historial claro</h2>
+          <p>
+            Movimientos, dinero y tarjetas quedan separados para revisar cada
+            giro de la partida.
+          </p>
+        </div>
+        <div class="showcase-card reveal-on-scroll">
+          <span class="material-symbols-outlined">smart_toy</span>
+          <h2>Bots con criterio</h2>
+          <p>
+            Juega contra bots regulares o dificiles con decisiones de compra,
+            deuda y subasta.
+          </p>
+        </div>
+        <div class="showcase-card reveal-on-scroll">
+          <span class="material-symbols-outlined">public</span>
+          <h2>Mesa online</h2>
+          <p>
+            Crea una sala, comparte el codigo y deja que el tablero mantenga a
+            todos sincronizados.
+          </p>
+        </div>
+      </section>
+
+      <section class="landing-cta glass-readable reveal-on-scroll">
+        <span class="hero-kicker">Listo para tirar dados</span>
+        <h2>El formulario de partida ahora vive separado.</h2>
+        <p>
+          Entra a la configuracion completa para elegir modo, jugadores, fichas
+          y reglas.
+        </p>
+        <button class="hero-primary" @click="navigateTo('/setup')">
+          <span class="material-symbols-outlined">tune</span>
+          Ir al formulario
+        </button>
+      </section>
+    </main>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue";
-import { GAME_CONFIG } from "~/config/gameConfig";
-import { applyLocalScenarioSeeds } from "~/config/localScenarioSeeds";
-import { useGameStore, type BotDifficulty } from "~/stores/gameStore";
+import { computed, onMounted, onUnmounted, ref, shallowRef } from "vue";
+import { TresCanvas } from "@tresjs/core";
+import { OrbitControls } from "@tresjs/cientos";
+import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import type { Group } from "three";
 
-type GameMode = "familiar" | "bots" | "multiplayer";
-
-const store = useGameStore();
-store.phase = "setup";
-store.players = [];
-store.activePlayerIndex = 0;
-
-const startBtnRef = ref<HTMLElement | null>(null);
-const activeMode = ref<GameMode>("bots");
-
-const selectedCount = ref(2);
-const playerNames = ref<string[]>(
-  Array.from({ length: GAME_CONFIG.MAX_PLAYERS }, (_, i) => `Player 0${i + 1}`)
+const heroBoardScene = shallowRef<Group | null>(null);
+const heroHatScene = shallowRef<Group | null>(null);
+const heroDedalScene = shallowRef<Group | null>(null);
+const heroStageRef = ref<HTMLElement | null>(null);
+const heroRigYaw = ref(0);
+const heroRigPitch = ref(0);
+const heroRigRoll = ref(0);
+const heroMessageIndex = ref(0);
+const heroModelsLoading = ref(true);
+const heroModelsError = ref(false);
+const heroMessages = [
+  {
+    text: "Tablero vivo, turnos rapidos, partidas memorables",
+    icon: "auto_awesome",
+    color: "#86efac",
+  },
+  {
+    text: "Subastas tensas y fichas 3D en movimiento",
+    icon: "gavel",
+    color: "#facc15",
+  },
+  {
+    text: "Bots listos para comprar, negociar y arriesgar",
+    icon: "smart_toy",
+    color: "#93c5fd",
+  },
+  {
+    text: "Tarjetas, alquileres y dobles con drama controlado",
+    icon: "style",
+    color: "#f0abfc",
+  },
+  {
+    text: "Mesas online para jugar con tu gente",
+    icon: "wifi",
+    color: "#67e8f9",
+  },
+  {
+    text: "Historial claro para revisar cada jugada",
+    icon: "monitoring",
+    color: "#fb7185",
+  },
+];
+const currentHeroMessage = computed(
+  () => heroMessages[heroMessageIndex.value % heroMessages.length],
 );
-const playerTokens = ref<string[]>(
-  GAME_CONFIG.TOKEN_MODELS.slice(0, GAME_CONFIG.MAX_PLAYERS).map((t) => t.file)
-);
-const playerTypes = ref<("human" | BotDifficulty)[]>(
-  createDefaultBotTypes()
-);
-const startingCash = ref<number>(GAME_CONFIG.STARTING_CASH);
-const goSalary = ref<number>(GAME_CONFIG.GO_SALARY);
-const canSkipBuy = ref<boolean>(GAME_CONFIG.CAN_SKIP_BUY);
-const auctionOnly = ref<boolean>(GAME_CONFIG.AUCTION_ONLY);
-const doublesGiveExtraTurn = ref<boolean>(GAME_CONFIG.DOUBLES_GIVE_EXTRA_TURN);
-const errorMsg = ref("");
-const showSettings = ref(false);
-const playerPage = ref(0);
-const hasCustomizedBotTypes = ref(false);
 
-const maxPlayerPage = computed(() => Math.max(0, Math.ceil(selectedCount.value / 2) - 1));
-
-const visiblePlayers = computed(() => {
-  const start = playerPage.value * 2;
-  const end = Math.min(start + 2, selectedCount.value);
-  const arr: number[] = [];
-  for (let i = start + 1; i <= end; i++) arr.push(i);
-  return arr;
-});
-
-
-watch(playerTypes, (newTypes) => {
-  for (let i = 0; i < GAME_CONFIG.MAX_PLAYERS; i++) {
-    const type = newTypes[i];
-    if (type === "regular") {
-      playerNames.value[i] = `Bot Regular ${i + 1}`;
-    } else if (type === "difficult") {
-      playerNames.value[i] = `Bot Difícil ${i + 1}`;
-    } else if (type === "human" && (playerNames.value[i].startsWith("Bot Regular") || playerNames.value[i].startsWith("Bot Difícil"))) {
-      playerNames.value[i] = `Jugador ${i + 1}`;
-    }
-  }
-}, { deep: true });
-
-function onKeyDown(e: KeyboardEvent) {
-  if (e.key === "Escape" && showSettings.value) {
-    showSettings.value = false;
-    return;
-  }
-  if (e.key === "Enter") {
-    const focused = document.activeElement;
-    if (focused && focused === startBtnRef.value) {
-      return;
-    }
-    startGame();
-  }
-}
+let heroDragging = false;
+let heroDragStartX = 0;
+let heroDragStartY = 0;
+let heroDragStartYaw = 0;
+let heroDragStartPitch = 0;
+let heroYawVelocity = 0;
+let heroPitchVelocity = 0;
+let heroRollVelocity = 0;
+let heroMessageTimer: ReturnType<typeof setInterval> | null = null;
 
 onMounted(() => {
-  window.addEventListener("keydown", onKeyDown);
-  nextTick(() => startBtnRef.value?.focus());
+  void loadHeroModels();
+  heroMessageTimer = setInterval(() => {
+    heroMessageIndex.value = (heroMessageIndex.value + 1) % heroMessages.length;
+  }, 1800);
 });
-onUnmounted(() => window.removeEventListener("keydown", onKeyDown));
 
-function selectCount(n: number) {
-  if (n >= 2 && n <= GAME_CONFIG.MAX_PLAYERS) {
-    selectedCount.value = n;
-    ensureBotDefaultsForCurrentMode();
-    if (playerPage.value > maxPlayerPage.value) {
-      playerPage.value = maxPlayerPage.value;
-    }
-  }
-}
+onUnmounted(() => {
+  if (heroMessageTimer) clearInterval(heroMessageTimer);
+});
 
-function createDefaultBotTypes(): ("human" | BotDifficulty)[] {
-  return Array.from(
-    { length: GAME_CONFIG.MAX_PLAYERS },
-    (_, index) => index === 0 ? "human" : "difficult",
-  );
-}
+async function loadHeroModels() {
+  heroModelsLoading.value = true;
+  heroModelsError.value = false;
 
-function ensureBotDefaultsForCurrentMode() {
-  if (activeMode.value !== "bots" || hasCustomizedBotTypes.value) return;
-  playerTypes.value = createDefaultBotTypes();
-}
+  try {
+    const loader = new GLTFLoader();
+    const [board, hat, dedal] = await Promise.all([
+      loader.loadAsync("/models/tablero.glb"),
+      loader.loadAsync("/models/users/sombrero.glb"),
+      loader.loadAsync("/models/users/dedal.glb"),
+    ]);
 
-function selectMode(mode: GameMode) {
-  activeMode.value = mode;
-  if (mode === "bots") {
-    ensureBotDefaultsForCurrentMode();
-  }
-}
-
-function onPlayerTypeChange() {
-  if (activeMode.value === "bots") {
-    hasCustomizedBotTypes.value = true;
-  }
-}
-
-function prevPlayers() {
-  if (playerPage.value > 0) playerPage.value--;
-}
-
-function nextPlayers() {
-  if (playerPage.value < maxPlayerPage.value) playerPage.value++;
-}
-
-function availableTokens(excludeIdx: number) {
-  const used = playerTokens.value
-    .filter((_, i) => i < selectedCount.value && i !== excludeIdx)
-    .map((t) => t);
-  return GAME_CONFIG.TOKEN_MODELS.filter((t) => !used.includes(t.file));
-}
-
-function resetForm() {
-  activeMode.value = "bots";
-  selectedCount.value = 2;
-  playerNames.value = Array.from(
-    { length: GAME_CONFIG.MAX_PLAYERS },
-    (_, i) => `Player 0${i + 1}`
-  );
-  playerTokens.value = GAME_CONFIG.TOKEN_MODELS.slice(0, GAME_CONFIG.MAX_PLAYERS).map((t) => t.file);
-  hasCustomizedBotTypes.value = false;
-  playerTypes.value = createDefaultBotTypes();
-  startingCash.value = GAME_CONFIG.STARTING_CASH;
-  goSalary.value = GAME_CONFIG.GO_SALARY;
-  canSkipBuy.value = GAME_CONFIG.CAN_SKIP_BUY;
-  auctionOnly.value = GAME_CONFIG.AUCTION_ONLY;
-  doublesGiveExtraTurn.value = GAME_CONFIG.DOUBLES_GIVE_EXTRA_TURN;
-  errorMsg.value = "";
-  playerPage.value = 0;
-}
-
-function isLocalGameUrl() {
-  if (typeof window === "undefined") return false;
-  return ["localhost", "127.0.0.1", "::1", "[::1]"].includes(
-    window.location.hostname,
-  );
-}
-
-function applyLocalGameScenarioSeeds() {
-  if (!isLocalGameUrl()) return false;
-  const params = new URLSearchParams(window.location.search);
-  return applyLocalScenarioSeeds(params, store).length > 0;
-}
-
-function startGame() {
-  errorMsg.value = "";
-
-  if (activeMode.value === 'multiplayer') {
-    navigateTo(`/multiplayer/lobby${window.location.search}`)
-    return
-  }
-
-
-  const cash = Math.floor(startingCash.value);
-  const salary = Math.floor(goSalary.value);
-
-  if (!Number.isFinite(cash) || cash < 100) {
-    errorMsg.value = "El dinero inicial debe ser al menos $100.";
-    return;
-  }
-  if (!Number.isFinite(salary) || salary < 0) {
-    errorMsg.value = "El salario de salida no puede ser negativo.";
-    return;
-  }
-
-  const players = [];
-  const seenTokens = new Set<string>();
-
-  for (let i = 0; i < selectedCount.value; i++) {
-    const type = activeMode.value === "bots" ? playerTypes.value[i] : "human";
-    const isBot = type !== "human";
-    const defaultName = isBot
-      ? (type === "difficult" ? `Bot Difícil ${i + 1}` : `Bot Regular ${i + 1}`)
-      : `Jugador ${i + 1}`;
-    const name = (isBot ? defaultName : (playerNames.value[i].trim() || defaultName));
-    const token = playerTokens.value[i];
-
-    if (!token) {
-      errorMsg.value = `Jugador ${i + 1}: selecciona una ficha.`;
-      return;
+    for (const scene of [board.scene, hat.scene, dedal.scene]) {
+      scene.traverse((child) => {
+        child.castShadow = true;
+        child.receiveShadow = true;
+      });
     }
 
-    if (seenTokens.has(token)) {
-      errorMsg.value = "La ficha ya está asignada a otro jugador.";
-      return;
-    }
+    heroBoardScene.value = board.scene;
+    heroHatScene.value = hat.scene;
+    heroDedalScene.value = dedal.scene;
+  } catch (error) {
+    console.error("No se pudieron cargar los modelos de la landing", error);
+    heroModelsError.value = true;
+  } finally {
+    window.setTimeout(
+      () => {
+        heroModelsLoading.value = false;
+      },
+      heroModelsError.value ? 1800 : 450,
+    );
+  }
+}
 
-    seenTokens.add(token);
-    players.push({
-      name,
-      tokenModel: token,
-      startingCash: cash,
-      isBot,
-      botDifficulty: isBot ? (type as BotDifficulty) : null,
-    });
+function clamp(value: number, min: number, max: number) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function startHeroDrag(event: PointerEvent) {
+  heroDragging = true;
+  heroDragStartX = event.clientX;
+  heroDragStartY = event.clientY;
+  heroDragStartYaw = heroRigYaw.value;
+  heroDragStartPitch = heroRigPitch.value;
+  heroYawVelocity = 0;
+  heroPitchVelocity = 0;
+  heroRollVelocity = 0;
+  heroStageRef.value?.setPointerCapture?.(event.pointerId);
+}
+
+function updateHeroDrag(event: PointerEvent) {
+  if (!heroDragging) return;
+  const nextYaw = clamp(
+    heroDragStartYaw + (event.clientX - heroDragStartX) * 0.009,
+    -Math.PI * 1.35,
+    Math.PI * 1.35,
+  );
+  const nextPitch = clamp(
+    heroDragStartPitch + (event.clientY - heroDragStartY) * 0.0055,
+    -0.78,
+    0.78,
+  );
+  const nextRoll = clamp(-nextYaw * 0.12, -0.38, 0.38);
+  heroYawVelocity = (nextYaw - heroRigYaw.value) * 18;
+  heroPitchVelocity = (nextPitch - heroRigPitch.value) * 18;
+  heroRollVelocity = (nextRoll - heroRigRoll.value) * 18;
+  heroRigYaw.value = nextYaw;
+  heroRigPitch.value = nextPitch;
+  heroRigRoll.value = nextRoll;
+}
+
+function endHeroDrag(event: PointerEvent) {
+  if (!heroDragging) return;
+  heroDragging = false;
+  heroStageRef.value?.releasePointerCapture?.(event.pointerId);
+}
+
+function onHeroRenderTick({
+  elapsed,
+  delta,
+}: {
+  elapsed: number;
+  delta: number;
+}) {
+  const dt = Math.min(delta || 0.016, 0.033);
+
+  if (!heroDragging) {
+    const stiffness = 3.2;
+    const damping = 0.82;
+    const dampingFactor = Math.exp(-damping * dt);
+
+    heroYawVelocity += -heroRigYaw.value * stiffness * dt;
+    heroYawVelocity *= dampingFactor;
+    heroRigYaw.value += heroYawVelocity * dt;
+
+    heroPitchVelocity += -heroRigPitch.value * stiffness * dt;
+    heroPitchVelocity *= dampingFactor;
+    heroRigPitch.value += heroPitchVelocity * dt;
+
+    heroRollVelocity += -heroRigRoll.value * 3.8 * dt;
+    heroRollVelocity *= Math.exp(-0.95 * dt);
+    heroRigRoll.value += heroRollVelocity * dt;
+
+    if (
+      Math.abs(heroRigYaw.value) < 0.001 &&
+      Math.abs(heroYawVelocity) < 0.001
+    ) {
+      heroRigYaw.value = 0;
+      heroYawVelocity = 0;
+    }
+    if (
+      Math.abs(heroRigPitch.value) < 0.001 &&
+      Math.abs(heroPitchVelocity) < 0.001
+    ) {
+      heroRigPitch.value = 0;
+      heroPitchVelocity = 0;
+    }
   }
 
-  store.setupGame(players, {
-    goSalary: salary,
-    canSkipBuy: canSkipBuy.value,
-    auctionOnly: auctionOnly.value,
-    doublesGiveExtraTurn: doublesGiveExtraTurn.value,
+  if (heroBoardScene.value) {
+    heroBoardScene.value.rotation.y = 0.48 + Math.sin(elapsed * 0.28) * 0.12;
+    heroBoardScene.value.position.y = -0.8 + Math.sin(elapsed * 0.9) * 0.04;
+  }
+
+  if (heroHatScene.value) {
+    heroHatScene.value.rotation.y = -0.62 + elapsed * 0.65;
+    heroHatScene.value.rotation.z = 0.18 + Math.sin(elapsed * 1.4) * 0.12;
+    heroHatScene.value.position.y = 0.84 + Math.sin(elapsed * 1.7) * 0.12;
+  }
+
+  if (heroDedalScene.value) {
+    heroDedalScene.value.rotation.y = 0.55 - elapsed * 0.55;
+    heroDedalScene.value.rotation.z = -0.12 + Math.sin(elapsed * 1.25) * 0.1;
+    heroDedalScene.value.position.y =
+      0.88 + Math.sin(elapsed * 1.55 + 1.1) * 0.11;
+  }
+}
+
+function scrollToSection(id: string) {
+  document.getElementById(id)?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
   });
-  applyLocalGameScenarioSeeds();
-  navigateTo("/game");
 }
 </script>
 
@@ -533,30 +443,48 @@ function startGame() {
 @import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1");
 
 .material-symbols-outlined {
-  font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
 }
 
-.setup-page {
+.landing-page {
   height: 100vh;
   height: 100dvh;
-  background: #11131c;
   color: #e1e1ef;
+  background:
+    radial-gradient(circle at 72% 20%, rgba(0, 245, 155, 0.1), transparent 32%),
+    radial-gradient(circle at 18% 82%, rgba(215, 3, 87, 0.08), transparent 30%),
+    #11131c;
   font-family: "Hanken Grotesk", sans-serif;
-  display: flex;
-  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
   position: relative;
-  overflow: hidden;
 }
 
-.page-body {
-  flex: 1;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow-y: auto;
-  padding: 16px;
-  position: relative;
-  z-index: 1;
+.landing-page::before {
+  content: "";
+  position: fixed;
+  inset: -28%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(
+      circle at 18% 22%,
+      rgba(0, 245, 155, 0.09),
+      transparent 25%
+    ),
+    radial-gradient(
+      circle at 76% 18%,
+      rgba(59, 130, 246, 0.09),
+      transparent 28%
+    ),
+    radial-gradient(circle at 64% 78%, rgba(215, 3, 87, 0.08), transparent 27%);
+  filter: blur(38px);
+  opacity: 0.88;
+  animation: pageGradientFlow 24s ease-in-out infinite alternate;
 }
 
 .ambient-glow {
@@ -564,6 +492,8 @@ function startGame() {
   border-radius: 50%;
   pointer-events: none;
   z-index: 0;
+  will-change: transform;
+  mix-blend-mode: screen;
 }
 
 .ambient-1 {
@@ -573,6 +503,7 @@ function startGame() {
   height: 50%;
   background: rgba(0, 245, 155, 0.06);
   filter: blur(120px);
+  animation: ambientRoamA 18s ease-in-out infinite alternate;
 }
 
 .ambient-2 {
@@ -582,1041 +513,778 @@ function startGame() {
   height: 50%;
   background: rgba(215, 3, 87, 0.04);
   filter: blur(120px);
+  animation: ambientRoamB 22s ease-in-out infinite alternate;
 }
 
-/* Header */
-.app-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 24px;
-  background: rgba(17, 19, 28, 0.85);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(132, 149, 136, 0.08);
-  position: relative;
-  z-index: 10;
-  flex-shrink: 0;
+.ambient-3 {
+  top: 34%;
+  left: 42%;
+  width: 28%;
+  height: 42%;
+  background: rgba(255, 209, 101, 0.035);
+  filter: blur(100px);
+  animation: ambientRoamC 26s ease-in-out infinite alternate;
 }
 
-.header-left {
+.header-nav {
   display: flex;
   align-items: center;
   gap: 10px;
 }
 
-.header-logo {
-  font-size: 28px;
-  color: #00f59b;
-  font-variation-settings: "FILL" 1, "wght" 400;
-}
-
-.header-brand {
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 20px;
+.header-nav button {
+  min-height: 36px;
+  padding: 8px 12px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: rgba(226, 232, 240, 0.74);
+  background: transparent;
   font-weight: 800;
-  color: #e1e1ef;
-  letter-spacing: -0.02em;
+  cursor: pointer;
 }
 
-.header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.header-nav button:hover {
+  color: #86efac;
+  background: rgba(0, 245, 155, 0.08);
 }
 
-.header-version {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
-  font-weight: 500;
-  color: rgba(132, 149, 136, 0.4);
-  padding: 4px 10px;
-  background: rgba(25, 27, 36, 0.6);
-  border-radius: 8px;
-  border: 1px solid rgba(132, 149, 136, 0.08);
+.header-nav .nav-primary {
+  color: #003920;
+  background: #00f59b;
 }
 
-.setup-card {
-  width: 100%;
-  max-width: 680px;
-  background: rgba(29, 31, 41, 0.7);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(132, 149, 136, 0.1);
-  border-radius: 24px;
-  padding: 24px 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
+main {
   position: relative;
   z-index: 1;
-  box-shadow: 0 32px 64px -12px rgba(0, 0, 0, 0.5);
-}
-
-.card-header {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-}
-
-.mode-tabs {
-  display: flex;
-  gap: 6px;
-  background: rgba(25, 27, 36, 0.8);
-  padding: 5px;
-  border-radius: 14px;
-  border: 1px solid rgba(132, 149, 136, 0.1);
-}
-
-.mode-tab {
-  flex: 1;
-  display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  border: none;
-  background: transparent;
-  color: #849588;
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
-  position: relative;
+  gap: 34px;
+  padding: 28px 18px 58px;
 }
 
-.mode-tab:hover:not(.disabled) {
-  background: rgba(50, 52, 62, 0.5);
-  color: #00e38f;
-}
-
-.mode-tab.active {
-  background: #00f59b;
-  color: #003920;
-  box-shadow: 0 4px 12px rgba(0, 245, 155, 0.2);
-}
-
-.mode-tab .material-symbols-outlined {
-  font-size: 18px;
-}
-
-.mode-tab.disabled {
-  opacity: 0.35;
-  cursor: not-allowed;
-}
-
-.coming-soon {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(132, 149, 136, 0.5);
-  background: rgba(25, 27, 36, 0.6);
-  padding: 2px 6px;
-  border-radius: 4px;
-}
-
-.main-title {
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 24px;
-  font-weight: 800;
-  color: #e1e1ef;
-  margin: 0;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-}
-
-.subtitle {
-  font-family: "Hanken Grotesk", sans-serif;
-  font-size: 14px;
-  color: #849588;
-  margin: 0;
-  line-height: 1.4;
-}
-
-.section-block {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.section-label {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: #849588;
-}
-
-.section-hint {
-  font-size: 11px;
-  color: rgba(132, 149, 136, 0.5);
-}
-
-/* Player count bar */
-.player-count-bar {
+.landing-hero {
+  width: min(1180px, 100%);
+  min-height: calc(100dvh - 112px);
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 6px;
-  background: rgba(25, 27, 36, 0.8);
-  padding: 6px;
-  border-radius: 16px;
-  border: 1px solid rgba(132, 149, 136, 0.1);
+  grid-template-columns: minmax(360px, 0.78fr) minmax(420px, 1.22fr);
+  align-items: center;
+  gap: clamp(36px, 6vw, 96px);
+  padding: clamp(22px, 5vw, 60px) 0 28px;
 }
 
-.count-pill {
-  padding: 10px;
-  border-radius: 12px;
-  border: none;
-  font-family: "Plus Jakarta Sans", sans-serif;
+.hero-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 20px;
+  min-width: 0;
+  max-width: 560px;
+  position: relative;
+  z-index: 4;
+}
+
+.hero-kicker {
+  --kicker-color: #86efac;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 1px solid color-mix(in srgb, var(--kicker-color) 42%, transparent);
+  border-radius: 8px;
+  color: var(--kicker-color);
+  background: color-mix(in srgb, var(--kicker-color) 12%, transparent);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--kicker-color) 10%, transparent),
+    0 12px 30px color-mix(in srgb, var(--kicker-color) 16%, transparent);
+  transition:
+    border-color 0.35s ease,
+    background 0.35s ease,
+    box-shadow 0.35s ease;
+}
+
+.hero-kicker-live span:last-child {
+  display: inline-block;
+  animation: messageFlip 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.hero-kicker-live .material-symbols-outlined {
+  color: var(--kicker-color);
   font-size: 16px;
-  font-weight: 700;
-  color: #849588;
-  background: transparent;
-  cursor: pointer;
-  transition: all 0.2s;
+  animation: sparklePulse 1.8s ease-in-out infinite;
 }
 
-.count-pill:hover:not(.disabled) {
-  background: rgba(50, 52, 62, 0.5);
-}
-
-.count-pill.active {
-  background: #00f59b;
-  color: #003920;
-  box-shadow: 0 4px 16px rgba(0, 245, 155, 0.2);
-}
-
-.count-pill.disabled {
-  opacity: 0.3;
-  cursor: not-allowed;
-}
-
-/* Carousel */
-.carousel-wrapper {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.carousel-arrow {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: 1px solid rgba(132, 149, 136, 0.15);
-  background: rgba(25, 27, 36, 0.6);
-  color: #849588;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.2s;
-}
-
-.carousel-arrow:hover {
-  background: rgba(50, 52, 62, 0.8);
-  color: #00e38f;
-  border-color: rgba(0, 245, 155, 0.3);
-}
-
-.carousel-arrow.hidden {
-  opacity: 0;
-  pointer-events: none;
-}
-
-.carousel-track {
-  flex: 1;
-  overflow: hidden;
-}
-
-.carousel-inner {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
-}
-
-.carousel-dots {
-  display: flex;
-  justify-content: center;
-  gap: 8px;
-  padding-top: 4px;
-}
-
-.dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(132, 149, 136, 0.25);
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.dot.active {
-  background: #00f59b;
-  box-shadow: 0 0 8px rgba(0, 245, 155, 0.3);
-}
-
-/* Player cards */
-.player-card {
-  background: rgba(25, 27, 36, 0.8);
-  border: 1px solid rgba(132, 149, 136, 0.1);
-  border-radius: 16px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  transition: all 0.25s ease;
-}
-
-.player-card:hover {
-  border-color: rgba(0, 245, 155, 0.3);
-}
-
-.player-card-top {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.player-num-badge {
-  width: 32px;
-  height: 32px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 15px;
-  font-weight: 700;
-  flex-shrink: 0;
-}
-
-.player-accent-1 .player-num-badge {
-  background: rgba(0, 245, 155, 0.15);
-  color: #00f59b;
-}
-
-.player-accent-2 .player-num-badge {
-  background: rgba(215, 3, 87, 0.15);
-  color: #d70357;
-}
-
-.player-accent-3 .player-num-badge {
-  background: rgba(255, 209, 101, 0.15);
-  color: #ffd165;
-}
-
-.player-accent-4 .player-num-badge {
-  background: rgba(248, 113, 113, 0.15);
-  color: #f87171;
-}
-
-.player-card-title {
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  color: #e1e1ef;
-  flex: 1;
-}
-
-.player-icon {
-  font-size: 20px;
-  color: rgba(132, 149, 136, 0.4);
-}
-
-.player-accent-1 .player-icon { color: #00e38f; }
-.player-accent-2 .player-icon { color: #d70357; }
-.player-accent-3 .player-icon { color: #ffd165; }
-.player-accent-4 .player-icon { color: #f87171; }
-
-.player-card-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.field-group {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.field-label {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(132, 149, 136, 0.7);
-  padding-left: 2px;
-}
-
-.field-input {
-  width: 100%;
-  background: rgba(17, 19, 28, 0.6);
-  border: 1px solid rgba(132, 149, 136, 0.12);
-  border-radius: 10px;
-  padding: 10px 14px;
-  color: #e1e1ef;
-  font-family: "Hanken Grotesk", sans-serif;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.field-input:focus {
-  border-color: #00f59b;
-  box-shadow: 0 0 0 2px rgba(0, 245, 155, 0.15);
-}
-
-.field-input::placeholder {
-  color: rgba(225, 225, 239, 0.2);
-}
-
-.select-wrapper {
-  position: relative;
-}
-
-.field-select {
-  appearance: none;
-  cursor: pointer;
-  padding-right: 40px;
-}
-
-.select-arrow {
-  position: absolute;
-  right: 12px;
-  top: 50%;
-  transform: translateY(-50%);
-  pointer-events: none;
-  color: rgba(132, 149, 136, 0.5);
-  font-size: 18px;
-}
-
-.field-select option {
-  background: #1d1f29;
-  color: #e1e1ef;
-}
-
-/* Error */
-.error-msg {
-  color: #f87171;
-  font-family: "Hanken Grotesk", sans-serif;
-  font-size: 13px;
-  text-align: center;
+.hero-title {
+  max-width: 100%;
   margin: 0;
-  padding: 10px;
-  background: rgba(248, 113, 113, 0.08);
-  border: 1px solid rgba(248, 113, 113, 0.2);
-  border-radius: 10px;
+  color: #f8fafc;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: clamp(56px, 7.8vw, 92px);
+  font-weight: 800;
+  line-height: 0.94;
+  overflow-wrap: normal;
+  text-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.16),
+    0 28px 52px rgba(0, 0, 0, 0.38);
 }
 
-.warning-msg {
-  color: #fbbf24;
-  background: rgba(251, 191, 36, 0.08);
-  border-color: rgba(251, 191, 36, 0.2);
+.reveal-title {
+  animation: titlePop 1.1s cubic-bezier(0.18, 1, 0.22, 1) both;
 }
 
-/* Actions */
-.action-row {
+.hero-subtitle {
+  max-width: 580px;
+  margin: 0;
+  color: rgba(226, 232, 240, 0.78);
+  font-size: clamp(17px, 2vw, 22px);
+  line-height: 1.55;
+}
+
+.hero-actions {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 4px;
 }
 
-.settings-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 12px 18px;
-  border: 1px solid rgba(132, 149, 136, 0.15);
-  background: rgba(25, 27, 36, 0.6);
-  color: #849588;
-  border-radius: 14px;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.settings-btn .material-symbols-outlined {
-  font-size: 18px;
-}
-
-.settings-btn:hover {
-  color: #00e38f;
-  border-color: rgba(0, 245, 155, 0.3);
-  background: rgba(0, 245, 155, 0.05);
-}
-
-.reset-btn {
-  padding: 12px 20px;
-  border: none;
-  background: transparent;
-  color: #849588;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: color 0.2s;
-  border-radius: 14px;
-}
-
-.reset-btn:hover {
-  color: #00e38f;
-}
-
-.start-btn {
-  display: flex;
+.hero-primary,
+.hero-secondary {
+  min-height: 48px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding: 12px 28px;
-  margin-left: auto;
-  background: #00f59b;
-  color: #003920;
-  border: none;
-  border-radius: 14px;
+  gap: 9px;
+  padding: 13px 18px;
+  border-radius: 12px;
   font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 8px 24px -6px rgba(0, 245, 155, 0.35);
-  transition: all 0.3s;
+  transition:
+    transform 0.25s ease,
+    border-color 0.25s ease,
+    background 0.25s ease,
+    box-shadow 0.25s ease;
 }
 
-.start-btn:hover {
-  transform: scale(1.03);
-  box-shadow: 0 12px 32px -6px rgba(0, 245, 155, 0.45);
+.hero-primary {
+  border: 0;
+  color: #003920;
+  background: #00f59b;
+  box-shadow: 0 16px 34px rgba(0, 245, 155, 0.28);
 }
 
-.start-btn:active {
-  transform: scale(0.97);
+.hero-secondary {
+  color: #e1e1ef;
+  border: 1px solid rgba(132, 149, 136, 0.18);
+  background: rgba(25, 27, 36, 0.68);
 }
 
-.start-btn:focus-visible {
-  outline: 2px solid #00e38f;
-  outline-offset: 3px;
-  box-shadow: 0 8px 24px -6px rgba(0, 245, 155, 0.35), 0 0 0 4px rgba(0, 245, 155, 0.25);
+.hero-primary:hover,
+.hero-secondary:hover {
+  transform: translateY(-3px);
 }
 
-.start-icon {
-  font-size: 22px;
-  font-variation-settings: "FILL" 1, "wght" 400;
+.hero-secondary:hover {
+  color: #86efac;
+  border-color: rgba(0, 245, 155, 0.34);
+  background: rgba(0, 245, 155, 0.08);
 }
 
-/* Modal */
-.modal-backdrop {
+.hero-stage {
+  position: relative;
+  min-height: clamp(360px, 52vw, 600px);
+  border-radius: 22px;
+  overflow: hidden;
+  isolation: isolate;
+
+  cursor: grab;
+  touch-action: none;
+  background:
+    radial-gradient(
+      circle at 58% 42%,
+      rgba(0, 245, 155, 0.13),
+      transparent 38%
+    ),
+    rgba(8, 13, 22, 0.68);
+  border: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.hero-stage:active {
+  cursor: grabbing;
+}
+
+.stage-grid {
+  position: absolute;
+  inset: 6%;
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 22px;
+  background:
+    linear-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.07) 1px, transparent 1px),
+    radial-gradient(
+      circle at 62% 42%,
+      rgba(0, 245, 155, 0.16),
+      transparent 44%
+    ),
+    rgba(15, 23, 42, 0.22);
+  background-size:
+    34px 34px,
+    34px 34px,
+    auto,
+    auto;
+  transform: perspective(900px) rotateX(58deg) rotateZ(-9deg);
+  animation: gridDrift 9s ease-in-out infinite alternate;
+}
+
+.stage-orbit {
+  position: absolute;
+  border: 1px solid rgba(0, 245, 155, 0.22);
+  border-radius: 50%;
+  transform: rotateX(62deg);
+  animation: orbitSpin 16s linear infinite;
+}
+
+.orbit-a {
+  inset: 15% 9%;
+}
+
+.orbit-b {
+  inset: 24% 20%;
+  border-color: rgba(255, 209, 101, 0.18);
+  animation-duration: 11s;
+  animation-direction: reverse;
+}
+
+.hero-canvas {
+  position: absolute;
+  inset: -8% -6% -4% -10%;
+  z-index: 2;
+  width: 116%;
+  height: 116%;
+}
+
+.page-loader {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.6);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  z-index: 1000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  z-index: 50;
+  display: grid;
+  place-items: center;
   padding: 24px;
+  background: rgba(8, 12, 20, 0.88);
+  backdrop-filter: blur(10px);
 }
 
-.modal-card {
-  width: 100%;
-  max-width: 480px;
-  max-height: 80vh;
-  background: rgba(29, 31, 41, 0.95);
-  border: 1px solid rgba(132, 149, 136, 0.12);
-  border-radius: 24px;
-  padding: 28px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  overflow-y: auto;
-  box-shadow: 0 32px 80px -12px rgba(0, 0, 0, 0.6);
+.page-loader-panel {
+  display: inline-grid;
+  place-items: center;
+  gap: 18px;
+  color: rgba(248, 250, 252, 0.82);
+  text-align: center;
 }
 
-.modal-header {
+.google-loader {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 9px;
+  height: 28px;
 }
 
-.modal-title {
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 20px;
-  font-weight: 800;
-  color: #e1e1ef;
-  margin: 0;
-}
-
-.modal-close {
-  width: 36px;
-  height: 36px;
+.google-loader span {
+  width: 10px;
+  height: 10px;
   border-radius: 50%;
-  border: 1px solid rgba(132, 149, 136, 0.12);
-  background: rgba(25, 27, 36, 0.6);
-  color: #849588;
-  display: flex;
+  animation: googleDotBounce 0.9s ease-in-out infinite;
+}
+
+.google-loader span:nth-child(1) {
+  background: #00f59b;
+  animation-delay: 0s;
+}
+
+.google-loader span:nth-child(2) {
+  background: #67e8f9;
+  animation-delay: 0.1s;
+}
+
+.google-loader span:nth-child(3) {
+  background: #f0abfc;
+  animation-delay: 0.2s;
+}
+
+.google-loader span:nth-child(4) {
+  background: #fb7185;
+  animation-delay: 0.3s;
+}
+
+.loader-label {
+  color: rgba(226, 232, 240, 0.72);
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.page-loader-enter-active,
+.page-loader-leave-active {
+  transition:
+    opacity 0.68s ease,
+    filter 0.68s ease,
+    transform 0.68s cubic-bezier(0.18, 1, 0.22, 1);
+}
+
+.page-loader-enter-from {
+  opacity: 0;
+  filter: blur(16px);
+  transform: scale(1.04);
+}
+
+.page-loader-leave-to {
+  opacity: 0;
+  filter: blur(20px);
+  transform: scale(1.08);
+}
+
+.stage-caption {
+  position: absolute;
+  right: 18px;
+  bottom: 18px;
+  z-index: 3;
+  display: inline-flex;
   align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
+  gap: 7px;
+  padding: 8px 11px;
+  border: 1px solid rgba(248, 250, 252, 0.13);
+  border-radius: 8px;
+  color: rgba(248, 250, 252, 0.78);
+  background: rgba(10, 16, 25, 0.72);
+  backdrop-filter: blur(10px);
+  font-size: 12px;
+  font-weight: 800;
 }
 
-.modal-close:hover {
-  color: #f87171;
-  border-color: rgba(248, 113, 113, 0.3);
+.landing-strip,
+.scroll-showcase,
+.landing-cta {
+  width: min(1180px, 100%);
+  margin-bottom: 4rem;
 }
 
-.modal-body {
-  display: flex;
-  flex-direction: column;
+.landing-strip,
+.scroll-showcase {
+  display: grid;
   gap: 14px;
 }
 
-.modal-done-btn {
-  padding: 14px;
-  background: #00f59b;
+.landing-strip {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.feature-chip,
+.showcase-card,
+.landing-cta {
+  border: 1px solid rgba(132, 149, 136, 0.12);
+  background: rgba(25, 27, 36, 0.62);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 22px 48px rgba(0, 0, 0, 0.22);
+  transition:
+    transform 0.35s ease,
+    border-color 0.35s ease,
+    box-shadow 0.35s ease,
+    background 0.35s ease;
+}
+
+.feature-chip:hover,
+.showcase-card:hover,
+.landing-cta:hover {
+  transform: translateY(-8px);
+  border-color: rgba(0, 245, 155, 0.32);
+  background: rgba(31, 41, 55, 0.72);
+  box-shadow:
+    0 28px 70px rgba(0, 0, 0, 0.34),
+    0 0 38px rgba(0, 245, 155, 0.08);
+}
+
+.feature-chip {
+  min-height: 140px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px;
+  border-radius: 16px;
+  color: #e1e1ef;
+}
+
+.feature-chip .material-symbols-outlined {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
   color: #003920;
-  border: none;
-  border-radius: 14px;
+  background: #00f59b;
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 500;
+}
+
+.feature-chip strong {
   font-family: "Plus Jakarta Sans", sans-serif;
   font-size: 15px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: all 0.2s;
 }
 
-.modal-done-btn:hover {
-  transform: scale(1.02);
-}
-
-/* Setting cards (in modal) */
-.setting-card {
-  background: rgba(25, 27, 36, 0.5);
-  border: 1px solid rgba(132, 149, 136, 0.08);
-  border-radius: 16px;
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.setting-top {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.setting-icon-wrap {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-.setting-icon-wrap .material-symbols-outlined {
-  font-size: 20px;
-}
-
-.setting-icon-primary {
-  background: rgba(0, 245, 155, 0.1);
-  color: #00e38f;
-}
-
-.setting-icon-secondary {
-  background: rgba(215, 3, 87, 0.1);
-}
-
-.setting-icon-secondary .material-symbols-outlined {
-  color: #d70357;
-}
-
-.setting-title {
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  color: #e1e1ef;
-  flex: 1;
-}
-
-.setting-value {
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 20px;
-  font-weight: 800;
-  color: #00e38f;
-}
-
-/* Range input */
-.range-input {
-  width: 100%;
-  height: 8px;
-  appearance: none;
-  background: rgba(50, 52, 62, 0.8);
-  border-radius: 9999px;
-  outline: none;
-  cursor: pointer;
-}
-
-.range-input::-webkit-slider-thumb {
-  appearance: none;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #00f59b;
-  box-shadow: 0 2px 8px rgba(0, 245, 155, 0.4);
-  cursor: pointer;
-}
-
-.range-input::-moz-range-thumb {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #00f59b;
-  border: none;
-  box-shadow: 0 2px 8px rgba(0, 245, 155, 0.4);
-  cursor: pointer;
-}
-
-.range-labels {
-  display: flex;
-  justify-content: space-between;
-  font-family: "JetBrains Mono", monospace;
-  font-size: 10px;
-  color: rgba(132, 149, 136, 0.5);
-}
-
-/* Salary input */
-.salary-input-wrap {
-  display: flex;
-  align-items: center;
-  background: rgba(17, 19, 28, 0.6);
-  border: 1px solid rgba(132, 149, 136, 0.15);
-  border-radius: 10px;
-  overflow: hidden;
-}
-
-.salary-prefix {
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 16px;
-  font-weight: 800;
-  color: #00e38f;
-  padding: 6px 0 6px 12px;
-}
-
-.salary-input {
-  background: transparent;
-  border: none;
-  color: #e1e1ef;
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 16px;
-  font-weight: 800;
-  padding: 6px 12px 6px 4px;
-  outline: none;
-  width: 80px;
-  text-align: right;
-}
-
-.salary-input::-webkit-inner-spin-button,
-.salary-input::-webkit-outer-spin-button {
-  opacity: 0.4;
-}
-
-/* Toggle card */
-.setting-toggle-card {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  background: rgba(25, 27, 36, 0.5);
-  border: 1px solid rgba(132, 149, 136, 0.08);
-  border-radius: 16px;
-  padding: 16px 18px;
-  transition: border-color 0.2s;
-}
-
-.setting-toggle-card:hover {
-  border-color: rgba(0, 245, 155, 0.2);
-}
-
-.toggle-info {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  flex: 1;
-}
-
-.toggle-title {
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 14px;
-  font-weight: 700;
-  color: #e1e1ef;
-}
-
-.toggle-desc {
-  font-size: 11px;
-  color: rgba(132, 149, 136, 0.5);
+.feature-chip small {
+  color: rgba(226, 232, 240, 0.62);
+  font-size: 13px;
   line-height: 1.4;
 }
 
-.toggle-label {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
-  user-select: none;
-  flex-shrink: 0;
+.scroll-showcase {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
-.toggle-input {
-  position: absolute;
-  width: 0;
-  height: 0;
-  opacity: 0;
-}
-
-.toggle-track {
-  position: relative;
-  width: 48px;
-  height: 26px;
-  background: rgba(50, 52, 62, 0.8);
-  border-radius: 9999px;
-  transition: background 0.2s;
-}
-
-.toggle-input:checked + .toggle-track {
-  background: #00f59b;
-}
-
-.toggle-thumb {
-  position: absolute;
-  top: 3px;
-  left: 3px;
-  width: 20px;
-  height: 20px;
-  background: white;
-  border-radius: 50%;
-  transition: transform 0.2s;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-}
-
-.toggle-input:checked + .toggle-track .toggle-thumb {
-  transform: translateX(22px);
-}
-
-/* Transitions */
-.slide-enter-active,
-.slide-leave-active {
-  transition: all 0.25s ease;
-}
-
-.slide-enter-from {
-  opacity: 0;
-  transform: translateX(20px);
-}
-
-.slide-leave-to {
-  opacity: 0;
-  transform: translateX(-20px);
-}
-
-.modal-enter-active {
-  transition: opacity 0.25s ease;
-}
-
-.modal-enter-active .modal-card {
-  transition: transform 0.25s ease, opacity 0.25s ease;
-}
-
-.modal-enter-from {
-  opacity: 0;
-}
-
-.modal-enter-from .modal-card {
-  opacity: 0;
-  transform: scale(0.95) translateY(10px);
-}
-
-.modal-leave-active {
-  transition: opacity 0.2s ease;
-}
-
-.modal-leave-active .modal-card {
-  transition: transform 0.2s ease, opacity 0.2s ease;
-}
-
-.modal-leave-to {
-  opacity: 0;
-}
-
-.modal-leave-to .modal-card {
-  opacity: 0;
-  transform: scale(0.95) translateY(10px);
-}
-
-/* Multiplayer entry panel */
-.mp-panel {
+.showcase-card {
+  min-height: 250px;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 22px;
+  border-radius: 18px;
 }
 
-.mp-desc {
-  font-size: 14px;
-  color: #849588;
+.showcase-card .material-symbols-outlined {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: #86efac;
+  background: rgba(0, 245, 155, 0.1);
+  font-size: 24px;
+}
+
+.showcase-card h2,
+.landing-cta h2 {
   margin: 0;
+  color: #f8fafc;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: clamp(24px, 3vw, 38px);
+}
+
+.showcase-card p,
+.landing-cta p {
+  margin: 0;
+  color: rgba(226, 232, 240, 0.68);
   line-height: 1.5;
 }
 
-.mp-actions {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.mp-btn {
+.landing-cta {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 22px 16px;
-  border-radius: 16px;
-  border: 1px solid rgba(132, 149, 136, 0.15);
-  background: rgba(25, 27, 36, 0.6);
-  color: #e1e1ef;
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.2s;
+  align-items: flex-start;
+  gap: 16px;
+  padding: clamp(24px, 5vw, 48px);
+  border-radius: 22px;
 }
 
-.mp-btn .material-symbols-outlined {
-  font-size: 28px;
+.glass-readable {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(248, 250, 252, 0.18);
+  background:
+    linear-gradient(135deg, rgba(248, 250, 252, 0.1), rgba(15, 23, 42, 0.34)),
+    rgba(17, 24, 39, 0.36);
+  backdrop-filter: blur(34px) saturate(1.25);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 30px 86px rgba(0, 0, 0, 0.3);
 }
 
-.mp-create {
-  background: rgba(0, 245, 155, 0.08);
-  border-color: rgba(0, 245, 155, 0.25);
-  color: #00e38f;
+.glass-readable::before {
+  content: "";
+  position: absolute;
+  inset: -28%;
+  z-index: 0;
+  background:
+    radial-gradient(
+      circle at 20% 25%,
+      rgba(0, 245, 155, 0.18),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 80% 20%,
+      rgba(147, 197, 253, 0.14),
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at 50% 88%,
+      rgba(251, 113, 133, 0.12),
+      transparent 30%
+    );
+  filter: blur(32px);
+  opacity: 0.9;
+  animation: ctaGlassFlow 13s ease-in-out infinite alternate;
 }
 
-.mp-create:hover {
-  background: rgba(0, 245, 155, 0.15);
-  border-color: rgba(0, 245, 155, 0.45);
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px -4px rgba(0, 245, 155, 0.2);
+.glass-readable::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: 0;
+  border-radius: inherit;
+  background: rgba(6, 12, 20, 0.18);
+  backdrop-filter: blur(8px);
+  mask-image: linear-gradient(120deg, rgba(0, 0, 0, 0.86), rgba(0, 0, 0, 0.3));
 }
 
-.mp-join {
-  color: #e1e1ef;
+.glass-readable > * {
+  position: relative;
+  z-index: 2;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.38);
 }
 
-.mp-join:hover {
-  border-color: rgba(0, 245, 155, 0.3);
-  color: #00e38f;
-  background: rgba(0, 245, 155, 0.05);
-  transform: translateY(-2px);
+.reveal-on-scroll {
+  animation: revealUp both;
+  animation-timeline: view();
+  animation-range: entry 0% cover 42%;
+}
+
+@keyframes revealUp {
+  from {
+    opacity: 0;
+    filter: blur(12px);
+    transform: translateY(72px) scale(0.92) rotateX(8deg);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes titlePop {
+  0% {
+    opacity: 0;
+    filter: blur(16px);
+    transform: translateY(38px) scale(0.86);
+  }
+  58% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(-6px) scale(1.035);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes messageFlip {
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
+}
+
+@keyframes sparklePulse {
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(18deg) scale(1.14);
+  }
+}
+
+@keyframes googleDotBounce {
+  0%,
+  80%,
+  100% {
+    transform: translateY(0) scale(0.86);
+    opacity: 0.62;
+  }
+  40% {
+    transform: translateY(-8px) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pageGradientFlow {
+  0% {
+    transform: translate3d(-4%, -2%, 0) rotate(0deg) scale(1);
+  }
+  33% {
+    transform: translate3d(7%, 4%, 0) rotate(12deg) scale(1.08);
+  }
+  66% {
+    transform: translate3d(-2%, 8%, 0) rotate(-8deg) scale(1.03);
+  }
+  100% {
+    transform: translate3d(5%, -5%, 0) rotate(16deg) scale(1.1);
+  }
+}
+
+@keyframes ambientRoamA {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-62vw, 72vh, 0) scale(1.32);
+  }
+}
+
+@keyframes ambientRoamB {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(70vw, -58vh, 0) scale(1.22);
+  }
+}
+
+@keyframes ambientRoamC {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-34vw, -28vh, 0) scale(1.42);
+  }
+}
+
+@keyframes gridDrift {
+  from {
+    transform: perspective(900px) rotateX(58deg) rotateZ(-9deg) translateY(0);
+  }
+  to {
+    transform: perspective(900px) rotateX(58deg) rotateZ(-5deg) translateY(14px);
+  }
+}
+
+@keyframes orbitSpin {
+  to {
+    transform: rotateX(62deg) rotateZ(360deg);
+  }
+}
+
+@keyframes ctaGlassFlow {
+  from {
+    transform: translate3d(-5%, -3%, 0) rotate(0deg) scale(1);
+  }
+  to {
+    transform: translate3d(5%, 4%, 0) rotate(10deg) scale(1.08);
+  }
+}
+
+@media (max-width: 980px) {
+  .landing-hero {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .hero-stage {
+    min-height: 420px;
+  }
+
+  .landing-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .scroll-showcase {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 600px) {
-  .app-header {
-    padding: 10px 16px;
+  .header-nav button:not(.nav-primary) {
+    display: none;
   }
 
-  .header-brand {
-    font-size: 17px;
+  main {
+    gap: 22px;
+    padding: 12px 12px calc(34px + env(safe-area-inset-bottom));
   }
 
-  .header-logo {
-    font-size: 24px;
+  .landing-hero {
+    gap: 12px;
+    padding: 26px 0 6px;
   }
 
-  .page-body {
-    align-items: flex-start;
-    padding: 12px;
-  }
-
-  .setup-card {
-    padding: 18px 14px;
+  .hero-copy {
     gap: 14px;
-    border-radius: 18px;
   }
 
-  .main-title {
-    font-size: 20px;
+  .hero-kicker {
+    font-size: 9px;
+    line-height: 1.35;
   }
 
-  .mode-tab {
-    font-size: 12px;
-    padding: 9px 10px;
-    gap: 4px;
+  .hero-title {
+    font-size: clamp(48px, 17vw, 78px);
   }
 
-  .mode-tab .material-symbols-outlined {
+  .hero-subtitle {
     font-size: 16px;
   }
 
-  .carousel-inner {
+  .hero-actions,
+  .hero-primary,
+  .hero-secondary {
+    width: 100%;
+  }
+
+  .hero-stage {
+    width: 100%;
+    min-height: 320px;
+    right: 0;
+  }
+
+  .hero-canvas {
+    inset: -4% -24% -8% -26%;
+    width: 150%;
+    height: 116%;
+  }
+
+  .stage-caption {
+    right: 12px;
+    bottom: 12px;
+  }
+
+  .landing-strip,
+  .scroll-showcase {
     grid-template-columns: 1fr;
   }
 
-  .action-row {
-    flex-wrap: wrap;
-    gap: 8px;
+  .feature-chip {
+    min-height: 116px;
   }
+}
 
-  .start-btn {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .settings-btn {
-    padding: 10px 14px;
-    font-size: 11px;
-  }
-
-  .player-card {
-    padding: 14px;
-    gap: 10px;
-  }
-
-  .player-card-fields {
-    gap: 8px;
-  }
-
-  .mp-actions {
-    grid-template-columns: 1fr;
-  }
-
-  .mp-btn {
-    flex-direction: row;
-    padding: 16px 20px;
-    justify-content: flex-start;
-    gap: 14px;
-  }
-
-  .mp-btn .material-symbols-outlined {
-    font-size: 22px;
+@media (prefers-reduced-motion: reduce) {
+  .stage-grid,
+  .stage-orbit,
+  .reveal-on-scroll,
+  .landing-page::before,
+  .ambient-glow,
+  .hero-kicker-live span:last-child,
+  .hero-kicker-live .material-symbols-outlined,
+  .google-loader span,
+  .glass-readable::before,
+  .reveal-title {
+    animation: none;
   }
 }
 </style>

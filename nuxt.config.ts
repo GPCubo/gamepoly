@@ -24,6 +24,7 @@ export default defineNuxtConfig({
   },
   routeRules: {
     "/": { ssr: false },
+    "/setup": { ssr: false },
     "/game": { ssr: false },
     "/multiplayer/**": { ssr: false },
   },

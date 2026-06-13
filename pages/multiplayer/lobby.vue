@@ -2,39 +2,43 @@
   <div class="lobby-page">
     <div class="ambient-glow ambient-1" />
     <div class="ambient-glow ambient-2" />
+    <div class="ambient-glow ambient-3" />
 
-    <header class="app-header">
-      <div class="header-left">
-        <button class="back-btn" @click="navigateTo('/')">
-          <span class="material-symbols-outlined">arrow_back</span>
-        </button>
-        <span class="material-symbols-outlined header-logo">casino</span>
-        <span class="header-brand">GamePoly</span>
-        <span class="header-badge">Multijugador</span>
-      </div>
-    </header>
+    <AppHeader back-to="/" badge="Multijugador" />
 
     <div class="page-body">
       <!-- Join view -->
       <div v-if="mode === 'join'" class="lobby-card">
         <div class="card-header">
           <h1 class="main-title">Unirse a mesa</h1>
-          <p class="subtitle">Ingresa el código de la mesa que te compartieron.</p>
+          <p class="subtitle">
+            Ingresa el código de la mesa que te compartieron.
+          </p>
         </div>
         <div class="field-group">
           <label class="field-label">TU NOMBRE</label>
-          <input v-model="playerName" class="field-input" placeholder="Cómo te llamas?" maxlength="20" />
+          <input
+            v-model="playerName"
+            class="field-input"
+            placeholder="Cómo te llamas?"
+            maxlength="20"
+          />
         </div>
         <div class="field-group">
           <label class="field-label">CÓDIGO DE MESA</label>
-          <input v-model="joinCode" class="field-input field-mono" placeholder="T-xxxxxxxx" maxlength="20" />
+          <input
+            v-model="joinCode"
+            class="field-input field-mono"
+            placeholder="T-xxxxxxxx"
+            maxlength="20"
+          />
         </div>
         <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
         <div class="action-row">
           <button class="reset-btn" @click="mode = 'create'">Crear mesa</button>
           <button class="start-btn" :disabled="joining" @click="joinTable">
             <span class="material-symbols-outlined">login</span>
-            {{ joining ? 'Uniéndose...' : 'UNIRSE' }}
+            {{ joining ? "Uniéndose..." : "UNIRSE" }}
           </button>
         </div>
       </div>
@@ -43,13 +47,20 @@
       <div v-else class="lobby-card">
         <div class="card-header">
           <h1 class="main-title">Nueva mesa</h1>
-          <p class="subtitle">Configura los slots y las reglas de la partida.</p>
+          <p class="subtitle">
+            Configura los slots y las reglas de la partida.
+          </p>
         </div>
 
         <!-- Player name -->
         <div class="field-group">
           <label class="field-label">TU NOMBRE</label>
-          <input v-model="playerName" class="field-input" placeholder="Cómo te llamas?" maxlength="20" />
+          <input
+            v-model="playerName"
+            class="field-input"
+            placeholder="Cómo te llamas?"
+            maxlength="20"
+          />
         </div>
 
         <!-- Slot count -->
@@ -63,7 +74,9 @@
               :class="{ active: n === slotCount, disabled: n < 2 }"
               :disabled="n < 2"
               @click="setSlotCount(n)"
-            >{{ n }}</button>
+            >
+              {{ n }}
+            </button>
           </div>
         </div>
 
@@ -89,11 +102,14 @@
                     <option value="bot_regular">Bot Regular</option>
                     <option value="bot_difficult">Bot Difícil</option>
                   </select>
-                  <span class="material-symbols-outlined select-arrow">expand_more</span>
+                  <span class="material-symbols-outlined select-arrow"
+                    >expand_more</span
+                  >
                 </div>
               </div>
               <div class="slot-type-label" v-if="idx === 0">
-                <span class="material-symbols-outlined">person</span> Jugador humano
+                <span class="material-symbols-outlined">person</span> Jugador
+                humano
               </div>
             </div>
           </div>
@@ -103,17 +119,30 @@
         <div class="section-block">
           <button class="settings-btn" @click="showRules = !showRules">
             <span class="material-symbols-outlined">tune</span>
-            {{ showRules ? 'Ocultar reglas' : 'Configurar reglas' }}
+            {{ showRules ? "Ocultar reglas" : "Configurar reglas" }}
           </button>
           <div v-if="showRules" class="rules-panel">
             <div class="rule-row">
               <span class="rule-label">Dinero inicial</span>
               <span class="rule-value">${{ startingCash }}</span>
             </div>
-            <input v-model.number="startingCash" type="range" min="500" max="5000" step="100" class="range-input" />
+            <input
+              v-model.number="startingCash"
+              type="range"
+              min="500"
+              max="5000"
+              step="100"
+              class="range-input"
+            />
             <div class="rule-row">
               <span class="rule-label">Salario (GO)</span>
-              <input v-model.number="goSalary" type="number" min="0" step="50" class="small-input" />
+              <input
+                v-model.number="goSalary"
+                type="number"
+                min="0"
+                step="50"
+                class="small-input"
+              />
             </div>
             <label class="toggle-row">
               <span>Dobles dan turno extra</span>
@@ -129,10 +158,12 @@
         <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
 
         <div class="action-row">
-          <button class="reset-btn" @click="mode = 'join'">Unirse a mesa</button>
+          <button class="reset-btn" @click="mode = 'join'">
+            Unirse a mesa
+          </button>
           <button class="start-btn" :disabled="creating" @click="createTable">
             <span class="material-symbols-outlined">add_circle</span>
-            {{ creating ? 'Creando...' : 'CREAR MESA' }}
+            {{ creating ? "Creando..." : "CREAR MESA" }}
           </button>
         </div>
       </div>
@@ -141,81 +172,101 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, reactive, onMounted } from 'vue'
-import { useMultiplayerStore } from '~/stores/multiplayerStore'
-import { getApiBaseUrl } from '~/utils/env'
-import { GAME_CONFIG } from '~/config/gameConfig'
-import { enabledLocalScenarioSeedKeys } from '~/config/localScenarioSeeds'
+import { computed, ref, reactive, onMounted } from "vue";
+import { useMultiplayerStore } from "~/stores/multiplayerStore";
+import { getApiBaseUrl } from "~/utils/env";
+import { GAME_CONFIG } from "~/config/gameConfig";
+import { enabledLocalScenarioSeedKeys } from "~/config/localScenarioSeeds";
 
-const mpStore = useMultiplayerStore()
-const route = useRoute()
-const { track } = useAnalytics()
+const mpStore = useMultiplayerStore();
+const route = useRoute();
+const { track } = useAnalytics();
 
-const mode = ref<'create' | 'join'>(route.query.mode === 'join' ? 'join' : 'create')
+const mode = ref<"create" | "join">(
+  route.query.mode === "join" ? "join" : "create",
+);
 
-onMounted(() => track('lobby_opened'))
-const playerName = ref('')
-const joinCode = ref('')
-const errorMsg = ref('')
-const creating = ref(false)
-const joining = ref(false)
-const showRules = ref(false)
-const slotCount = ref(2)
+onMounted(() => track("lobby_opened"));
+const playerName = ref("");
+const joinCode = ref("");
+const errorMsg = ref("");
+const creating = ref(false);
+const joining = ref(false);
+const showRules = ref(false);
+const slotCount = ref(2);
 
-const startingCash = ref(1500)
-const goSalary = ref(200)
-const doublesGiveExtra = ref(true)
-const auctionOnly = ref(false)
+const startingCash = ref(1500);
+const goSalary = ref(200);
+const doublesGiveExtra = ref(true);
+const auctionOnly = ref(false);
 
-interface SlotDef { type: 'open' | 'bot_regular' | 'bot_difficult' }
+interface SlotDef {
+  type: "open" | "bot_regular" | "bot_difficult";
+}
 const slots = reactive<SlotDef[]>([
-  { type: 'open' },   // slot 0 = always creator (human)
-  { type: 'bot_difficult' },
-  { type: 'bot_regular' },
-  { type: 'open' },
-])
-const visibleSlots = computed(() => slots.slice(0, slotCount.value))
+  { type: "open" }, // slot 0 = always creator (human)
+  { type: "bot_difficult" },
+  { type: "bot_regular" },
+  { type: "open" },
+]);
+const visibleSlots = computed(() => slots.slice(0, slotCount.value));
 
 function setSlotCount(n: number) {
-  slotCount.value = n
+  slotCount.value = n;
 }
 
-const API_BASE = getApiBaseUrl()
+const API_BASE = getApiBaseUrl();
 
 function isLocalGameUrl() {
-  if (typeof window === 'undefined') return false
-  return ['localhost', '127.0.0.1', '::1', '[::1]'].includes(window.location.hostname)
+  if (typeof window === "undefined") return false;
+  return ["localhost", "127.0.0.1", "::1", "[::1]"].includes(
+    window.location.hostname,
+  );
 }
 
 function activeLocalScenarioSeeds() {
-  if (!isLocalGameUrl()) return []
-  return enabledLocalScenarioSeedKeys(new URLSearchParams(window.location.search))
+  if (!isLocalGameUrl()) return [];
+  return enabledLocalScenarioSeedKeys(
+    new URLSearchParams(window.location.search),
+  );
 }
 
 function tokenModelForSlot(index: number) {
-  return GAME_CONFIG.TOKEN_MODELS[index % GAME_CONFIG.TOKEN_MODELS.length]?.file ?? 'sombrero.glb'
+  return (
+    GAME_CONFIG.TOKEN_MODELS[index % GAME_CONFIG.TOKEN_MODELS.length]?.file ??
+    "sombrero.glb"
+  );
 }
 
 async function createTable() {
-  errorMsg.value = ''
+  errorMsg.value = "";
   if (!playerName.value.trim()) {
-    errorMsg.value = 'Ingresa tu nombre.'
-    return
+    errorMsg.value = "Ingresa tu nombre.";
+    return;
   }
-  creating.value = true
+  creating.value = true;
   try {
     const slotsPayload = Array.from({ length: slotCount.value }, (_, i) => {
-      const tokenModel = tokenModelForSlot(i)
-      if (i === 0) return { type: 'human', name: playerName.value.trim(), tokenModel }
-      const s = slots[i]
-      if (s.type === 'open') return { type: 'open', name: '', tokenModel }
-      const diff = s.type === 'bot_difficult' ? 'difficult' : 'regular'
-      return { type: 'bot', difficulty: diff, name: s.type === 'bot_difficult' ? `Bot Difícil ${i + 1}` : `Bot Regular ${i + 1}`, tokenModel }
-    })
+      const tokenModel = tokenModelForSlot(i);
+      if (i === 0)
+        return { type: "human", name: playerName.value.trim(), tokenModel };
+      const s = slots[i];
+      if (s.type === "open") return { type: "open", name: "", tokenModel };
+      const diff = s.type === "bot_difficult" ? "difficult" : "regular";
+      return {
+        type: "bot",
+        difficulty: diff,
+        name:
+          s.type === "bot_difficult"
+            ? `Bot Difícil ${i + 1}`
+            : `Bot Regular ${i + 1}`,
+        tokenModel,
+      };
+    });
 
     const res = await fetch(`${API_BASE}/api/v1/tables`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         creatorName: playerName.value.trim(),
         config: {
@@ -228,59 +279,66 @@ async function createTable() {
         },
         slots: slotsPayload,
       }),
-    })
+    });
 
     if (!res.ok) {
-      const text = await res.text()
-      errorMsg.value = text || 'Error al crear la mesa'
-      return
+      const text = await res.text();
+      errorMsg.value = text || "Error al crear la mesa";
+      return;
     }
 
-    const data = await res.json()
-    mpStore.setConnection(data.tableId, data.playerId)
-    track('table_created')
-    navigateTo(`/multiplayer/game?tableId=${data.tableId}&playerId=${data.playerId}`)
+    const data = await res.json();
+    mpStore.setConnection(data.tableId, data.playerId);
+    track("table_created");
+    navigateTo(
+      `/multiplayer/game?tableId=${data.tableId}&playerId=${data.playerId}`,
+    );
   } catch (e) {
-    errorMsg.value = 'No se pudo conectar al servidor'
-    console.error(e)
+    errorMsg.value = "No se pudo conectar al servidor";
+    console.error(e);
   } finally {
-    creating.value = false
+    creating.value = false;
   }
 }
 
 async function joinTable() {
-  errorMsg.value = ''
+  errorMsg.value = "";
   if (!playerName.value.trim()) {
-    errorMsg.value = 'Ingresa tu nombre.'
-    return
+    errorMsg.value = "Ingresa tu nombre.";
+    return;
   }
   if (!joinCode.value.trim()) {
-    errorMsg.value = 'Ingresa el código de la mesa.'
-    return
+    errorMsg.value = "Ingresa el código de la mesa.";
+    return;
   }
-  joining.value = true
+  joining.value = true;
   try {
-    const res = await fetch(`${API_BASE}/api/v1/tables/${joinCode.value.trim()}/join`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ playerName: playerName.value.trim() }),
-    })
+    const res = await fetch(
+      `${API_BASE}/api/v1/tables/${joinCode.value.trim()}/join`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerName: playerName.value.trim() }),
+      },
+    );
 
     if (!res.ok) {
-      const text = await res.text()
-      errorMsg.value = text || 'No se pudo unir a la mesa'
-      return
+      const text = await res.text();
+      errorMsg.value = text || "No se pudo unir a la mesa";
+      return;
     }
 
-    const data = await res.json()
-    mpStore.setConnection(joinCode.value.trim(), data.playerId)
-    track('table_joined')
-    navigateTo(`/multiplayer/game?tableId=${joinCode.value.trim()}&playerId=${data.playerId}`)
+    const data = await res.json();
+    mpStore.setConnection(joinCode.value.trim(), data.playerId);
+    track("table_joined");
+    navigateTo(
+      `/multiplayer/game?tableId=${joinCode.value.trim()}&playerId=${data.playerId}`,
+    );
   } catch (e) {
-    errorMsg.value = 'No se pudo conectar al servidor'
-    console.error(e)
+    errorMsg.value = "No se pudo conectar al servidor";
+    console.error(e);
   } finally {
-    joining.value = false
+    joining.value = false;
   }
 }
 </script>
@@ -289,14 +347,39 @@ async function joinTable() {
 @import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&family=Hanken+Grotesk:wght@400;500;600&family=Material+Symbols+Outlined:wght,FILL@100..700,0..1");
 
 .lobby-page {
+  height: 100vh;
+  height: 100dvh;
   min-height: 100vh;
-  background: #11131c;
+  min-height: 100dvh;
+  background:
+    radial-gradient(circle at 72% 20%, rgba(0, 245, 155, 0.1), transparent 32%),
+    radial-gradient(circle at 18% 82%, rgba(215, 3, 87, 0.08), transparent 30%),
+    #11131c;
   color: #e1e1ef;
   font-family: "Hanken Grotesk", sans-serif;
   display: flex;
   flex-direction: column;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.lobby-page::before {
+  content: "";
+  position: fixed;
+  inset: -28%;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 18% 22%, rgba(0, 245, 155, 0.09), transparent 25%),
+    radial-gradient(circle at 76% 18%, rgba(59, 130, 246, 0.09), transparent 28%),
+    radial-gradient(circle at 64% 78%, rgba(215, 3, 87, 0.08), transparent 27%);
+  filter: blur(38px);
+  opacity: 0.88;
+  animation: lobbyGradientFlow 24s ease-in-out infinite alternate;
 }
 
 .ambient-glow {
@@ -304,74 +387,47 @@ async function joinTable() {
   border-radius: 50%;
   pointer-events: none;
   z-index: 0;
+  will-change: transform;
+  mix-blend-mode: screen;
 }
 
 .ambient-1 {
-  top: -10%; right: -10%; width: 50%; height: 50%;
+  top: -10%;
+  right: -10%;
+  width: 50%;
+  height: 50%;
   background: rgba(0, 245, 155, 0.06);
   filter: blur(120px);
+  animation: lobbyAmbientA 18s ease-in-out infinite alternate;
 }
 
 .ambient-2 {
-  bottom: -10%; left: -10%; width: 50%; height: 50%;
-  background: rgba(100, 3, 215, 0.05);
+  bottom: -10%;
+  left: -10%;
+  width: 50%;
+  height: 50%;
+  background: rgba(215, 3, 87, 0.04);
   filter: blur(120px);
+  animation: lobbyAmbientB 22s ease-in-out infinite alternate;
 }
 
-.app-header {
-  display: flex;
-  align-items: center;
-  padding: 12px 24px;
-  background: rgba(17, 19, 28, 0.85);
-  backdrop-filter: blur(16px);
-  border-bottom: 1px solid rgba(132, 149, 136, 0.08);
-  position: relative;
-  z-index: 10;
-}
-
-.header-left { display: flex; align-items: center; gap: 10px; }
-
-.back-btn {
-  background: transparent;
-  border: 1px solid rgba(255,255,255,0.12);
-  color: rgba(255,255,255,0.6);
-  border-radius: 8px;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.back-btn:hover { background: rgba(255,255,255,0.08); color: #fff; }
-
-.header-logo { font-size: 26px; color: #00f59b; font-variation-settings: "FILL" 1; }
-.header-brand {
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 19px;
-  font-weight: 800;
-  color: #e1e1ef;
-}
-.header-badge {
-  font-family: "JetBrains Mono", monospace;
-  font-size: 10px;
-  font-weight: 700;
-  padding: 3px 8px;
-  background: rgba(0,245,155,0.12);
-  color: #00e38f;
-  border: 1px solid rgba(0,245,155,0.22);
-  border-radius: 6px;
-  text-transform: uppercase;
+.ambient-3 {
+  top: 34%;
+  left: 42%;
+  width: 28%;
+  height: 42%;
+  background: rgba(255, 209, 101, 0.035);
+  filter: blur(100px);
+  animation: lobbyAmbientC 26s ease-in-out infinite alternate;
 }
 
 .page-body {
   flex: 1;
+  min-height: 0;
   display: flex;
   justify-content: center;
   align-items: flex-start;
-  overflow-y: auto;
-  padding: 24px 16px;
+  padding: 24px 16px calc(44px + env(safe-area-inset-bottom));
   position: relative;
   z-index: 1;
 }
@@ -388,6 +444,7 @@ async function joinTable() {
   flex-direction: column;
   gap: 20px;
   box-shadow: 0 32px 64px -12px rgba(0, 0, 0, 0.5);
+  animation: lobbyCardEnter 0.9s cubic-bezier(0.18, 1, 0.22, 1) both;
 }
 
 .main-title {
@@ -398,9 +455,17 @@ async function joinTable() {
   margin: 0;
 }
 
-.subtitle { color: #849588; font-size: 14px; margin: 4px 0 0; }
+.subtitle {
+  color: #849588;
+  font-size: 14px;
+  margin: 4px 0 0;
+}
 
-.section-block { display: flex; flex-direction: column; gap: 12px; }
+.section-block {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
 .section-label {
   font-family: "JetBrains Mono", monospace;
   font-size: 11px;
@@ -410,19 +475,23 @@ async function joinTable() {
   color: #849588;
 }
 
-.field-group { display: flex; flex-direction: column; gap: 4px; }
+.field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
 .field-label {
   font-family: "JetBrains Mono", monospace;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: rgba(132,149,136,0.7);
+  color: rgba(132, 149, 136, 0.7);
   padding-left: 2px;
 }
 .field-input {
-  background: rgba(17,19,28,0.6);
-  border: 1px solid rgba(132,149,136,0.12);
+  background: rgba(17, 19, 28, 0.6);
+  border: 1px solid rgba(132, 149, 136, 0.12);
   border-radius: 10px;
   padding: 10px 14px;
   color: #e1e1ef;
@@ -431,17 +500,30 @@ async function joinTable() {
   outline: none;
   transition: border-color 0.2s;
 }
-.field-input:focus { border-color: #00f59b; }
-.field-mono { font-family: "JetBrains Mono", monospace; letter-spacing: 0.08em; }
+.field-input:focus {
+  border-color: #00f59b;
+}
+.field-mono {
+  font-family: "JetBrains Mono", monospace;
+  letter-spacing: 0.08em;
+}
 
-.select-wrapper { position: relative; }
-.field-select { appearance: none; cursor: pointer; width: 100%; padding-right: 36px; }
+.select-wrapper {
+  position: relative;
+}
+.field-select {
+  appearance: none;
+  cursor: pointer;
+  width: 100%;
+  padding-right: 36px;
+}
 .select-arrow {
   position: absolute;
-  right: 10px; top: 50%;
+  right: 10px;
+  top: 50%;
   transform: translateY(-50%);
   pointer-events: none;
-  color: rgba(132,149,136,0.5);
+  color: rgba(132, 149, 136, 0.5);
   font-size: 18px;
 }
 
@@ -449,10 +531,10 @@ async function joinTable() {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 6px;
-  background: rgba(25,27,36,0.8);
+  background: rgba(25, 27, 36, 0.8);
   padding: 6px;
   border-radius: 16px;
-  border: 1px solid rgba(132,149,136,0.1);
+  border: 1px solid rgba(132, 149, 136, 0.1);
 }
 .count-pill {
   padding: 10px;
@@ -466,15 +548,27 @@ async function joinTable() {
   cursor: pointer;
   transition: all 0.2s;
 }
-.count-pill:hover:not(.disabled) { background: rgba(50,52,62,0.5); }
-.count-pill.active { background: #00f59b; color: #003920; }
-.count-pill.disabled { opacity: 0.3; cursor: not-allowed; }
+.count-pill:hover:not(.disabled) {
+  background: rgba(50, 52, 62, 0.5);
+}
+.count-pill.active {
+  background: #00f59b;
+  color: #003920;
+}
+.count-pill.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
 
-.slots-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.slots-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
 
 .slot-card {
-  background: rgba(25,27,36,0.8);
-  border: 1px solid rgba(132,149,136,0.1);
+  background: rgba(25, 27, 36, 0.8);
+  border: 1px solid rgba(132, 149, 136, 0.1);
   border-radius: 14px;
   padding: 14px;
   display: flex;
@@ -482,9 +576,14 @@ async function joinTable() {
   gap: 10px;
 }
 
-.slot-top { display: flex; align-items: center; gap: 8px; }
+.slot-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .slot-num {
-  width: 28px; height: 28px;
+  width: 28px;
+  height: 28px;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -493,18 +592,30 @@ async function joinTable() {
   font-size: 14px;
   font-weight: 700;
 }
-.slot-accent-1 .slot-num { background: rgba(0,245,155,0.15); color: #00f59b; }
-.slot-accent-2 .slot-num { background: rgba(215,3,87,0.15); color: #d70357; }
-.slot-accent-3 .slot-num { background: rgba(255,209,101,0.15); color: #ffd165; }
-.slot-accent-4 .slot-num { background: rgba(248,113,113,0.15); color: #f87171; }
+.slot-accent-1 .slot-num {
+  background: rgba(0, 245, 155, 0.15);
+  color: #00f59b;
+}
+.slot-accent-2 .slot-num {
+  background: rgba(215, 3, 87, 0.15);
+  color: #d70357;
+}
+.slot-accent-3 .slot-num {
+  background: rgba(255, 209, 101, 0.15);
+  color: #ffd165;
+}
+.slot-accent-4 .slot-num {
+  background: rgba(248, 113, 113, 0.15);
+  color: #f87171;
+}
 
 .slot-you-badge {
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
   color: #00e38f;
-  background: rgba(0,245,155,0.1);
-  border: 1px solid rgba(0,245,155,0.2);
+  background: rgba(0, 245, 155, 0.1);
+  border: 1px solid rgba(0, 245, 155, 0.2);
   border-radius: 4px;
   padding: 2px 6px;
 }
@@ -513,7 +624,7 @@ async function joinTable() {
   display: flex;
   align-items: center;
   gap: 6px;
-  color: rgba(255,255,255,0.5);
+  color: rgba(255, 255, 255, 0.5);
   font-size: 12px;
   font-weight: 500;
 }
@@ -523,8 +634,8 @@ async function joinTable() {
   align-items: center;
   gap: 6px;
   padding: 10px 16px;
-  border: 1px solid rgba(132,149,136,0.15);
-  background: rgba(25,27,36,0.6);
+  border: 1px solid rgba(132, 149, 136, 0.15);
+  background: rgba(25, 27, 36, 0.6);
   color: #849588;
   border-radius: 12px;
   font-size: 13px;
@@ -533,24 +644,39 @@ async function joinTable() {
   transition: all 0.2s;
   align-self: flex-start;
 }
-.settings-btn:hover { color: #00e38f; border-color: rgba(0,245,155,0.3); }
+.settings-btn:hover {
+  color: #00e38f;
+  border-color: rgba(0, 245, 155, 0.3);
+}
 
 .rules-panel {
   display: flex;
   flex-direction: column;
   gap: 12px;
   padding: 14px;
-  background: rgba(25,27,36,0.5);
-  border: 1px solid rgba(132,149,136,0.08);
+  background: rgba(25, 27, 36, 0.5);
+  border: 1px solid rgba(132, 149, 136, 0.08);
   border-radius: 12px;
 }
-.rule-row { display: flex; align-items: center; justify-content: space-between; }
-.rule-label { color: #e1e1ef; font-size: 13px; font-weight: 600; }
-.rule-value { color: #00e38f; font-family: "JetBrains Mono", monospace; font-weight: 700; }
+.rule-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.rule-label {
+  color: #e1e1ef;
+  font-size: 13px;
+  font-weight: 600;
+}
+.rule-value {
+  color: #00e38f;
+  font-family: "JetBrains Mono", monospace;
+  font-weight: 700;
+}
 .small-input {
   width: 80px;
-  background: rgba(17,19,28,0.6);
-  border: 1px solid rgba(132,149,136,0.15);
+  background: rgba(17, 19, 28, 0.6);
+  border: 1px solid rgba(132, 149, 136, 0.15);
   border-radius: 8px;
   padding: 6px 10px;
   color: #e1e1ef;
@@ -573,13 +699,14 @@ async function joinTable() {
   width: 100%;
   height: 6px;
   appearance: none;
-  background: rgba(50,52,62,0.8);
+  background: rgba(50, 52, 62, 0.8);
   border-radius: 9999px;
   cursor: pointer;
 }
 .range-input::-webkit-slider-thumb {
   appearance: none;
-  width: 18px; height: 18px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: #00f59b;
 }
@@ -589,8 +716,8 @@ async function joinTable() {
   font-size: 13px;
   text-align: center;
   padding: 10px;
-  background: rgba(248,113,113,0.08);
-  border: 1px solid rgba(248,113,113,0.2);
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.2);
   border-radius: 10px;
   margin: 0;
 }
@@ -615,7 +742,9 @@ async function joinTable() {
   transition: color 0.2s;
   border-radius: 12px;
 }
-.reset-btn:hover { color: #00e38f; }
+.reset-btn:hover {
+  color: #00e38f;
+}
 
 .start-btn {
   display: flex;
@@ -635,45 +764,138 @@ async function joinTable() {
   box-shadow: 0 8px 24px -6px rgba(0, 245, 155, 0.35);
   transition: all 0.3s;
 }
-.start-btn:hover:not(:disabled) { transform: scale(1.03); }
-.start-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.start-btn:hover:not(:disabled) {
+  transform: scale(1.03);
+}
+.start-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 .material-symbols-outlined {
-  font-variation-settings: "FILL" 0, "wght" 400;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400;
   font-size: 18px;
   line-height: 1;
 }
 
+@keyframes lobbyGradientFlow {
+  0% {
+    transform: translate3d(-4%, -2%, 0) rotate(0deg) scale(1);
+  }
+  33% {
+    transform: translate3d(7%, 4%, 0) rotate(12deg) scale(1.08);
+  }
+  66% {
+    transform: translate3d(-2%, 8%, 0) rotate(-8deg) scale(1.03);
+  }
+  100% {
+    transform: translate3d(5%, -5%, 0) rotate(16deg) scale(1.1);
+  }
+}
+
+@keyframes lobbyAmbientA {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-62vw, 72vh, 0) scale(1.32);
+  }
+}
+
+@keyframes lobbyAmbientB {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(70vw, -58vh, 0) scale(1.22);
+  }
+}
+
+@keyframes lobbyAmbientC {
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-34vw, -28vh, 0) scale(1.42);
+  }
+}
+
+@keyframes lobbyCardEnter {
+  from {
+    opacity: 0;
+    filter: blur(14px);
+    transform: translateY(42px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0) scale(1);
+  }
+}
+
 @media (max-width: 600px) {
-  .app-header {
-    padding: 10px 14px;
-    gap: 8px;
+  .lobby-page {
+    overflow-y: scroll;
   }
 
-  .header-brand { font-size: 17px; }
-  .header-badge { display: none; }
-
   .page-body {
-    padding: 12px 10px;
+    flex: none;
+    min-height: auto;
+    padding: 10px 10px calc(96px + env(safe-area-inset-bottom));
     align-items: flex-start;
   }
 
   .lobby-card {
-    padding: 16px 14px;
-    gap: 14px;
+    padding: 14px 12px;
+    gap: 12px;
     border-radius: 18px;
   }
 
-  .main-title { font-size: 20px; }
-  .subtitle { font-size: 13px; }
+  .main-title {
+    font-size: 20px;
+  }
+  .subtitle {
+    font-size: 13px;
+  }
 
-  .slots-grid { grid-template-columns: 1fr; }
+  .slots-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
 
-  .section-label { font-size: 10px; }
+  .slot-card {
+    min-width: 0;
+    gap: 8px;
+    padding: 10px;
+    border-radius: 12px;
+  }
+
+  .slot-num {
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    font-size: 12px;
+  }
+
+  .slot-you-badge {
+    padding: 2px 5px;
+    font-size: 9px;
+  }
+
+  .slot-type-label {
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  .section-label {
+    font-size: 10px;
+  }
 
   .field-input {
     font-size: 16px; /* prevents iOS zoom on focus */
-    padding: 12px 14px;
+    padding: 10px 12px;
   }
 
   .action-row {
@@ -703,13 +925,40 @@ async function joinTable() {
     justify-content: center;
   }
 
-  .rules-panel { gap: 10px; padding: 12px; }
+  .rules-panel {
+    gap: 10px;
+    padding: 12px;
+  }
 
-  .small-input { width: 68px; font-size: 15px; }
+  .small-input {
+    width: 68px;
+    font-size: 15px;
+  }
 
-  .range-input { height: 8px; }
+  .range-input {
+    height: 8px;
+  }
 
-  .player-count-bar { gap: 4px; }
-  .count-pill { padding: 10px 6px; font-size: 15px; }
+  .player-count-bar {
+    gap: 4px;
+  }
+  .count-pill {
+    padding: 10px 6px;
+    font-size: 15px;
+  }
+}
+
+@media (max-width: 380px) {
+  .slots-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lobby-page::before,
+  .ambient-glow,
+  .lobby-card {
+    animation: none;
+  }
 }
 </style>

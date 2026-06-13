@@ -236,25 +236,25 @@
         <span class="material-symbols-outlined">history</span>
         Ver Historico
       </button>
+    </div>
 
-      <Transition name="dice">
-        <div v-if="diceVisible" class="dado-wrapper">
-          <div class="dado-titulo">
-            Total: {{ mpStore.diceTotal }} | Casilla: {{ currentPosition }}/40
-            <span v-if="mpStore.isDoubles" class="doubles-text"> DOBLES </span>
-          </div>
-          <div class="dados-row">
-            <div
-              v-for="(val, idx) in mpStore.diceValues"
-              :key="idx"
-              class="dado-pequeno"
-            >
-              {{ val }}
-            </div>
+    <Transition name="dice">
+      <div v-if="diceVisible" class="dado-wrapper dice-overlay">
+        <div class="dado-titulo">
+          Total: {{ mpStore.diceTotal }} | Casilla: {{ currentPosition }}/40
+          <span v-if="mpStore.isDoubles" class="doubles-text"> DOBLES </span>
+        </div>
+        <div class="dados-row">
+          <div
+            v-for="(val, idx) in mpStore.diceValues"
+            :key="idx"
+            class="dado-pequeno"
+          >
+            {{ val }}
           </div>
         </div>
-      </Transition>
-    </div>
+      </div>
+    </Transition>
 
     <!-- Status + action bar -->
     <div class="overlay-container" v-if="mpStore.state">
@@ -281,10 +281,19 @@
 
       <!-- Debt warning: shown when player has recoverable negative cash -->
       <div v-if="isMyDebtPending && mpStore.isMyTurn" class="debt-warning">
-        <span class="material-symbols-outlined debt-warning-icon">account_balance_wallet</span>
+        <span class="material-symbols-outlined debt-warning-icon"
+          >account_balance_wallet</span
+        >
         <div class="debt-warning-copy">
-          <strong>Deuda pendiente: ${{ Math.abs(myPlayer?.cash ?? 0).toLocaleString() }}</strong>
-          <span>Vende mejoras o hipoteca propiedades en <strong>Configuración</strong> para cubrir la deuda.</span>
+          <strong
+            >Deuda pendiente: ${{
+              Math.abs(myPlayer?.cash ?? 0).toLocaleString()
+            }}</strong
+          >
+          <span
+            >Vende mejoras o hipoteca propiedades en
+            <strong>Configuración</strong> para cubrir la deuda.</span
+          >
         </div>
         <button class="debt-config-btn" @click="sidebarOpen = true">
           <span class="material-symbols-outlined">settings</span>
@@ -434,7 +443,11 @@
           <button
             v-for="(inc, bidIdx) in [10, 50, 100]"
             :key="inc"
-            :ref="(el) => { auctionBidRefs[bidIdx] = el as HTMLElement | null; }"
+            :ref="
+              (el) => {
+                auctionBidRefs[bidIdx] = el as HTMLElement | null;
+              }
+            "
             class="bid-btn"
             :disabled="(myPlayer?.cash ?? 0) < mpStore.auction.currentBid + inc"
             @click="send('place_bid', { increment: inc })"
@@ -462,7 +475,9 @@
     <ExchangeModal
       v-if="showExchange && mpStore.state"
       :active-player="mpStore.myPlayer!"
-      :players="mpStore.activePlayers.filter(p => p.id !== mpStore.myPlayerId)"
+      :players="
+        mpStore.activePlayers.filter((p) => p.id !== mpStore.myPlayerId)
+      "
       :property-owners="mpStore.propertyOwners"
       :property-developments="mpStore.propertyDevelopments"
       :proposal="mpStore.exchangeProposal"
@@ -527,7 +542,9 @@
             <button
               ref="exchangeBtnRef"
               class="sidebar-btn cam-btn"
-              :disabled="!mpStore.hasAnyPropertyOwned && !mpStore.myPlayer?.cash"
+              :disabled="
+                !mpStore.hasAnyPropertyOwned && !mpStore.myPlayer?.cash
+              "
               @click="onOpenExchange()"
             >
               <span class="material-symbols-outlined">sync_alt</span>
@@ -1025,7 +1042,8 @@ const boardLoadingMessages = [
   "Casi está 🚀",
 ];
 const currentBoardLoadingMessage = computed(
-  () => boardLoadingMessages[boardLoadingIndex.value % boardLoadingMessages.length],
+  () =>
+    boardLoadingMessages[boardLoadingIndex.value % boardLoadingMessages.length],
 );
 
 const normalizedPlayerTiles = computed(() =>
@@ -2515,8 +2533,19 @@ onUnmounted(() => {
 
 watch(boardHousePlacements, rebuildBoardHouseInstances, { deep: true });
 
-watch(() => mpStore.winner, (w) => { if (w) track("game_finished"); });
-watch(isMyDebtPending, (v) => { if (v) track("bankruptcy_triggered"); }, { once: false });
+watch(
+  () => mpStore.winner,
+  (w) => {
+    if (w) track("game_finished");
+  },
+);
+watch(
+  isMyDebtPending,
+  (v) => {
+    if (v) track("bankruptcy_triggered");
+  },
+  { once: false },
+);
 
 watch(
   () =>
@@ -2966,7 +2995,9 @@ watch(
   font-size: 22px;
   color: #fb7185;
   flex-shrink: 0;
-  font-variation-settings: "FILL" 1, "wght" 400;
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 400;
 }
 
 .debt-warning-copy {
@@ -3976,6 +4007,15 @@ watch(
   margin-top: 8px;
 }
 
+.dice-overlay {
+  position: absolute;
+  top: 332px;
+  left: 16px;
+  z-index: 134;
+  width: 226px;
+  margin-top: 0;
+}
+
 .dice-enter-active {
   animation: diceSlideIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
 }
@@ -4632,6 +4672,12 @@ watch(
     width: calc(100vw - 24px);
   }
 
+  .dice-overlay {
+    top: 314px;
+    left: 12px;
+    width: 190px;
+  }
+
   .status-card {
     grid-template-columns: 1fr;
   }
@@ -4696,6 +4742,12 @@ watch(
 
   .minimap-wrapper.minimap-open {
     display: flex;
+  }
+
+  .dice-overlay {
+    top: 60px;
+    left: 12px;
+    width: min(226px, calc(100vw - 24px));
   }
 }
 
