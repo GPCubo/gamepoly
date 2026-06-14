@@ -17,6 +17,7 @@ export default defineNuxtRouteMiddleware((to, from) => {
   const toIsEn = to.path === "/en" || to.path.startsWith("/en/");
 
   if (fromIsEn && !toIsEn) {
-    return navigateTo("/en" + to.path, { replace: true });
+    // Use fullPath to preserve query params (e.g. ?tableId=...&playerId=...)
+    return navigateTo("/en" + to.fullPath, { replace: true });
   }
 });

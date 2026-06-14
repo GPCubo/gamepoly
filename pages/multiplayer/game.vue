@@ -988,6 +988,7 @@ type PlayerMovedPayload = {
 };
 
 const mpStore = useMultiplayerStore();
+const boardStore = useBoardStore();
 const socket = useGameSocket();
 const perfStats = usePerformanceStats();
 const route = useRoute();
@@ -2443,7 +2444,7 @@ async function loadBoardAssets() {
     const [boardResult, tokenResults, houseModels] = await Promise.all([
       tableroScene.value
         ? Promise.resolve({ scene: tableroScene.value })
-        : loader.loadAsync("/models/tablero.glb"),
+        : loader.loadAsync(boardStore.glbPath),
       Promise.all(
         tokenModels.map((file) => loader.loadAsync(`/models/users/${file}`)),
       ),

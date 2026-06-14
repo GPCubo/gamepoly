@@ -9,6 +9,7 @@ export const useBoardStore = defineStore("board", () => {
   const communityCards = ref<GameCard[]>([]);
   const ready = ref(false);
   const slug = ref("monopoly-es");
+  const glbPath = ref("/models/tablero.glb");
 
   async function fetchBoard(boardSlug = "monopoly-es") {
     const API_BASE = getApiBaseUrl();
@@ -18,6 +19,7 @@ export const useBoardStore = defineStore("board", () => {
     tiles.value = data.tiles ?? [];
     chanceCards.value = data.chanceCards ?? [];
     communityCards.value = data.communityCards ?? [];
+    glbPath.value = data.glbPath ?? "/models/tablero.glb";
     slug.value = boardSlug;
     ready.value = true;
   }
@@ -30,5 +32,5 @@ export const useBoardStore = defineStore("board", () => {
     return card.text.replace("{tileName}", tile.name);
   }
 
-  return { tiles, chanceCards, communityCards, ready, slug, fetchBoard, resolveCardText };
+  return { tiles, chanceCards, communityCards, ready, slug, glbPath, fetchBoard, resolveCardText };
 });

@@ -241,6 +241,7 @@ import type { ExchangeProposal } from "~/stores/gameStore";
 import type { ExchangeProposalShape } from "~/components/ExchangeModal.vue";
 
 const store = useGameStore();
+const boardStore = useBoardStore();
 const runtimeConfig = useRuntimeConfig();
 const { t } = useI18n();
 
@@ -931,7 +932,7 @@ onMounted(async () => {
       tokenModels.map((file) => loader.loadAsync(`/models/users/${file}`)),
     );
 
-    tableroScene.value = (await loader.loadAsync("/models/tablero.glb"))
+    tableroScene.value = (await loader.loadAsync(boardStore.glbPath))
       .scene as Group;
 
     boardHouseLeafCache.clear();
