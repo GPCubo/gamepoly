@@ -1,8 +1,6 @@
 package game
 
-import (
-	"gamepolyweb/backend/internal/config"
-)
+import "gamepolyweb/backend/internal/config"
 
 // TileResolution describes what happens when a player lands on a tile.
 type TileResolution string
@@ -23,7 +21,7 @@ func ResolveLanding(gs *GameState, playerID string, diceTotal int) TileResolutio
 		return ResolutionFree
 	}
 	pos := ((p.Position % 40) + 40) % 40
-	tile := config.GetTile(pos)
+	tile := gs.Board.GetTile(pos)
 	if tile == nil {
 		return ResolutionFree
 	}
@@ -102,8 +100,15 @@ func SetupGame(gs *GameState, slots []SlotConfig, opts GameOptions) {
 	gs.AuctionOnly = opts.AuctionOnly
 	gs.DoublesGiveExtra = opts.DoublesGiveExtra
 
-	gs.ChanceDeck = config.ShuffleDeck(len(config.ChanceCards))
-	gs.CommunityDeck = config.ShuffleDeck(len(config.CommunityCards))
+	if opts.Board != nil {
+		gs.Board = opts.Board
+	} else {
+		gs.Board = DefaultBoardConfig()
+	}
+	gs.BoardSlug = gs.Board.Slug
+
+	gs.ChanceDeck = gs.Board.ShuffleDeck(len(gs.Board.ChanceCards))
+	gs.CommunityDeck = gs.Board.ShuffleDeck(len(gs.Board.CommunityCards))
 
 	players := make([]*PlayerState, len(slots))
 	for i, s := range slots {
@@ -136,6 +141,8 @@ type GameOptions struct {
 	DoublesGiveExtra bool
 	ScenarioSeeds    []string
 	StartInSetup     bool
+	BoardSlug        string       // which board to play; empty = default
+	Board            *BoardConfig // resolved board config; nil uses hardcoded default
 }
 
 func DefaultOptions() GameOptions {

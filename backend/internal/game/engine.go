@@ -21,7 +21,7 @@ func RollDice(gs *GameState) (d1, d2 int, isDoubles bool) {
 		p := gs.ActivePlayer()
 		steps := 2
 		if p != nil {
-			steps = stepsToNextCardTile(p.Position)
+			steps = stepsToNextCardTile(gs, p.Position)
 		}
 		d1, d2 = diceValuesForTotal(steps)
 		isDoubles = d1 == d2
@@ -47,10 +47,10 @@ func RollDice(gs *GameState) (d1, d2 int, isDoubles bool) {
 	return
 }
 
-func stepsToNextCardTile(position int) int {
+func stepsToNextCardTile(gs *GameState, position int) int {
 	current := ((position % 40) + 40) % 40
 	best := 40
-	for _, tile := range config.BoardTiles {
+	for _, tile := range gs.Board.Tiles {
 		if tile.Type != config.TileTypeCard {
 			continue
 		}
@@ -233,7 +233,7 @@ func RollFromJail(gs *GameState) string {
 
 // BuyProperty executes a property purchase.
 func BuyProperty(gs *GameState, playerID string, tileIndex int) {
-	tile := config.GetOwnableTile(tileIndex)
+	tile := gs.Board.GetOwnableTile(tileIndex)
 	p := gs.FindPlayer(playerID)
 	if tile == nil || p == nil {
 		return
@@ -260,7 +260,7 @@ func BuyProperty(gs *GameState, playerID string, tileIndex int) {
 
 // BuyAuctionedProperty finalizes an auction purchase.
 func BuyAuctionedProperty(gs *GameState, playerID string, tileIndex, amount int) {
-	tile := config.GetOwnableTile(tileIndex)
+	tile := gs.Board.GetOwnableTile(tileIndex)
 	p := gs.FindPlayer(playerID)
 	if tile == nil || p == nil {
 		return
@@ -288,7 +288,7 @@ func BuyAuctionedProperty(gs *GameState, playerID string, tileIndex, amount int)
 
 // CollectRent deducts rent from the payer and adds to the owner.
 func CollectRent(gs *GameState, fromID, toID string, tileIndex, diceTotal int) int {
-	tile := config.GetOwnableTile(tileIndex)
+	tile := gs.Board.GetOwnableTile(tileIndex)
 	if tile == nil {
 		return 0
 	}
@@ -323,7 +323,7 @@ func CollectRent(gs *GameState, fromID, toID string, tileIndex, diceTotal int) i
 
 // CalculateRent computes the rent for landing on a property.
 func CalculateRent(gs *GameState, tileIndex int, ownerID string, diceTotal int) int {
-	tile := config.GetOwnableTile(tileIndex)
+	tile := gs.Board.GetOwnableTile(tileIndex)
 	if tile == nil {
 		return 0
 	}
@@ -347,7 +347,7 @@ func CalculateRent(gs *GameState, tileIndex int, ownerID string, diceTotal int) 
 
 	case config.TileTypeRailroad:
 		count := 0
-		for _, t := range config.BoardTiles {
+		for _, t := range gs.Board.Tiles {
 			if t.Type == config.TileTypeRailroad && gs.PropertyOwners[t.Index] == ownerID {
 				count++
 			}
@@ -356,7 +356,7 @@ func CalculateRent(gs *GameState, tileIndex int, ownerID string, diceTotal int) 
 
 	case config.TileTypeUtility:
 		count := 0
-		for _, t := range config.BoardTiles {
+		for _, t := range gs.Board.Tiles {
 			if t.Type == config.TileTypeUtility && gs.PropertyOwners[t.Index] == ownerID {
 				count++
 			}
@@ -378,7 +378,7 @@ func PayTax(gs *GameState, playerID string, tileIndex int) int {
 		return 0
 	}
 	p.Cash -= amount
-	tile := config.GetTile(tileIndex)
+	tile := gs.Board.GetTile(tileIndex)
 	name := "impuesto"
 	if tile != nil {
 		name = tile.Name
@@ -405,19 +405,19 @@ func DrawCard(gs *GameState, group string) *config.GameCard {
 	var cards []config.GameCard
 	if group == "chance" {
 		deck = &gs.ChanceDeck
-		cards = config.ChanceCards
+		cards = gs.Board.ChanceCards
 	} else {
 		deck = &gs.CommunityDeck
-		cards = config.CommunityCards
+		cards = gs.Board.CommunityCards
 	}
 	if len(*deck) == 0 {
-		newDeck := config.ShuffleDeck(len(cards))
+		newDeck := gs.Board.ShuffleDeck(len(cards))
 		*deck = newDeck
 	}
 	idx := (*deck)[0]
 	*deck = (*deck)[1:]
 	card := cards[idx]
-	card.Text = config.ResolveCardText(card)
+	card.Text = gs.Board.ResolveCardText(card)
 	gs.ActiveCard = &card
 	return &card
 }
@@ -586,7 +586,7 @@ func FinishTurnKeepPlayer(gs *GameState) {
 
 // BuildHouse builds a house on a property.
 func BuildHouse(gs *GameState, playerID string, tileIndex int) {
-	tile := config.GetTile(tileIndex)
+	tile := gs.Board.GetTile(tileIndex)
 	p := gs.FindPlayer(playerID)
 	if tile == nil || p == nil || tile.Price == nil {
 		return
@@ -614,7 +614,7 @@ func BuildHouse(gs *GameState, playerID string, tileIndex int) {
 
 // BuildHotel builds a hotel on a property.
 func BuildHotel(gs *GameState, playerID string, tileIndex int) {
-	tile := config.GetTile(tileIndex)
+	tile := gs.Board.GetTile(tileIndex)
 	p := gs.FindPlayer(playerID)
 	if tile == nil || p == nil || tile.Price == nil {
 		return
@@ -642,7 +642,7 @@ func BuildHotel(gs *GameState, playerID string, tileIndex int) {
 
 // SellImprovement sells a house or hotel.
 func SellImprovement(gs *GameState, playerID string, tileIndex int) {
-	tile := config.GetTile(tileIndex)
+	tile := gs.Board.GetTile(tileIndex)
 	p := gs.FindPlayer(playerID)
 	if tile == nil || p == nil || tile.Price == nil {
 		return
@@ -687,7 +687,7 @@ func SellImprovement(gs *GameState, playerID string, tileIndex int) {
 
 // MortgageProperty mortgages a property.
 func MortgageProperty(gs *GameState, playerID string, tileIndex int) {
-	tile := config.GetOwnableTile(tileIndex)
+	tile := gs.Board.GetOwnableTile(tileIndex)
 	p := gs.FindPlayer(playerID)
 	if tile == nil || p == nil {
 		return
@@ -713,7 +713,7 @@ func MortgageProperty(gs *GameState, playerID string, tileIndex int) {
 
 // UnmortgageProperty lifts a mortgage.
 func UnmortgageProperty(gs *GameState, playerID string, tileIndex int) {
-	tile := config.GetOwnableTile(tileIndex)
+	tile := gs.Board.GetOwnableTile(tileIndex)
 	p := gs.FindPlayer(playerID)
 	if tile == nil || p == nil {
 		return
@@ -776,7 +776,7 @@ func StartAuction(gs *GameState, tileIndex, startingBidderIdx int) {
 		ActiveBidders: bidders,
 		BidderIdx:     startingBidderIdx,
 	}
-	tile := config.GetTile(tileIndex)
+	tile := gs.Board.GetTile(tileIndex)
 	name := "propiedad"
 	if tile != nil {
 		name = tile.Name
@@ -910,7 +910,7 @@ func CanPlayerAvoidBankruptcy(gs *GameState, playerID string) bool {
 // EmergencyLiquidationValue computes max cash from selling/mortgaging all assets.
 func EmergencyLiquidationValue(gs *GameState, playerID string) int {
 	total := 0
-	for _, tile := range config.BoardTiles {
+	for _, tile := range gs.Board.Tiles {
 		if tile.Price == nil || gs.PropertyOwners[tile.Index] != playerID {
 			continue
 		}

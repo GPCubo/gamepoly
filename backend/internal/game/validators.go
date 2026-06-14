@@ -56,7 +56,7 @@ func CanBuyProperty(gs *GameState, playerID string, tileIndex int) error {
 	if p == nil || p.ID != playerID {
 		return ErrNotYourTurn
 	}
-	tile := config.GetOwnableTile(tileIndex)
+	tile := gs.Board.GetOwnableTile(tileIndex)
 	if tile == nil {
 		return errors.New("casilla no comprable")
 	}
@@ -149,7 +149,7 @@ func CanPassBid(gs *GameState, playerID string) error {
 
 // CanBuildHouse checks all rules for building a house.
 func CanBuildHouse(gs *GameState, playerID string, tileIndex int) error {
-	tile := config.GetTile(tileIndex)
+	tile := gs.Board.GetTile(tileIndex)
 	if tile == nil || tile.Type != config.TileTypeProperty {
 		return errors.New("casilla invalida")
 	}
@@ -175,7 +175,7 @@ func CanBuildHouse(gs *GameState, playerID string, tileIndex int) error {
 
 	// Even building rule
 	nextLevel := dev.Houses + 1
-	groupTiles := config.GetGroupTiles(tile.Group, config.TileTypeProperty)
+	groupTiles := gs.Board.GetGroupTiles(tile.Group, config.TileTypeProperty)
 	for _, gt := range groupTiles {
 		if gt.Index == tileIndex {
 			continue
@@ -203,7 +203,7 @@ func CanBuildHouse(gs *GameState, playerID string, tileIndex int) error {
 
 // CanBuildHotel checks all rules for building a hotel.
 func CanBuildHotel(gs *GameState, playerID string, tileIndex int) error {
-	tile := config.GetTile(tileIndex)
+	tile := gs.Board.GetTile(tileIndex)
 	if tile == nil || tile.Type != config.TileTypeProperty {
 		return errors.New("casilla invalida")
 	}
@@ -227,7 +227,7 @@ func CanBuildHotel(gs *GameState, playerID string, tileIndex int) error {
 		return ErrNeedsFullHouses
 	}
 
-	groupTiles := config.GetGroupTiles(tile.Group, config.TileTypeProperty)
+	groupTiles := gs.Board.GetGroupTiles(tile.Group, config.TileTypeProperty)
 	for _, gt := range groupTiles {
 		if gt.Index == tileIndex {
 			continue
@@ -257,7 +257,7 @@ func CanSellImprovement(gs *GameState, playerID string, tileIndex int) error {
 	if gs.PropertyOwners[tileIndex] != playerID {
 		return ErrNotOwner
 	}
-	tile := config.GetTile(tileIndex)
+	tile := gs.Board.GetTile(tileIndex)
 	if tile == nil || tile.Type != config.TileTypeProperty {
 		return errors.New("casilla invalida")
 	}
@@ -271,7 +271,7 @@ func CanSellImprovement(gs *GameState, playerID string, tileIndex int) error {
 	if dev.Hotel {
 		nextLevel = 4
 	}
-	groupTiles := config.GetGroupTiles(tile.Group, config.TileTypeProperty)
+	groupTiles := gs.Board.GetGroupTiles(tile.Group, config.TileTypeProperty)
 	for _, gt := range groupTiles {
 		if gt.Index == tileIndex {
 			continue
@@ -287,7 +287,7 @@ func CanSellImprovement(gs *GameState, playerID string, tileIndex int) error {
 
 // CanMortgage checks if a property can be mortgaged.
 func CanMortgage(gs *GameState, playerID string, tileIndex int) error {
-	tile := config.GetOwnableTile(tileIndex)
+	tile := gs.Board.GetOwnableTile(tileIndex)
 	if tile == nil {
 		return errors.New("casilla no hipotecable")
 	}
@@ -306,7 +306,7 @@ func CanMortgage(gs *GameState, playerID string, tileIndex int) error {
 
 // CanUnmortgage checks if a property can be unmortgaged.
 func CanUnmortgage(gs *GameState, playerID string, tileIndex int) error {
-	tile := config.GetOwnableTile(tileIndex)
+	tile := gs.Board.GetOwnableTile(tileIndex)
 	if tile == nil {
 		return errors.New("casilla invalida")
 	}
@@ -354,11 +354,11 @@ func CanProposeExchange(gs *GameState, playerID string, proposal ExchangeProposa
 // helpers
 
 func ownsFullPropertyGroup(gs *GameState, playerID string, tileIndex int) bool {
-	tile := config.GetTile(tileIndex)
+	tile := gs.Board.GetTile(tileIndex)
 	if tile == nil || tile.Type != config.TileTypeProperty {
 		return false
 	}
-	groupTiles := config.GetGroupTiles(tile.Group, config.TileTypeProperty)
+	groupTiles := gs.Board.GetGroupTiles(tile.Group, config.TileTypeProperty)
 	if len(groupTiles) == 0 {
 		return false
 	}
@@ -371,11 +371,11 @@ func ownsFullPropertyGroup(gs *GameState, playerID string, tileIndex int) bool {
 }
 
 func hasMortgagedInGroup(gs *GameState, tileIndex int) bool {
-	tile := config.GetTile(tileIndex)
+	tile := gs.Board.GetTile(tileIndex)
 	if tile == nil || tile.Type != config.TileTypeProperty {
 		return false
 	}
-	for _, gt := range config.GetGroupTiles(tile.Group, config.TileTypeProperty) {
+	for _, gt := range gs.Board.GetGroupTiles(tile.Group, config.TileTypeProperty) {
 		if gs.GetDevelopment(gt.Index).Mortgaged {
 			return true
 		}
@@ -384,11 +384,11 @@ func hasMortgagedInGroup(gs *GameState, tileIndex int) bool {
 }
 
 func hasImprovementInGroup(gs *GameState, tileIndex int) bool {
-	tile := config.GetTile(tileIndex)
+	tile := gs.Board.GetTile(tileIndex)
 	if tile == nil || tile.Type != config.TileTypeProperty {
 		return false
 	}
-	for _, gt := range config.GetGroupTiles(tile.Group, config.TileTypeProperty) {
+	for _, gt := range gs.Board.GetGroupTiles(tile.Group, config.TileTypeProperty) {
 		d := gs.GetDevelopment(gt.Index)
 		if d.Hotel || d.Houses > 0 {
 			return true

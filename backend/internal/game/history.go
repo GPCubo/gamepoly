@@ -49,7 +49,7 @@ func (gs *GameState) AddCardHistory(item CardHistoryItem) {
 	gs.CardHistoryCounter++
 	item.ID = gs.CardHistoryCounter
 	item.CreatedAt = time.Now().UnixMilli()
-	item.Effect = cardEffectDescription(item)
+	item.Effect = cardEffectDescription(item, gs.Board)
 	gs.CardHistory = append([]CardHistoryItem{item}, gs.CardHistory...)
 	if len(gs.CardHistory) > 100 {
 		gs.CardHistory = gs.CardHistory[:100]
@@ -60,7 +60,7 @@ func NewCardHistoryItem(player *PlayerState, card config.GameCard) CardHistoryIt
 	item := CardHistoryItem{
 		CardID:    card.ID,
 		Group:     card.Group,
-		Text:      config.ResolveCardText(card),
+		Text:      card.Text, // already resolved by DrawCard
 		Action:    card.Action,
 		Amount:    card.Amount,
 		TileIndex: card.TileIndex,
@@ -72,11 +72,11 @@ func NewCardHistoryItem(player *PlayerState, card config.GameCard) CardHistoryIt
 	return item
 }
 
-func cardEffectDescription(item CardHistoryItem) string {
+func cardEffectDescription(item CardHistoryItem, board *BoardConfig) string {
 	switch item.Action {
 	case config.CardMoveTo:
 		if item.TileIndex != nil {
-			if tile := config.GetTile(*item.TileIndex); tile != nil {
+			if tile := board.GetTile(*item.TileIndex); tile != nil {
 				return fmt.Sprintf("Mover a %s", tile.Name)
 			}
 			return fmt.Sprintf("Mover a casilla %d", *item.TileIndex+1)

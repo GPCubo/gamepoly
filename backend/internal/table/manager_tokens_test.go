@@ -7,7 +7,7 @@ import (
 )
 
 func TestCreateRejectsDuplicateOccupiedTokenModels(t *testing.T) {
-	mgr := NewManager(nil)
+	mgr := NewManager(nil, nil)
 	_, err := mgr.Create(CreateRequest{
 		Slots: []SlotConfig{
 			{Name: "Ana", Type: "human", TokenModel: "sombrero.glb"},
@@ -22,7 +22,7 @@ func TestCreateRejectsDuplicateOccupiedTokenModels(t *testing.T) {
 }
 
 func TestJoinRejectsTokenModelAlreadyInUse(t *testing.T) {
-	mgr := NewManager(nil)
+	mgr := NewManager(nil, nil)
 	result, err := mgr.Create(CreateRequest{
 		Slots: []SlotConfig{
 			{Name: "Ana", Type: "human", TokenModel: "sombrero.glb"},
@@ -41,7 +41,7 @@ func TestJoinRejectsTokenModelAlreadyInUse(t *testing.T) {
 }
 
 func TestJoinAssignsSelectedTokenModel(t *testing.T) {
-	mgr := NewManager(nil)
+	mgr := NewManager(nil, nil)
 	result, err := mgr.Create(CreateRequest{
 		Slots: []SlotConfig{
 			{Name: "Ana", Type: "human", TokenModel: "sombrero.glb"},

@@ -16,15 +16,21 @@ var (
 
 // Manager holds all active tables.
 type Manager struct {
-	tables map[string]*Table
-	mu     sync.RWMutex
-	repo   FinishedGameRepo // nil when Postgres not configured
+	tables   map[string]*Table
+	mu       sync.RWMutex
+	repo     FinishedGameRepo    // nil when Postgres not configured
+	boardReg *game.BoardRegistry // nil falls back to hardcoded default
 }
 
-func NewManager(repo FinishedGameRepo) *Manager {
+func NewManager(repo FinishedGameRepo, boardReg *game.BoardRegistry) *Manager {
+	if boardReg == nil {
+		boardReg = game.NewBoardRegistry()
+		boardReg.UseHardcoded()
+	}
 	return &Manager{
-		tables: make(map[string]*Table),
-		repo:   repo,
+		tables:   make(map[string]*Table),
+		repo:     repo,
+		boardReg: boardReg,
 	}
 }
 
@@ -92,6 +98,7 @@ func (m *Manager) Create(req CreateRequest) (*CreateResult, error) {
 	}
 
 	req.Opts.StartInSetup = hasOpenSlot
+	req.Opts.Board = m.boardReg.Get(req.Opts.BoardSlug)
 	t := NewTable(tableID, slots, req.Opts, m.repo)
 	m.mu.Lock()
 	m.tables[tableID] = t

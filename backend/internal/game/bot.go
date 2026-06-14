@@ -74,7 +74,7 @@ func DecideBotBuyDecision(gs *GameState, tileIndex int) BotAction {
 	if p == nil {
 		return BotAction{Type: BotPassBuy}
 	}
-	tile := config.GetTile(tileIndex)
+	tile := gs.Board.GetTile(tileIndex)
 	if tile == nil || tile.Price == nil {
 		return BotAction{Type: BotPassBuy}
 	}
@@ -92,7 +92,7 @@ func DecideBotAuctionAction(gs *GameState, botID string) BotAction {
 	if gs.Auction == nil {
 		return BotAction{Type: BotPassBid}
 	}
-	tile := config.GetOwnableTile(gs.Auction.TileIndex)
+	tile := gs.Board.GetOwnableTile(gs.Auction.TileIndex)
 	if tile == nil {
 		return BotAction{Type: BotPassBid}
 	}
@@ -220,7 +220,7 @@ func shouldDifficultForceAuction(gs *GameState, playerID string, tile *config.Bo
 	maxBid := int(float64(p.Cash) * 0.6)
 	opponentCashThreshold := int(float64(price) * 0.75)
 	if tile.Type == config.TileTypeProperty {
-		groupTiles := config.GetGroupTiles(tile.Group, config.TileTypeProperty)
+		groupTiles := gs.Board.GetGroupTiles(tile.Group, config.TileTypeProperty)
 		owned := countOwnedInGroup(gs, playerID, groupTiles)
 		if owned == len(groupTiles)-1 {
 			maxBid = int(float64(p.Cash) * 0.8)
@@ -243,7 +243,7 @@ func difficultAuctionBid(gs *GameState, playerID string, tile *config.BoardTile)
 	maxBid := int(float64(p.Cash) * 0.6)
 
 	if tile.Type == config.TileTypeProperty {
-		groupTiles := config.GetGroupTiles(tile.Group, config.TileTypeProperty)
+		groupTiles := gs.Board.GetGroupTiles(tile.Group, config.TileTypeProperty)
 		owned := countOwnedInGroup(gs, playerID, groupTiles)
 
 		// Near-completion of own color group → bid more aggressively
@@ -309,7 +309,7 @@ func decideBuilds(gs *GameState, playerID string, difficulty BotDifficulty) []Bo
 		return nil
 	}
 	cash := p.Cash
-	for _, tile := range config.BoardTiles {
+	for _, tile := range gs.Board.Tiles {
 		if tile.Type != config.TileTypeProperty || tile.Price == nil {
 			continue
 		}
@@ -356,7 +356,7 @@ func decideEmergencyLiquidation(gs *GameState, playerID string) []BotAction {
 	var actions []BotAction
 
 	// Pass 1: sell improvements (hotels then houses) to unblock mortgaging
-	for _, tile := range config.BoardTiles {
+	for _, tile := range gs.Board.Tiles {
 		if tile.Type != config.TileTypeProperty || tile.Price == nil {
 			continue
 		}
@@ -372,7 +372,7 @@ func decideEmergencyLiquidation(gs *GameState, playerID string) []BotAction {
 	}
 
 	// Pass 2: mortgage unencumbered properties
-	for _, tile := range config.BoardTiles {
+	for _, tile := range gs.Board.Tiles {
 		if tile.Price == nil {
 			continue
 		}
@@ -425,11 +425,11 @@ func DecideBotExchangeProposal(gs *GameState, botID string) *ExchangeProposal {
 		return nil
 	}
 
-	for _, tile := range config.BoardTiles {
+	for _, tile := range gs.Board.Tiles {
 		if tile.Type != config.TileTypeProperty || tile.Price == nil {
 			continue
 		}
-		groupTiles := config.GetGroupTiles(tile.Group, config.TileTypeProperty)
+		groupTiles := gs.Board.GetGroupTiles(tile.Group, config.TileTypeProperty)
 		if len(groupTiles) == 0 {
 			continue
 		}

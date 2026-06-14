@@ -39,7 +39,7 @@ func seedAllPropertiesForActivePlayer(gs *GameState, cash int) {
 		return
 	}
 	player.Cash = cash
-	for _, tile := range config.BoardTiles {
+	for _, tile := range gs.Board.Tiles {
 		if tile.Price == nil {
 			continue
 		}
@@ -57,7 +57,7 @@ func seedAllPropertiesWithHotelsForActivePlayer(gs *GameState, cash int) {
 		return
 	}
 	player.Cash = cash
-	for _, tile := range config.BoardTiles {
+	for _, tile := range gs.Board.Tiles {
 		if tile.Price == nil {
 			continue
 		}
@@ -95,7 +95,7 @@ func seedAllPlayersLandOnCards(gs *GameState) {
 	gs.ForceAllDiceRollsToCards = true
 	player := gs.ActivePlayer()
 	if player != nil {
-		d1, d2 := diceValuesForTotal(stepsToNextCardTile(player.Position))
+		d1, d2 := diceValuesForTotal(stepsToNextCardTile(gs, player.Position))
 		gs.DiceValues = [2]int{d1, d2}
 		gs.IsDoubles = d1 == d2
 	}

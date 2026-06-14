@@ -524,7 +524,7 @@ func (t *Table) resolveLanding(pID string, diceTotal int) {
 		group := cardGroupForTile(pos)
 		card := game.DrawCard(t.State, group)
 		if card != nil {
-			cardText := game.ResolveCardTextPublic(*card)
+			cardText := game.ResolveCardTextPublic(t.State, *card)
 			t.State.AddCardHistory(game.NewCardHistoryItem(p, *card))
 			t.Broadcast(proto.New("card_drawn", proto.CardDrawnPayload{
 				PlayerID:  pID,
@@ -559,7 +559,7 @@ func (t *Table) doBuyProperty(pID string, tileIndex int) {
 		return
 	}
 	price := 0
-	if tile := game.GetOwnableTilePublic(tileIndex); tile != nil && tile.Price != nil {
+	if tile := game.GetOwnableTilePublic(t.State, tileIndex); tile != nil && tile.Price != nil {
 		price = *tile.Price
 	}
 	game.BuyProperty(t.State, pID, tileIndex)
@@ -1033,7 +1033,7 @@ func (t *Table) resolveTimedOutDebt(playerID string) {
 		if ownerID != playerID {
 			continue
 		}
-		tile := game.GetOwnableTilePublic(idx)
+		tile := game.GetOwnableTilePublic(t.State, idx)
 		if tile == nil || tile.Price == nil {
 			continue
 		}

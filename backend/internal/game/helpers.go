@@ -7,14 +7,16 @@ func CheckBankruptcyPublic(gs *GameState, playerID string) {
 	checkBankruptcy(gs, playerID)
 }
 
-// GetOwnableTilePublic exposes config.GetOwnableTile for other packages.
-func GetOwnableTilePublic(tileIndex int) *config.BoardTile {
-	return config.GetOwnableTile(tileIndex)
+// GetOwnableTilePublic returns the ownable tile at tileIndex using the board
+// config loaded in gs. Returns nil if the tile has no price.
+func GetOwnableTilePublic(gs *GameState, tileIndex int) *config.BoardTile {
+	return gs.Board.GetOwnableTile(tileIndex)
 }
 
-// ResolveCardTextPublic returns card text with board placeholders replaced.
-func ResolveCardTextPublic(card config.GameCard) string {
-	return config.ResolveCardText(card)
+// ResolveCardTextPublic returns card text with {tileName} placeholders replaced
+// using the board config loaded in gs.
+func ResolveCardTextPublic(gs *GameState, card config.GameCard) string {
+	return gs.Board.ResolveCardText(card)
 }
 
 // GetTaxAmount returns the tax amount for a given tile index.

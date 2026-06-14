@@ -123,6 +123,7 @@ type GameState struct {
 	Phase     Phase  `json:"phase"`
 	TableID   string `json:"tableId"`
 	BoardSlug string `json:"boardSlug,omitempty"`
+	Board     *BoardConfig `json:"-"` // runtime only — not serialized
 
 	Players                     []*PlayerState `json:"players"`
 	ActivePlayerIndex           int            `json:"activePlayerIndex"`

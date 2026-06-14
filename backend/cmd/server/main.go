@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"gamepolyweb/backend/internal/api"
+	"gamepolyweb/backend/internal/config"
+	"gamepolyweb/backend/internal/game"
 	"gamepolyweb/backend/internal/store"
 	"gamepolyweb/backend/internal/table"
 )
@@ -63,8 +65,24 @@ func main() {
 		clientErrorRepo = store.NewClientErrorRepository(pg)
 	}
 
+	// Board registry — load from DB, fall back to hardcoded config
+	boardReg := game.NewBoardRegistry()
+	if pg != nil {
+		boardRepo := store.NewBoardRepository(pg)
+		regCtx, regCancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer regCancel()
+		if err := loadBoardsIntoRegistry(regCtx, boardRepo, boardReg); err != nil {
+			log.Printf("⚠  Board registry load failed (%v) — using hardcoded config", err)
+			boardReg.UseHardcoded()
+		}
+	}
+	if boardReg.IsEmpty() {
+		boardReg.UseHardcoded()
+	}
+	log.Printf("✓ Board registry ready")
+
 	// Table manager
-	mgr := table.NewManager(finishedGameRepo)
+	mgr := table.NewManager(finishedGameRepo, boardReg)
 
 	// HTTP router
 	router := api.NewRouter(mgr, rs)
@@ -101,4 +119,41 @@ func main() {
 		log.Printf("shutdown error: %v", err)
 	}
 	log.Println("bye")
+}
+
+// loadBoardsIntoRegistry fetches all visible boards from the DB and registers
+// them in the registry. Converts store.BoardTile → config.BoardTile in-place.
+func loadBoardsIntoRegistry(ctx context.Context, repo *store.BoardRepository, reg *game.BoardRegistry) error {
+	boards, err := repo.GetVisibleBoards(ctx, "es")
+	if err != nil {
+		return err
+	}
+	if len(boards) == 0 {
+		return nil
+	}
+	for _, b := range boards {
+		tiles, err := repo.GetBoardTiles(ctx, b.ID)
+		if err != nil {
+			return err
+		}
+		configTiles := make([]config.BoardTile, 0, len(tiles))
+		for _, t := range tiles {
+			color := ""
+			if t.ColorHex != nil {
+				color = *t.ColorHex
+			}
+			configTiles = append(configTiles, config.BoardTile{
+				Index:     t.TileIndex,
+				Type:      config.TileType(t.TileType),
+				Group:     t.TileGroup,
+				Name:      t.Name,
+				ShortName: t.ShortName,
+				Price:     t.Price,
+				Color:     color,
+			})
+		}
+		reg.Register(b.Slug, b.Locale, b.DisplayName, b.GLBPath, configTiles)
+		log.Printf("[board] registered '%s' (%d tiles)", b.Slug, len(configTiles))
+	}
+	return nil
 }
