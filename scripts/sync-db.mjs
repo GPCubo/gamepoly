@@ -1,5 +1,5 @@
 /**
- * sync-db.mjs — Upserts canonical board, tiles, and tokens into PostgreSQL.
+ * sync-db.mjs — Upserts canonical board, tiles, cards, and tokens into PostgreSQL.
  *
  * Requires POSTGRES_DSN env var and the `postgres` package:
  *   npm install --save-dev postgres
@@ -54,6 +54,81 @@ function parseBoardTiles() {
   return tiles;
 }
 
+// ── Parse card arrays from boardTilesConfig.ts ─────────────────────────────
+//
+// Cards have {tileName} placeholders inside quoted strings, so we can't use a
+// simple [^}]+ regex — the brace inside the string would stop matching early.
+// Instead we use a brace-counting parser that skips over quoted strings.
+
+function extractObjectBodies(src) {
+  const bodies = [];
+  let depth = 0;
+  let start = -1;
+
+  for (let i = 0; i < src.length; i++) {
+    if (src[i] === '"') {
+      i++;
+      while (i < src.length && src[i] !== '"') {
+        if (src[i] === '\\') i++;
+        i++;
+      }
+    } else if (src[i] === '{') {
+      if (depth === 0) start = i;
+      depth++;
+    } else if (src[i] === '}') {
+      depth--;
+      if (depth === 0 && start !== -1) {
+        bodies.push(src.slice(start + 1, i));
+        start = -1;
+      }
+    }
+  }
+  return bodies;
+}
+
+function parseCardArray(tsSource, varName) {
+  const arrayMatch = tsSource.match(
+    new RegExp(`export\\s+const\\s+${varName}[^=]*=\\s*\\[([\\s\\S]*?)\\];`)
+  );
+  if (!arrayMatch) throw new Error(`Could not find ${varName} in boardTilesConfig.ts`);
+
+  const bodies = extractObjectBodies(arrayMatch[1]);
+  const cards = [];
+
+  for (let i = 0; i < bodies.length; i++) {
+    const body = bodies[i];
+    const idM        = body.match(/id:\s*"([^"]+)"/);
+    const groupM     = body.match(/group:\s*"([^"]+)"/);
+    const textM      = body.match(/text:\s*"([^"]+)"/);
+    const actionM    = body.match(/action:\s*"([^"]+)"/);
+    const amountM    = body.match(/amount:\s*(-?\d+)/);
+    const tileIndexM = body.match(/tileIndex:\s*(\d+)/);
+
+    if (!idM || !groupM || !textM || !actionM) continue;
+
+    cards.push({
+      cardIndex:  i,
+      cardId:     idM[1],
+      group:      groupM[1],
+      text:       textM[1],
+      action:     actionM[1],
+      amount:     amountM    ? parseInt(amountM[1])    : null,
+      tileIndex:  tileIndexM ? parseInt(tileIndexM[1]) : null,
+    });
+  }
+
+  return cards;
+}
+
+function parseAllCards() {
+  const tsSource = readFileSync(join(ROOT, 'config', 'boardTilesConfig.ts'), 'utf-8');
+  const chance    = parseCardArray(tsSource, 'CHANCE_CARDS');
+  const community = parseCardArray(tsSource, 'COMMUNITY_CARDS');
+  if (chance.length !== 16)    throw new Error(`Expected 16 chance cards, found ${chance.length}`);
+  if (community.length !== 16) throw new Error(`Expected 16 community cards, found ${community.length}`);
+  return { chance, community };
+}
+
 // ── Scan token GLBs ────────────────────────────────────────────────────────
 
 // Tokens that are already exposed to players (from GAME_CONFIG.TOKEN_MODELS)
@@ -97,6 +172,7 @@ async function syncDB() {
 
   try {
     const tiles  = parseBoardTiles();
+    const cards  = parseAllCards();
     const tokens = scanTokens();
 
     const BOARD_SLUG = 'monopoly-es';
@@ -129,6 +205,22 @@ async function syncDB() {
       `;
     }
 
+    // Upsert all 32 cards (16 chance + 16 community)
+    const allCards = [...cards.chance, ...cards.community];
+    for (const c of allCards) {
+      await sql`
+        INSERT INTO board_cards
+          (board_id, card_group, card_index, card_id, text, action, amount, tile_index)
+        VALUES (${boardId}, ${c.group}, ${c.cardIndex}, ${c.cardId}, ${c.text}, ${c.action}, ${c.amount}, ${c.tileIndex})
+        ON CONFLICT (board_id, card_group, card_index) DO UPDATE SET
+          card_id    = EXCLUDED.card_id,
+          text       = EXCLUDED.text,
+          action     = EXCLUDED.action,
+          amount     = EXCLUDED.amount,
+          tile_index = EXCLUDED.tile_index
+      `;
+    }
+
     // Upsert tokens
     for (const tok of tokens) {
       await sql`
@@ -143,7 +235,7 @@ async function syncDB() {
     }
 
     const visibleCount = tokens.filter(t => t.visible).length;
-    console.log(`✓ Board '${BOARD_SLUG}' synced — ${tiles.length} tiles`);
+    console.log(`✓ Board '${BOARD_SLUG}' synced — ${tiles.length} tiles, ${allCards.length} cards`);
     console.log(`✓ ${tokens.length} tokens synced (${visibleCount} visible)`);
   } finally {
     await sql.end();

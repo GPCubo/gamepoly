@@ -82,6 +82,50 @@ func (b *BoardConfig) buildIdx() {
 	}
 }
 
+// hardcodedChanceCards and hardcodedCommunityCards are the fallback card decks
+// used when DB has no cards (e.g. before sync:db has been run).
+// They mirror config.ChanceCards / config.CommunityCards exactly, but live here
+// so boardtiles.go can be slimmed down to types only.
+var hardcodedChanceCards = []config.GameCard{
+	{ID: "ch01", Group: "chance", Text: "Avanza a {tileName}. Cobra $200.", Action: config.CardMoveTo, TileIndex: cardInt(0)},
+	{ID: "ch02", Group: "chance", Text: "Avanza a {tileName}.", Action: config.CardMoveTo, TileIndex: cardInt(11)},
+	{ID: "ch03", Group: "chance", Text: "Avanza a {tileName}.", Action: config.CardMoveTo, TileIndex: cardInt(8)},
+	{ID: "ch04", Group: "chance", Text: "Avanza a {tileName}.", Action: config.CardMoveTo, TileIndex: cardInt(5)},
+	{ID: "ch05", Group: "chance", Text: "Avanza a {tileName}.", Action: config.CardMoveTo, TileIndex: cardInt(25)},
+	{ID: "ch06", Group: "chance", Text: "Retrocede 3 casillas.", Action: config.CardMoveSteps, Amount: cardInt(-3)},
+	{ID: "ch07", Group: "chance", Text: "Ve a {tileName}. No pases por la Salida.", Action: config.CardGoToJail, TileIndex: cardInt(10)},
+	{ID: "ch08", Group: "chance", Text: "Cobra $50 del banco.", Action: config.CardCollect, Amount: cardInt(50)},
+	{ID: "ch09", Group: "chance", Text: "Cobra $150 del banco.", Action: config.CardCollect, Amount: cardInt(150)},
+	{ID: "ch10", Group: "chance", Text: "Paga $50 de multa.", Action: config.CardPay, Amount: cardInt(50)},
+	{ID: "ch11", Group: "chance", Text: "Paga $100 de multa.", Action: config.CardPay, Amount: cardInt(100)},
+	{ID: "ch12", Group: "chance", Text: "Paga $25 a cada jugador.", Action: config.CardPayEach, Amount: cardInt(25)},
+	{ID: "ch13", Group: "chance", Text: "Tus inversiones te dan frutos. Cobra $100.", Action: config.CardCollect, Amount: cardInt(100)},
+	{ID: "ch14", Group: "chance", Text: "Avanza a {tileName}.", Action: config.CardMoveTo, TileIndex: cardInt(24)},
+	{ID: "ch15", Group: "chance", Text: "Avanza a {tileName}.", Action: config.CardMoveTo, TileIndex: cardInt(34)},
+	{ID: "ch16", Group: "chance", Text: "Banco te paga dividendos: $20.", Action: config.CardCollect, Amount: cardInt(20)},
+}
+
+var hardcodedCommunityCards = []config.GameCard{
+	{ID: "co01", Group: "community", Text: "Avanza a {tileName}. Cobra $200.", Action: config.CardMoveTo, TileIndex: cardInt(0)},
+	{ID: "co02", Group: "community", Text: "Error bancario a tu favor. Cobra $200.", Action: config.CardCollect, Amount: cardInt(200)},
+	{ID: "co03", Group: "community", Text: "Gastos medicos. Paga $50.", Action: config.CardPay, Amount: cardInt(50)},
+	{ID: "co04", Group: "community", Text: "Gastos del medico. Paga $100.", Action: config.CardPay, Amount: cardInt(100)},
+	{ID: "co05", Group: "community", Text: "Paga $50 a cada jugador por una cena de gala.", Action: config.CardPayEach, Amount: cardInt(50)},
+	{ID: "co06", Group: "community", Text: "Cobra $45 de intereses de tus inversiones.", Action: config.CardCollect, Amount: cardInt(45)},
+	{ID: "co07", Group: "community", Text: "Ve a {tileName}. No pases por la Salida.", Action: config.CardGoToJail, TileIndex: cardInt(10)},
+	{ID: "co08", Group: "community", Text: "Herencia: cobra $100.", Action: config.CardCollect, Amount: cardInt(100)},
+	{ID: "co09", Group: "community", Text: "Cobra $25 por servicios consultivos.", Action: config.CardCollect, Amount: cardInt(25)},
+	{ID: "co10", Group: "community", Text: "Paga $75 por taxes de escuela.", Action: config.CardPay, Amount: cardInt(75)},
+	{ID: "co11", Group: "community", Text: "Cobra $10 de dividendos.", Action: config.CardCollect, Amount: cardInt(10)},
+	{ID: "co12", Group: "community", Text: "Es tu cumpleanios. Cobra $10 de cada jugador.", Action: config.CardCollect, Amount: cardInt(10)},
+	{ID: "co13", Group: "community", Text: "Seguro de vida vence. Cobra $100.", Action: config.CardCollect, Amount: cardInt(100)},
+	{ID: "co14", Group: "community", Text: "Paga $50 por hospitalizacion.", Action: config.CardPay, Amount: cardInt(50)},
+	{ID: "co15", Group: "community", Text: "Paga $150 por multa de trafico.", Action: config.CardPay, Amount: cardInt(150)},
+	{ID: "co16", Group: "community", Text: "Ganaste un concurso de crucigramas. Cobra $100.", Action: config.CardCollect, Amount: cardInt(100)},
+}
+
+func cardInt(v int) *int { return &v }
+
 // DefaultBoardConfig returns a BoardConfig built from the hardcoded config arrays.
 // Used as fallback when DB is unavailable.
 func DefaultBoardConfig() *BoardConfig {
@@ -93,8 +137,8 @@ func DefaultBoardConfig() *BoardConfig {
 		DisplayName:    "Monopoly Clásico",
 		GLBPath:        "/models/tablero.glb",
 		Tiles:          tiles,
-		ChanceCards:    config.ChanceCards,
-		CommunityCards: config.CommunityCards,
+		ChanceCards:    hardcodedChanceCards,
+		CommunityCards: hardcodedCommunityCards,
 	}
 	bc.buildIdx()
 	return bc
@@ -115,17 +159,26 @@ func NewBoardRegistry() *BoardRegistry {
 	return &BoardRegistry{boards: make(map[string]*BoardConfig)}
 }
 
-// Register adds or replaces a board. Cards always use the hardcoded config
-// decks (until board_cards DB support is added).
-func (r *BoardRegistry) Register(slug, locale, displayName, glbPath string, tiles []config.BoardTile) {
+// Register adds or replaces a board. chanceCards and communityCards come from DB;
+// if either is empty (e.g. sync:db not yet run), the hardcoded fallback is used.
+func (r *BoardRegistry) Register(slug, locale, displayName, glbPath string,
+	tiles []config.BoardTile,
+	chanceCards, communityCards []config.GameCard,
+) {
+	if len(chanceCards) == 0 {
+		chanceCards = hardcodedChanceCards
+	}
+	if len(communityCards) == 0 {
+		communityCards = hardcodedCommunityCards
+	}
 	bc := &BoardConfig{
 		Slug:           slug,
 		Locale:         locale,
 		DisplayName:    displayName,
 		GLBPath:        glbPath,
 		Tiles:          tiles,
-		ChanceCards:    config.ChanceCards,
-		CommunityCards: config.CommunityCards,
+		ChanceCards:    chanceCards,
+		CommunityCards: communityCards,
 	}
 	bc.buildIdx()
 	r.mu.Lock()

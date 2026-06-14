@@ -152,8 +152,30 @@ func loadBoardsIntoRegistry(ctx context.Context, repo *store.BoardRepository, re
 				Color:     color,
 			})
 		}
-		reg.Register(b.Slug, b.Locale, b.DisplayName, b.GLBPath, configTiles)
-		log.Printf("[board] registered '%s' (%d tiles)", b.Slug, len(configTiles))
+		// Load cards from DB
+		dbCards, err := repo.GetBoardCards(ctx, b.ID)
+		if err != nil {
+			return err
+		}
+		var chanceCards, communityCards []config.GameCard
+		for _, c := range dbCards {
+			gc := config.GameCard{
+				ID:        c.CardID,
+				Group:     c.CardGroup,
+				Text:      c.Text,
+				Action:    config.CardActionType(c.Action),
+				Amount:    c.Amount,
+				TileIndex: c.TileIndex,
+			}
+			if c.CardGroup == "chance" {
+				chanceCards = append(chanceCards, gc)
+			} else {
+				communityCards = append(communityCards, gc)
+			}
+		}
+
+		reg.Register(b.Slug, b.Locale, b.DisplayName, b.GLBPath, configTiles, chanceCards, communityCards)
+		log.Printf("[board] registered '%s' (%d tiles, %d cards)", b.Slug, len(configTiles), len(dbCards))
 	}
 	return nil
 }

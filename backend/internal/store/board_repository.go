@@ -28,6 +28,19 @@ type BoardTile struct {
 	ColorHex  *string
 }
 
+// BoardCard represents one card within a board's chance or community deck.
+type BoardCard struct {
+	ID        int64
+	BoardID   int64
+	CardGroup string
+	CardIndex int
+	CardID    string
+	Text      string
+	Action    string
+	Amount    *int
+	TileIndex *int
+}
+
 // Token represents a selectable player piece.
 type Token struct {
 	ID        int64
@@ -154,4 +167,35 @@ func (r *BoardRepository) GetVisibleTokens(ctx context.Context) ([]Token, error)
 		tokens = append(tokens, t)
 	}
 	return tokens, rows.Err()
+}
+
+// GetBoardCards returns all cards for the given boardID ordered by group then card_index.
+func (r *BoardRepository) GetBoardCards(ctx context.Context, boardID int64) ([]BoardCard, error) {
+	if r == nil {
+		return nil, nil
+	}
+
+	rows, err := r.pg.Pool.Query(ctx, `
+		SELECT id, board_id, card_group, card_index, card_id, text, action, amount, tile_index
+		FROM board_cards
+		WHERE board_id = $1
+		ORDER BY card_group, card_index
+	`, boardID)
+	if err != nil {
+		return nil, fmt.Errorf("query board_cards: %w", err)
+	}
+	defer rows.Close()
+
+	var cards []BoardCard
+	for rows.Next() {
+		var c BoardCard
+		if err := rows.Scan(
+			&c.ID, &c.BoardID, &c.CardGroup, &c.CardIndex, &c.CardID,
+			&c.Text, &c.Action, &c.Amount, &c.TileIndex,
+		); err != nil {
+			return nil, fmt.Errorf("scan board_card: %w", err)
+		}
+		cards = append(cards, c)
+	}
+	return cards, rows.Err()
 }
