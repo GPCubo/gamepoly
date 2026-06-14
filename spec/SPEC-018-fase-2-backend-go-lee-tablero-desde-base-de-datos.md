@@ -2,7 +2,7 @@
 id: SPEC-018
 title: Fase 2: eliminar duplicidad de tiles — backend Go lee tablero desde base de datos en lugar de array hardcodeado
 created_at: 2026-06-14T00:00:00
-status: draft
+status: done
 ---
 
 # SPEC-018: Fase 2: eliminar duplicidad de tiles — backend Go lee tablero desde base de datos en lugar de array hardcodeado
@@ -140,13 +140,13 @@ Si `ENABLE_FINISHED_GAME_PERSISTENCE=false` (dev local sin DB), `BoardRegistry.L
 
 ## Criterios de Aceptación
 
-- [ ] `go build ./...` compila sin errores después del refactor.
-- [ ] Con `ENABLE_FINISHED_GAME_PERSISTENCE=false`, el servidor arranca y una partida solitario completa puede jugarse (fallback a config hardcodeada).
-- [ ] Con DB activa, `BoardRegistry.Load` carga los tiles de `board_tiles` y una partida usa esos datos (verificable cambiando un precio en DB y confirmando que `CalculateRent` usa el nuevo valor).
-- [ ] No hay ninguna llamada directa a `config.BoardTiles`, `config.GetTile`, `config.GetGroupTiles`, `config.GetOwnableTile` en `engine.go`, `validators.go`, `bot.go`, `orchestrator.go`, `history.go`, `scenario_seeds.go` — todas reemplazadas por `gs.Board.*`.
-- [ ] `GameState.Board` nunca es `nil` durante el juego (panic-safe: `SetupGame` siempre lo inicializa).
-- [ ] Los tests existentes en `start_order_test.go` siguen pasando.
-- [ ] El array `config.BoardTiles` y las funciones del paquete `config` siguen compilando (no se eliminan) para no romper ningún import residual.
+- [x] `go build ./...` compila sin errores después del refactor.
+- [x] Con `ENABLE_FINISHED_GAME_PERSISTENCE=false`, el servidor arranca y una partida solitario completa puede jugarse (fallback a config hardcodeada).
+- [x] Con DB activa, `BoardRegistry.Load` carga los tiles de `board_tiles` y una partida usa esos datos (verificable cambiando un precio en DB y confirmando que `CalculateRent` usa el nuevo valor).
+- [x] No hay ninguna llamada directa a `config.BoardTiles`, `config.GetTile`, `config.GetGroupTiles`, `config.GetOwnableTile` en `engine.go`, `validators.go`, `bot.go`, `orchestrator.go`, `history.go`, `scenario_seeds.go` — todas reemplazadas por `gs.Board.*`.
+- [x] `GameState.Board` nunca es `nil` durante el juego (panic-safe: `SetupGame` siempre lo inicializa).
+- [x] Los tests existentes en `start_order_test.go` siguen pasando.
+- [x] El array `config.BoardTiles` y las funciones del paquete `config` siguen compilando (no se eliminan) para no romper ningún import residual.
 
 ## Notas
 
