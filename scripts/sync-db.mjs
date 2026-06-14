@@ -1,8 +1,8 @@
 /**
  * sync-db.mjs — Upserts canonical board, tiles, and tokens into PostgreSQL.
  *
- * Requires POSTGRES_DSN env var and the `pg` package:
- *   npm install --save-dev pg
+ * Requires POSTGRES_DSN env var and the `postgres` package:
+ *   npm install --save-dev postgres
  *
  * Usage: node scripts/sync-db.mjs
  */
@@ -78,15 +78,14 @@ function scanTokens() {
 // ── DB upsert ──────────────────────────────────────────────────────────────
 
 async function syncDB() {
-  let pgModule;
+  let postgres;
   try {
-    pgModule = await import('pg');
+    const mod = await import('postgres');
+    postgres = mod.default ?? mod;
   } catch {
-    console.error('✗ Missing dependency: run `npm install --save-dev pg` first');
+    console.error('✗ Missing dependency: run `npm install --save-dev postgres` first');
     process.exit(1);
   }
-
-  const PgClient = pgModule.default?.Client ?? pgModule.Client;
 
   const dsn = process.env.POSTGRES_DSN;
   if (!dsn) {
@@ -94,34 +93,32 @@ async function syncDB() {
     process.exit(1);
   }
 
-  const client = new PgClient({ connectionString: dsn });
-  await client.connect();
+  const sql = postgres(dsn, { max: 1 });
 
   try {
     const tiles  = parseBoardTiles();
     const tokens = scanTokens();
 
-    // Upsert canonical Spanish board
     const BOARD_SLUG = 'monopoly-es';
-    const { rows } = await client.query(`
+
+    // Upsert canonical Spanish board
+    const [{ id: boardId }] = await sql`
       INSERT INTO boards (slug, locale, display_name, glb_path, visible)
-      VALUES ($1, $2, $3, $4, $5)
+      VALUES (${BOARD_SLUG}, 'es', 'Monopoly Clásico', '/models/tablero.glb', true)
       ON CONFLICT (slug) DO UPDATE SET
         locale       = EXCLUDED.locale,
         display_name = EXCLUDED.display_name,
         glb_path     = EXCLUDED.glb_path,
         updated_at   = NOW()
       RETURNING id
-    `, [BOARD_SLUG, 'es', 'Monopoly Clásico', '/models/tablero.glb', true]);
-
-    const boardId = rows[0].id;
+    `;
 
     // Upsert all 40 tiles
     for (const t of tiles) {
-      await client.query(`
+      await sql`
         INSERT INTO board_tiles
           (board_id, tile_index, tile_type, tile_group, name, short_name, price, color_hex)
-        VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+        VALUES (${boardId}, ${t.index}, ${t.type}, ${t.group}, ${t.name}, ${t.shortName}, ${t.price}, ${t.colorHex})
         ON CONFLICT (board_id, tile_index) DO UPDATE SET
           tile_type  = EXCLUDED.tile_type,
           tile_group = EXCLUDED.tile_group,
@@ -129,27 +126,27 @@ async function syncDB() {
           short_name = EXCLUDED.short_name,
           price      = EXCLUDED.price,
           color_hex  = EXCLUDED.color_hex
-      `, [boardId, t.index, t.type, t.group, t.name, t.shortName, t.price, t.colorHex]);
+      `;
     }
 
     // Upsert tokens
     for (const tok of tokens) {
-      await client.query(`
+      await sql`
         INSERT INTO tokens (slug, glb_path, label_key, visible, sort_order)
-        VALUES ($1,$2,$3,$4,$5)
+        VALUES (${tok.slug}, ${tok.glbPath}, ${tok.labelKey}, ${tok.visible}, ${tok.sortOrder})
         ON CONFLICT (slug) DO UPDATE SET
           glb_path   = EXCLUDED.glb_path,
           label_key  = EXCLUDED.label_key,
           visible    = EXCLUDED.visible,
           sort_order = EXCLUDED.sort_order
-      `, [tok.slug, tok.glbPath, tok.labelKey, tok.visible, tok.sortOrder]);
+      `;
     }
 
     const visibleCount = tokens.filter(t => t.visible).length;
     console.log(`✓ Board '${BOARD_SLUG}' synced — ${tiles.length} tiles`);
     console.log(`✓ ${tokens.length} tokens synced (${visibleCount} visible)`);
   } finally {
-    await client.end();
+    await sql.end();
   }
 }
 
