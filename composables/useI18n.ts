@@ -72,11 +72,14 @@ export function useI18n() {
   }
 
   function tileName(index: number, fallback = "") {
-    return tMaybe(`tile.${index}.name`, {}) || fallback;
+    const key = `tile.${index}.name` as any;
+    return hasTranslation(key) ? t(key, {}) : fallback;
   }
 
   function tileShortName(index: number, fallback = "") {
-    return tMaybe(`tile.${index}.short`, {}) || tileName(index, fallback);
+    const key = `tile.${index}.short` as any;
+    if (hasTranslation(key)) return t(key, {});
+    return tileName(index, fallback);
   }
 
   function cardText(id: string, params?: I18nParams, fallback = "") {
