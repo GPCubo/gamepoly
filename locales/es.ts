@@ -450,7 +450,14 @@ const es = {
   "history.sell.detail": "{player} recibio ${amount}. Saldo: ${balance}",
   "history.card.title": "{player} cobro ${amount}",
   "history.cardLoss.title": "{player} pago ${amount}",
-  "history.cardPay.title": "{player} cobro de cada jugador"
+  "history.cardPay.title": "{player} cobro de cada jugador",
+  "game.status.buildHouse": "{player} construyo casa en {tile} por ${amount}",
+  "game.status.buildHotel": "{player} amplio {tile} a hotel por ${amount}",
+  "game.status.sellHouse": "{player} vendio casa en {tile} por ${amount}",
+  "game.status.sellHotel": "{player} vendio hotel en {tile} por ${amount}",
+  "game.status.auctionStart": "Subasta de {tile}!",
+  "history.go.title": "{player} paso por Salida",
+  "history.go.detail": "{player} cobro ${amount} al pasar por GO"
 } as const;
 
 export default es;

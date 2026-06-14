@@ -605,12 +605,15 @@ export function shuffleDeck<T>(array: T[]): T[] {
   return shuffled;
 }
 
-export function resolveCardText(card: GameCard): string {
+export function resolveCardText(
+  card: GameCard,
+  tileNameResolver?: (index: number) => string,
+): string {
   if (card.text.includes("{tileName}") && card.tileIndex !== undefined) {
-    return card.text.replace(
-      "{tileName}",
-      BOARD_TILES[card.tileIndex]?.name ?? `casilla ${card.tileIndex}`,
-    );
+    const name = tileNameResolver
+      ? tileNameResolver(card.tileIndex)
+      : BOARD_TILES[card.tileIndex]?.name ?? `casilla ${card.tileIndex}`;
+    return card.text.replace("{tileName}", name);
   }
   return card.text;
 }

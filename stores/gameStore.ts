@@ -1422,7 +1422,7 @@ export const useGameStore = defineStore("game", {
       const index = currentDeck.shift()!;
       this.activeCard = {
         ...cards[index],
-        text: resolveCardText(cards[index]),
+        text: resolveCardText(cards[index], (idx) => tStore(`tile.${idx}.name` as any) || ``),
       };
 
       if (group === "chance") {
@@ -1478,12 +1478,17 @@ export const useGameStore = defineStore("game", {
         case "collect": {
           player.cash += card.amount ?? 0;
           this.statusMessage = `${player.name} cobra $${card.amount ?? 0}`;
-          const _cardGainParams = { player: player.name, amount: card.amount ?? 0 };
+          const _cardGainParams = {
+            player: player.name,
+            amount: card.amount ?? 0,
+            tileName: card.tileIndex !== undefined ? tStore(`tile.${card.tileIndex}.name` as any) : "",
+          };
           this.addEconomicHistory({
             type: "card_gain",
             title: tStore("history.card.title", _cardGainParams),
             detail: card.text,
             titleKey: "history.card.title",
+            detailKey: `card.${card.id}.text`,
             params: _cardGainParams,
             amount: card.amount ?? 0,
             playerIds: [player.id],
@@ -1493,12 +1498,17 @@ export const useGameStore = defineStore("game", {
         case "pay": {
           player.cash -= card.amount ?? 0;
           this.statusMessage = `${player.name} paga $${card.amount ?? 0}`;
-          const _cardLossParams = { player: player.name, amount: card.amount ?? 0 };
+          const _cardLossParams = {
+            player: player.name,
+            amount: card.amount ?? 0,
+            tileName: card.tileIndex !== undefined ? tStore(`tile.${card.tileIndex}.name` as any) : "",
+          };
           this.addEconomicHistory({
             type: "card_loss",
             title: tStore("history.cardLoss.title", _cardLossParams),
             detail: card.text,
             titleKey: "history.cardLoss.title",
+            detailKey: `card.${card.id}.text`,
             params: _cardLossParams,
             amount: card.amount ?? 0,
             playerIds: [player.id],
@@ -1523,6 +1533,7 @@ export const useGameStore = defineStore("game", {
             title: tStore("history.cardPay.title", _cardPayParams),
             detail: card.text,
             titleKey: "history.cardPay.title",
+            detailKey: `card.${card.id}.text`,
             params: _cardPayParams,
             amount: totalPay,
             playerIds: [player.id, ...otherPlayers.map((other) => other.id)],

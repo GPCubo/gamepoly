@@ -8,6 +8,12 @@ import (
 	"gamepolyweb/backend/internal/config"
 )
 
+func setStatus(gs *GameState, msg string, key string, params map[string]any) {
+	gs.StatusMessage = msg
+	gs.StatusMessageKey = key
+	gs.StatusMessageParams = params
+}
+
 // RollDice generates two random dice values and updates state.
 // Returns the total and whether doubles were rolled.
 func RollDice(gs *GameState) (d1, d2 int, isDoubles bool) {
@@ -110,12 +116,16 @@ func MovePlayer(gs *GameState, steps int) MoveResult {
 
 	if passedGo {
 		p.Cash += gs.GoSalary
-		gs.StatusMessage = fmt.Sprintf("¡%s pasó por la Salida y cobró $%d!", p.Name, gs.GoSalary)
 		amount := gs.GoSalary
+		setStatus(gs, fmt.Sprintf("¡%s pasó por la Salida y cobró $%d!", p.Name, amount),
+			"game.status.passedGo", map[string]any{"player": p.Name, "amount": amount})
 		gs.AddHistory(EconomicHistoryItem{
 			Type:      HistGo,
 			Title:     fmt.Sprintf("%s cobró Salida", p.Name),
 			Detail:    fmt.Sprintf("%s pasó por GO y recibió $%d", p.Name, amount),
+			TitleKey:  "history.go.title",
+			DetailKey: "history.go.detail",
+			MessageParams: map[string]any{"player": p.Name, "amount": amount},
 			Amount:    &amount,
 			PlayerIDs: []string{p.ID},
 		})
@@ -174,7 +184,8 @@ func SendToJail(gs *GameState, playerID string) {
 	p.JailTurns = 0
 	p.Position = 10
 	p.ConsecutiveDoubles = 0
-	gs.StatusMessage = fmt.Sprintf("¡%s va a la cárcel!", p.Name)
+	setStatus(gs, fmt.Sprintf("¡%s va a la cárcel!", p.Name),
+		"game.status.jail", map[string]any{"player": p.Name})
 }
 
 // PayBail removes player from jail in exchange for bail cost.
@@ -186,7 +197,8 @@ func PayBail(gs *GameState, playerID string) {
 	p.Cash -= gs.JailBailCost
 	p.InJail = false
 	p.JailTurns = 0
-	gs.StatusMessage = fmt.Sprintf("%s pagó $%d de fianza y sale de la cárcel", p.Name, gs.JailBailCost)
+	setStatus(gs, fmt.Sprintf("%s pagó $%d de fianza y sale de la cárcel", p.Name, gs.JailBailCost),
+		"game.status.bail", map[string]any{"player": p.Name, "amount": gs.JailBailCost})
 	checkBankruptcy(gs, playerID)
 }
 
@@ -200,7 +212,8 @@ func RollFromJail(gs *GameState) string {
 	if gs.IsDoubles {
 		p.InJail = false
 		p.JailTurns = 0
-		gs.StatusMessage = fmt.Sprintf("¡%s sacó dobles y sale de la cárcel!", p.Name)
+		setStatus(gs, fmt.Sprintf("¡%s sacó dobles y sale de la cárcel!", p.Name),
+			"game.status.jailDoubles", map[string]any{"player": p.Name})
 		return "freed"
 	}
 	p.JailTurns++
@@ -208,11 +221,13 @@ func RollFromJail(gs *GameState) string {
 		p.Cash -= gs.JailBailCost
 		p.InJail = false
 		p.JailTurns = 0
-		gs.StatusMessage = fmt.Sprintf("%s cumplió 3 turnos, sale pagando $%d", p.Name, gs.JailBailCost)
+		setStatus(gs, fmt.Sprintf("%s cumplió 3 turnos, sale pagando $%d", p.Name, gs.JailBailCost),
+			"game.status.jailForced", map[string]any{"player": p.Name, "amount": gs.JailBailCost})
 		checkBankruptcy(gs, p.ID)
 		return "forced_free"
 	}
-	gs.StatusMessage = fmt.Sprintf("%s no sacó dobles. Turno en cárcel (%d/3)", p.Name, p.JailTurns)
+	setStatus(gs, fmt.Sprintf("%s no sacó dobles. Turno en cárcel (%d/3)", p.Name, p.JailTurns),
+		"game.status.jailStayed", map[string]any{"player": p.Name, "turns": p.JailTurns})
 	return "stayed"
 }
 
@@ -228,11 +243,15 @@ func BuyProperty(gs *GameState, playerID string, tileIndex int) {
 	if _, ok := gs.PropertyDevelopments[tileIndex]; !ok {
 		gs.PropertyDevelopments[tileIndex] = PropertyDevelopment{}
 	}
-	gs.StatusMessage = fmt.Sprintf("%s compró %s por $%d", p.Name, tile.Name, *tile.Price)
+	setStatus(gs, fmt.Sprintf("%s compró %s por $%d", p.Name, tile.Name, *tile.Price),
+		"game.status.buy", map[string]any{"player": p.Name, "tile": tile.Name, "amount": *tile.Price})
 	gs.AddHistory(EconomicHistoryItem{
 		Type:      HistPurchase,
 		Title:     fmt.Sprintf("%s compró %s", p.Name, tile.Name),
 		Detail:    fmt.Sprintf("%s pagó $%d por %s. Saldo: $%d", p.Name, *tile.Price, tile.Name, p.Cash),
+		TitleKey:  "history.purchase.title",
+		DetailKey: "history.purchase.detail",
+		MessageParams: map[string]any{"player": p.Name, "tile": tile.Name, "amount": *tile.Price, "balance": p.Cash},
 		Amount:    tile.Price,
 		PlayerIDs: []string{playerID},
 	})
@@ -251,12 +270,16 @@ func BuyAuctionedProperty(gs *GameState, playerID string, tileIndex, amount int)
 	if _, ok := gs.PropertyDevelopments[tileIndex]; !ok {
 		gs.PropertyDevelopments[tileIndex] = PropertyDevelopment{}
 	}
-	gs.StatusMessage = fmt.Sprintf("%s ganó la subasta de %s por $%d", p.Name, tile.Name, amount)
+	setStatus(gs, fmt.Sprintf("%s ganó la subasta de %s por $%d", p.Name, tile.Name, amount),
+		"game.status.auctionWon", map[string]any{"player": p.Name, "tile": tile.Name, "amount": amount})
 	amountCopy := amount
 	gs.AddHistory(EconomicHistoryItem{
 		Type:      HistAuction,
 		Title:     fmt.Sprintf("%s ganó una subasta", p.Name),
 		Detail:    fmt.Sprintf("%s compró %s en subasta por $%d. Saldo: $%d", p.Name, tile.Name, amount, p.Cash),
+		TitleKey:  "history.auction.title",
+		DetailKey: "history.auction.detail",
+		MessageParams: map[string]any{"player": p.Name, "tile": tile.Name, "amount": amount, "balance": p.Cash},
 		Amount:    &amountCopy,
 		PlayerIDs: []string{playerID},
 	})
@@ -282,11 +305,15 @@ func CollectRent(gs *GameState, fromID, toID string, tileIndex, diceTotal int) i
 
 	payer.Cash -= rent
 	owner.Cash += rent
-	gs.StatusMessage = fmt.Sprintf("%s pagó $%d de renta a %s por %s", payer.Name, rent, owner.Name, tile.Name)
+	setStatus(gs, fmt.Sprintf("%s pagó $%d de renta a %s por %s", payer.Name, rent, owner.Name, tile.Name),
+		"game.status.rent", map[string]any{"payer": payer.Name, "amount": rent, "receiver": owner.Name})
 	gs.AddHistory(EconomicHistoryItem{
 		Type:      HistRent,
 		Title:     fmt.Sprintf("%s pagó renta a %s", payer.Name, owner.Name),
 		Detail:    fmt.Sprintf("Renta de %s: $%d", tile.Name, rent),
+		TitleKey:  "history.rent.title",
+		DetailKey: "history.rent.detail",
+		MessageParams: map[string]any{"payer": payer.Name, "amount": rent, "receiver": owner.Name},
 		Amount:    &rent,
 		PlayerIDs: []string{fromID, toID},
 	})
@@ -356,11 +383,15 @@ func PayTax(gs *GameState, playerID string, tileIndex int) int {
 	if tile != nil {
 		name = tile.Name
 	}
-	gs.StatusMessage = fmt.Sprintf("%s pagó $%d de %s", p.Name, amount, name)
+	setStatus(gs, fmt.Sprintf("%s pagó $%d de %s", p.Name, amount, name),
+		"game.status.tax", map[string]any{"player": p.Name, "amount": amount})
 	gs.AddHistory(EconomicHistoryItem{
 		Type:      HistTax,
 		Title:     fmt.Sprintf("%s pagó %s", p.Name, name),
 		Detail:    fmt.Sprintf("$%d", amount),
+		TitleKey:  "history.tax.title",
+		DetailKey: "history.tax.detail",
+		MessageParams: map[string]any{"player": p.Name, "amount": amount, "balance": p.Cash},
 		Amount:    &amount,
 		PlayerIDs: []string{playerID},
 	})
@@ -428,6 +459,8 @@ func ApplyCardEffect(gs *GameState, playerID string, diceTotal int) CardResult {
 				Type:      HistCardGain,
 				Title:     fmt.Sprintf("%s cobró $%d", p.Name, amount),
 				Detail:    card.Text,
+				TitleKey:  "history.card.title",
+				MessageParams: map[string]any{"player": p.Name, "amount": amount},
 				Amount:    &amount,
 				PlayerIDs: []string{playerID},
 			})
@@ -441,6 +474,8 @@ func ApplyCardEffect(gs *GameState, playerID string, diceTotal int) CardResult {
 				Type:      HistCardLoss,
 				Title:     fmt.Sprintf("%s pagó $%d", p.Name, amount),
 				Detail:    card.Text,
+				TitleKey:  "history.cardLoss.title",
+				MessageParams: map[string]any{"player": p.Name, "amount": amount},
 				Amount:    &amount,
 				PlayerIDs: []string{playerID},
 			})
@@ -463,6 +498,8 @@ func ApplyCardEffect(gs *GameState, playerID string, diceTotal int) CardResult {
 				Type:      HistCardLoss,
 				Title:     fmt.Sprintf("%s pagó a cada jugador", p.Name),
 				Detail:    card.Text,
+				TitleKey:  "history.cardPay.title",
+				MessageParams: map[string]any{"player": p.Name, "amount": amount},
 				Amount:    &amount,
 				PlayerIDs: participants,
 			})
@@ -532,7 +569,8 @@ func FinishTurn(gs *GameState) {
 	}
 	gs.ActivePlayerIndex = next
 	nextPlayer := gs.Players[next]
-	gs.StatusMessage = fmt.Sprintf("¡Turno de %s!", nextPlayer.Name)
+	setStatus(gs, fmt.Sprintf("¡Turno de %s!", nextPlayer.Name),
+		"game.status.turn", map[string]any{"player": nextPlayer.Name, "token": ""})
 }
 
 // FinishTurnKeepPlayer keeps the same player (after doubles).
@@ -541,7 +579,8 @@ func FinishTurnKeepPlayer(gs *GameState) {
 	gs.IsDoubles = false
 	p := gs.ActivePlayer()
 	if p != nil {
-		gs.StatusMessage = fmt.Sprintf("¡%s sacó dobles, tira de nuevo!", p.Name)
+		setStatus(gs, fmt.Sprintf("¡%s sacó dobles, tira de nuevo!", p.Name),
+			"game.status.doublesAgain", map[string]any{"player": p.Name})
 	}
 }
 
@@ -558,11 +597,15 @@ func BuildHouse(gs *GameState, playerID string, tileIndex int) {
 	d.Houses = min4(d.Houses+1, 4)
 	d.Hotel = false
 	gs.SetDevelopment(tileIndex, d)
-	gs.StatusMessage = fmt.Sprintf("%s construyó una casa en %s por $%d", p.Name, tile.Name, cost)
+	setStatus(gs, fmt.Sprintf("%s construyó una casa en %s por $%d", p.Name, tile.Name, cost),
+		"game.status.buildHouse", map[string]any{"player": p.Name, "tile": tile.Name, "amount": cost})
 	gs.AddHistory(EconomicHistoryItem{
 		Type:      HistBuild,
 		Title:     fmt.Sprintf("%s construyó casa", p.Name),
 		Detail:    fmt.Sprintf("%s pagó $%d en %s", p.Name, cost, tile.Name),
+		TitleKey:  "history.build.title",
+		DetailKey: "history.build.detail",
+		MessageParams: map[string]any{"player": p.Name, "tile": tile.Name, "amount": cost, "balance": p.Cash},
 		Amount:    &cost,
 		PlayerIDs: []string{playerID},
 	})
@@ -582,11 +625,15 @@ func BuildHotel(gs *GameState, playerID string, tileIndex int) {
 	d.Houses = 0
 	d.Hotel = true
 	gs.SetDevelopment(tileIndex, d)
-	gs.StatusMessage = fmt.Sprintf("%s amplió %s a hotel por $%d", p.Name, tile.Name, cost)
+	setStatus(gs, fmt.Sprintf("%s amplió %s a hotel por $%d", p.Name, tile.Name, cost),
+		"game.status.buildHotel", map[string]any{"player": p.Name, "tile": tile.Name, "amount": cost})
 	gs.AddHistory(EconomicHistoryItem{
 		Type:      HistBuild,
 		Title:     fmt.Sprintf("%s construyó hotel", p.Name),
 		Detail:    fmt.Sprintf("%s pagó $%d en %s", p.Name, cost, tile.Name),
+		TitleKey:  "history.build.title",
+		DetailKey: "history.build.detail",
+		MessageParams: map[string]any{"player": p.Name, "tile": tile.Name, "amount": cost, "balance": p.Cash},
 		Amount:    &cost,
 		PlayerIDs: []string{playerID},
 	})
@@ -606,11 +653,15 @@ func SellImprovement(gs *GameState, playerID string, tileIndex int) {
 		d.Hotel = false
 		d.Houses = 4
 		p.Cash += refund
-		gs.StatusMessage = fmt.Sprintf("%s vendió el hotel de %s por $%d", p.Name, tile.Name, refund)
+		setStatus(gs, fmt.Sprintf("%s vendió el hotel de %s por $%d", p.Name, tile.Name, refund),
+			"game.status.sellHotel", map[string]any{"player": p.Name, "tile": tile.Name, "amount": refund})
 		gs.AddHistory(EconomicHistoryItem{
 			Type:      HistSellImprovement,
 			Title:     fmt.Sprintf("%s vendió hotel", p.Name),
 			Detail:    fmt.Sprintf("%s recibió $%d por %s", p.Name, refund, tile.Name),
+			TitleKey:  "history.sell.title",
+			DetailKey: "history.sell.detail",
+			MessageParams: map[string]any{"player": p.Name, "tile": tile.Name, "amount": refund, "balance": p.Cash},
 			Amount:    &refund,
 			PlayerIDs: []string{playerID},
 		})
@@ -618,11 +669,15 @@ func SellImprovement(gs *GameState, playerID string, tileIndex int) {
 		refund := config.HouseCostForPrice(*tile.Price) / 2
 		d.Houses = max0(d.Houses-1, 0)
 		p.Cash += refund
-		gs.StatusMessage = fmt.Sprintf("%s vendió una casa de %s por $%d", p.Name, tile.Name, refund)
+		setStatus(gs, fmt.Sprintf("%s vendió una casa de %s por $%d", p.Name, tile.Name, refund),
+			"game.status.sellHouse", map[string]any{"player": p.Name, "tile": tile.Name, "amount": refund})
 		gs.AddHistory(EconomicHistoryItem{
 			Type:      HistSellImprovement,
 			Title:     fmt.Sprintf("%s vendió casa", p.Name),
 			Detail:    fmt.Sprintf("%s recibió $%d por %s", p.Name, refund, tile.Name),
+			TitleKey:  "history.sell.title",
+			DetailKey: "history.sell.detail",
+			MessageParams: map[string]any{"player": p.Name, "tile": tile.Name, "amount": refund, "balance": p.Cash},
 			Amount:    &refund,
 			PlayerIDs: []string{playerID},
 		})
@@ -642,11 +697,15 @@ func MortgageProperty(gs *GameState, playerID string, tileIndex int) {
 	d.Mortgaged = true
 	gs.SetDevelopment(tileIndex, d)
 	p.Cash += value
-	gs.StatusMessage = fmt.Sprintf("%s hipotecó %s, recibió $%d", p.Name, tile.Name, value)
+	setStatus(gs, fmt.Sprintf("%s hipotecó %s, recibió $%d", p.Name, tile.Name, value),
+		"game.status.mortgage", map[string]any{"player": p.Name, "tile": tile.Name, "amount": value})
 	gs.AddHistory(EconomicHistoryItem{
 		Type:      HistMortgage,
 		Title:     fmt.Sprintf("%s hipotecó %s", p.Name, tile.Name),
 		Detail:    fmt.Sprintf("Valor hipoteca: $%d", value),
+		TitleKey:  "history.mortgage.title",
+		DetailKey: "history.mortgage.detail",
+		MessageParams: map[string]any{"player": p.Name, "tile": tile.Name, "amount": value, "balance": p.Cash},
 		Amount:    &value,
 		PlayerIDs: []string{playerID},
 	})
@@ -664,11 +723,15 @@ func UnmortgageProperty(gs *GameState, playerID string, tileIndex int) {
 	d.Mortgaged = false
 	gs.SetDevelopment(tileIndex, d)
 	p.Cash -= cost
-	gs.StatusMessage = fmt.Sprintf("%s levantó la hipoteca de %s por $%d", p.Name, tile.Name, cost)
+	setStatus(gs, fmt.Sprintf("%s levantó la hipoteca de %s por $%d", p.Name, tile.Name, cost),
+		"game.status.unmortgage", map[string]any{"player": p.Name, "tile": tile.Name, "amount": cost})
 	gs.AddHistory(EconomicHistoryItem{
 		Type:      HistUnmortgage,
 		Title:     fmt.Sprintf("%s levantó hipoteca", p.Name),
 		Detail:    fmt.Sprintf("%s pagó $%d por %s", p.Name, cost, tile.Name),
+		TitleKey:  "history.unmortgage.title",
+		DetailKey: "history.unmortgage.detail",
+		MessageParams: map[string]any{"player": p.Name, "tile": tile.Name, "amount": cost, "balance": p.Cash},
 		Amount:    &cost,
 		PlayerIDs: []string{playerID},
 	})
@@ -690,7 +753,8 @@ func DeclareBankruptcy(gs *GameState, playerID string) {
 	}
 	gs.BankruptPlayers = append(gs.BankruptPlayers, playerID)
 	if p != nil {
-		gs.StatusMessage = fmt.Sprintf("¡%s ha quebrado!", p.Name)
+		setStatus(gs, fmt.Sprintf("¡%s ha quebrado!", p.Name),
+			"game.status.bankruptcy", map[string]any{"player": p.Name})
 	}
 }
 
@@ -717,7 +781,8 @@ func StartAuction(gs *GameState, tileIndex, startingBidderIdx int) {
 	if tile != nil {
 		name = tile.Name
 	}
-	gs.StatusMessage = fmt.Sprintf("¡Subasta de %s! %s comienza.", name, gs.Auction.ActiveBidders[startingBidderIdx])
+	setStatus(gs, fmt.Sprintf("¡Subasta de %s!", name),
+		"game.status.auctionStart", map[string]any{"tile": name})
 }
 
 // PlaceBid places a bid in the current auction.
@@ -802,11 +867,14 @@ func ExecuteExchange(gs *GameState) {
 	for _, idx := range p.RequestProperties {
 		gs.PropertyOwners[idx] = p.FromPlayerID
 	}
-	gs.StatusMessage = fmt.Sprintf("Intercambio completado entre %s y %s", from.Name, to.Name)
+	setStatus(gs, fmt.Sprintf("Intercambio completado entre %s y %s", from.Name, to.Name),
+		"game.status.exchangeAccepted", map[string]any{"from": from.Name, "to": to.Name})
 	gs.AddHistory(EconomicHistoryItem{
 		Type:      HistExchange,
 		Title:     fmt.Sprintf("Intercambio %s ↔ %s", from.Name, to.Name),
 		Detail:    fmt.Sprintf("Props: %v ↔ %v | Cash: $%d ↔ $%d", p.OfferProperties, p.RequestProperties, p.OfferMoney, p.RequestMoney),
+		TitleKey:  "history.exchange.title",
+		MessageParams: map[string]any{"from": from.Name, "to": to.Name},
 		PlayerIDs: []string{p.FromPlayerID, p.ToPlayerID},
 	})
 	fromID := p.FromPlayerID

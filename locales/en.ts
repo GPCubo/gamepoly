@@ -449,6 +449,13 @@ const en: Record<keyof typeof es, string> = {
   "history.card.title": "{player} collected ${amount}",
   "history.cardLoss.title": "{player} paid ${amount}",
   "history.cardPay.title": "{player} collected from each player",
+  "game.status.buildHouse": "{player} built house on {tile} for ${amount}",
+  "game.status.buildHotel": "{player} upgraded {tile} to hotel for ${amount}",
+  "game.status.sellHouse": "{player} sold house on {tile} for ${amount}",
+  "game.status.sellHotel": "{player} sold hotel on {tile} for ${amount}",
+  "game.status.auctionStart": "Auction for {tile}!",
+  "history.go.title": "{player} passed GO",
+  "history.go.detail": "{player} collected ${amount} passing GO",
 };
 
 export default en;
