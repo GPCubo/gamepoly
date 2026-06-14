@@ -34,20 +34,6 @@ function initLocale() {
     watch(locale, (value) => {
       document.documentElement.lang = value;
     }, { immediate: true });
-
-    // Keep locale ref in sync when the route changes (e.g. middleware redirect)
-    let router: ReturnType<typeof useRouter> | undefined;
-    try { router = useRouter(); } catch { /* not in router context */ }
-
-    if (router) {
-      watch(
-        () => router!.currentRoute.value.path,
-        (path) => {
-          const derived = localeFromPath(path);
-          if (locale.value !== derived) locale.value = derived;
-        },
-      );
-    }
   }
 }
 
@@ -62,21 +48,36 @@ export function useI18n() {
 
   const currentLocale = computed(() => locale.value);
 
+  // Capture router and suppress flag HERE (during setup context),
+  // so setLocale can use them safely from event handlers.
+  let _router: ReturnType<typeof useRouter> | undefined;
+  try { _router = useRouter(); } catch { /* not in router context */ }
+
+  const _suppress = useState("localeRedirectSuppressed", () => false);
+
+  // Keep locale ref in sync whenever the route path changes
+  if (_router) {
+    watch(
+      () => _router!.currentRoute.value.path,
+      (path) => {
+        const derived = localeFromPath(path);
+        if (locale.value !== derived) locale.value = derived;
+      },
+    );
+  }
+
   function setLocale(value: LocaleCode) {
-    let router: ReturnType<typeof useRouter> | undefined;
-    try { router = useRouter(); } catch { /* not in router context */ }
-    if (!router) return;
+    if (!_router) return;
 
-    // Flag the middleware to suppress the auto-prefix redirect for this one navigation
-    const suppress = useState("localeRedirectSuppressed", () => false);
-    suppress.value = true;
+    // Tell the middleware not to re-add /en/ for this navigation
+    _suppress.value = true;
 
-    const path = router.currentRoute.value.fullPath;
+    const path = _router.currentRoute.value.fullPath;
     const bare = path.replace(/^\/en(?=\/|$)/, "") || "/";
     if (value === "en") {
-      router.push("/en" + bare);
+      _router.push("/en" + bare);
     } else {
-      router.push(bare);
+      _router.push(bare);
     }
   }
 
