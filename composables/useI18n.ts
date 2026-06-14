@@ -2,7 +2,6 @@ import { computed, ref, watch } from "vue";
 import { useRouter } from "vue-router";
 import {
   DEFAULT_LOCALE,
-  LOCALE_STORAGE_KEY,
   availableLocales,
   dictionaries,
   isLocaleCode,
@@ -11,52 +10,44 @@ import {
 } from "~/locales";
 import { interpolate, translateLegacyText, type I18nParams } from "~/utils/i18nFormat";
 
+// Module-level locale ref — updated reactively from the URL via initLocale().
+// tStore() reads this directly (called outside component context).
 const locale = ref<LocaleCode>(DEFAULT_LOCALE);
 let initialized = false;
 
-function detectInitialLocale(): LocaleCode {
-  if (typeof window === "undefined") return DEFAULT_LOCALE;
-  // 1. URL path has highest priority (e.g. /en/ → English)
-  const path = window.location.pathname;
+function localeFromPath(path: string): LocaleCode {
   if (path === "/en" || path.startsWith("/en/")) return "en" as LocaleCode;
-  // 2. Saved locale in localStorage
-  const saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
-  if (isLocaleCode(saved)) return saved;
-  // 3. Browser language
-  const browserLocale = window.navigator.language?.slice(0, 2).toLowerCase();
-  return isLocaleCode(browserLocale) ? browserLocale : DEFAULT_LOCALE;
+  return DEFAULT_LOCALE;
 }
 
 function initLocale() {
   if (initialized) return;
   initialized = true;
-  locale.value = detectInitialLocale();
+
+  // Set locale from current URL (only source of truth — no localStorage, no browser lang)
+  if (typeof window !== "undefined") {
+    locale.value = localeFromPath(window.location.pathname);
+  }
 
   if (typeof window !== "undefined") {
-    // Persist locale and update <html lang> immediately
-    watch(
-      locale,
-      (value) => {
-        window.localStorage.setItem(LOCALE_STORAGE_KEY, value);
-        document.documentElement.lang = value;
-      },
-      { immediate: true },
-    );
+    // Keep <html lang> in sync
+    watch(locale, (value) => {
+      document.documentElement.lang = value;
+    }, { immediate: true });
 
-    // Update URL prefix when locale changes (skip initial fire via oldValue check)
+    // Keep locale ref in sync when the route changes (e.g. middleware redirect)
     let router: ReturnType<typeof useRouter> | undefined;
     try { router = useRouter(); } catch { /* not in router context */ }
 
-    watch(locale, (value, oldValue) => {
-      if (!router || oldValue === undefined) return;
-      const path = router.currentRoute.value.fullPath;
-      const bare = path.replace(/^\/en(?=\/|$)/, "") || "/";
-      if (value === "en" && !path.startsWith("/en")) {
-        router.push("/en" + bare);
-      } else if (value !== "en" && path.startsWith("/en")) {
-        router.push(bare);
-      }
-    });
+    if (router) {
+      watch(
+        () => router!.currentRoute.value.path,
+        (path) => {
+          const derived = localeFromPath(path);
+          if (locale.value !== derived) locale.value = derived;
+        },
+      );
+    }
   }
 }
 
@@ -72,7 +63,21 @@ export function useI18n() {
   const currentLocale = computed(() => locale.value);
 
   function setLocale(value: LocaleCode) {
-    locale.value = value;
+    let router: ReturnType<typeof useRouter> | undefined;
+    try { router = useRouter(); } catch { /* not in router context */ }
+    if (!router) return;
+
+    // Flag the middleware to suppress the auto-prefix redirect for this one navigation
+    const suppress = useState("localeRedirectSuppressed", () => false);
+    suppress.value = true;
+
+    const path = router.currentRoute.value.fullPath;
+    const bare = path.replace(/^\/en(?=\/|$)/, "") || "/";
+    if (value === "en") {
+      router.push("/en" + bare);
+    } else {
+      router.push(bare);
+    }
   }
 
   function t(key: TranslationKey, params?: I18nParams) {
