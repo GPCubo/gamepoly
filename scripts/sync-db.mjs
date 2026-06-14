@@ -1,5 +1,9 @@
 /**
- * sync-db.mjs — Upserts canonical board, tiles, cards, and tokens into PostgreSQL.
+ * sync-db.mjs — Upserts board tiles, cards, and tokens into PostgreSQL.
+ *
+ * Syncs both boards:
+ *   board-es  ← config/boardTilesConfigEs.ts + config/boardCardsConfigEs.ts
+ *   board-en  ← config/boardTilesConfigEn.ts + config/boardCardsConfigEn.ts
  *
  * Requires POSTGRES_DSN env var and the `postgres` package:
  *   npm install --save-dev postgres
@@ -14,31 +18,29 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 
-// ── Parse boardTilesConfig.ts ──────────────────────────────────────────────
+// ── Generic tile parser ────────────────────────────────────────────────────
 
-function parseBoardTiles() {
-  const tsSource = readFileSync(join(ROOT, 'config', 'boardTilesConfig.ts'), 'utf-8');
-
-  const arrayMatch = tsSource.match(
-    /export\s+const\s+BOARD_TILES\s*:\s*BoardTile\[\]\s*=\s*\[([\s\S]*?)\];/
+function parseTiles(tsFile, varName) {
+  const tsSource = readFileSync(join(ROOT, 'config', tsFile), 'utf-8');
+  const pattern = new RegExp(
+    'export\\s+const\\s+' + varName + '[^=]*=\\s*\\[([\\s\\S]*?)\\];'
   );
-  if (!arrayMatch) throw new Error('Could not find BOARD_TILES array in boardTilesConfig.ts');
+  const arrayMatch = tsSource.match(pattern);
+  if (!arrayMatch) throw new Error(`Could not find ${varName} in ${tsFile}`);
 
   const tiles = [];
   const objRegex = /\{([^}]+)\}/g;
   let match;
   while ((match = objRegex.exec(arrayMatch[1])) !== null) {
     const body = match[1];
-    const indexM   = body.match(/index:\s*(\d+)/);
-    const typeM    = body.match(/type:\s*"([^"]+)"/);
-    const groupM   = body.match(/group:\s*"([^"]+)"/);
-    const nameM    = body.match(/name:\s*"([^"]+)"/);
-    const shortM   = body.match(/shortName:\s*"([^"]+)"/);
-    const priceM   = body.match(/price:\s*(\d+)/);
-    const colorM   = body.match(/color:\s*"([^"]+)"/);
-
+    const indexM  = body.match(/index:\s*(\d+)/);
+    const typeM   = body.match(/type:\s*"([^"]+)"/);
+    const groupM  = body.match(/group:\s*"([^"]+)"/);
+    const nameM   = body.match(/name:\s*"([^"]+)"/);
+    const shortM  = body.match(/shortName:\s*"([^"]+)"/);
+    const priceM  = body.match(/price:\s*(\d+)/);
+    const colorM  = body.match(/color:\s*"([^"]+)"/);
     if (!indexM || !groupM) continue;
-
     tiles.push({
       index:    parseInt(indexM[1]),
       type:     typeM  ? typeM[1]  : 'corner',
@@ -50,21 +52,15 @@ function parseBoardTiles() {
     });
   }
 
-  if (tiles.length !== 40) throw new Error(`Expected 40 tiles, found ${tiles.length}`);
+  if (tiles.length !== 40) throw new Error(`Expected 40 tiles, found ${tiles.length} in ${tsFile}`);
   return tiles;
 }
 
-// ── Parse card arrays from boardTilesConfig.ts ─────────────────────────────
-//
-// Cards have {tileName} placeholders inside quoted strings, so we can't use a
-// simple [^}]+ regex — the brace inside the string would stop matching early.
-// Instead we use a brace-counting parser that skips over quoted strings.
+// ── Generic card parser (brace-counting to handle {tileName} in strings) ──
 
 function extractObjectBodies(src) {
   const bodies = [];
-  let depth = 0;
-  let start = -1;
-
+  let depth = 0, start = -1;
   for (let i = 0; i < src.length; i++) {
     if (src[i] === '"') {
       i++;
@@ -87,26 +83,22 @@ function extractObjectBodies(src) {
 }
 
 function parseCardArray(tsSource, varName) {
-  const arrayMatch = tsSource.match(
-    new RegExp(`export\\s+const\\s+${varName}[^=]*=\\s*\\[([\\s\\S]*?)\\];`)
+  const pattern = new RegExp(
+    'export\\s+const\\s+' + varName + '[^=]*=\\s*\\[([\\s\\S]*?)\\];'
   );
-  if (!arrayMatch) throw new Error(`Could not find ${varName} in boardTilesConfig.ts`);
+  const arrayMatch = tsSource.match(pattern);
+  if (!arrayMatch) throw new Error(`Could not find ${varName}`);
 
   const bodies = extractObjectBodies(arrayMatch[1]);
-  const cards = [];
-
-  for (let i = 0; i < bodies.length; i++) {
-    const body = bodies[i];
+  return bodies.map((body, i) => {
     const idM        = body.match(/id:\s*"([^"]+)"/);
     const groupM     = body.match(/group:\s*"([^"]+)"/);
     const textM      = body.match(/text:\s*"([^"]+)"/);
     const actionM    = body.match(/action:\s*"([^"]+)"/);
     const amountM    = body.match(/amount:\s*(-?\d+)/);
     const tileIndexM = body.match(/tileIndex:\s*(\d+)/);
-
-    if (!idM || !groupM || !textM || !actionM) continue;
-
-    cards.push({
+    if (!idM || !groupM || !textM || !actionM) return null;
+    return {
       cardIndex:  i,
       cardId:     idM[1],
       group:      groupM[1],
@@ -114,24 +106,21 @@ function parseCardArray(tsSource, varName) {
       action:     actionM[1],
       amount:     amountM    ? parseInt(amountM[1])    : null,
       tileIndex:  tileIndexM ? parseInt(tileIndexM[1]) : null,
-    });
-  }
-
-  return cards;
+    };
+  }).filter(Boolean);
 }
 
-function parseAllCards() {
-  const tsSource = readFileSync(join(ROOT, 'config', 'boardTilesConfig.ts'), 'utf-8');
-  const chance    = parseCardArray(tsSource, 'CHANCE_CARDS');
-  const community = parseCardArray(tsSource, 'COMMUNITY_CARDS');
-  if (chance.length !== 16)    throw new Error(`Expected 16 chance cards, found ${chance.length}`);
-  if (community.length !== 16) throw new Error(`Expected 16 community cards, found ${community.length}`);
-  return { chance, community };
+function parseCards(tsFile, chanceVar, communityVar) {
+  const tsSource = readFileSync(join(ROOT, 'config', tsFile), 'utf-8');
+  const chance    = parseCardArray(tsSource, chanceVar);
+  const community = parseCardArray(tsSource, communityVar);
+  if (chance.length !== 16)    throw new Error(`Expected 16 chance cards in ${tsFile}, found ${chance.length}`);
+  if (community.length !== 16) throw new Error(`Expected 16 community cards in ${tsFile}, found ${community.length}`);
+  return [...chance, ...community];
 }
 
 // ── Scan token GLBs ────────────────────────────────────────────────────────
 
-// Tokens that are already exposed to players (from GAME_CONFIG.TOKEN_MODELS)
 const VISIBLE_TOKENS = ['sombrero.glb', 'dedal.glb', 'coffee.glb', 'soccer_ball.glb'];
 
 function scanTokens() {
@@ -149,6 +138,35 @@ function scanTokens() {
     };
   });
 }
+
+// ── Board definitions ──────────────────────────────────────────────────────
+
+const BOARDS = [
+  {
+    slug:        'board-es',
+    locale:      'es',
+    displayName: 'Monopoly Clásico',
+    glbPath:     '/models/tablero.glb',
+    visible:     true,
+    tilesFile:   'boardTilesConfigEs.ts',
+    tilesVar:    'BOARD_TILES_ES',
+    cardsFile:   'boardCardsConfigEs.ts',
+    chanceVar:   'CHANCE_CARDS_ES',
+    communityVar: 'COMMUNITY_CARDS_ES',
+  },
+  {
+    slug:        'board-en',
+    locale:      'en',
+    displayName: 'Crestwood City',
+    glbPath:     '/models/tablero.glb',
+    visible:     true,
+    tilesFile:   'boardTilesConfigEn.ts',
+    tilesVar:    'BOARD_TILES_EN',
+    cardsFile:   'boardCardsConfigEn.ts',
+    chanceVar:   'CHANCE_CARDS_EN',
+    communityVar: 'COMMUNITY_CARDS_EN',
+  },
+];
 
 // ── DB upsert ──────────────────────────────────────────────────────────────
 
@@ -171,57 +189,59 @@ async function syncDB() {
   const sql = postgres(dsn, { max: 1 });
 
   try {
-    const tiles  = parseBoardTiles();
-    const cards  = parseAllCards();
     const tokens = scanTokens();
 
-    const BOARD_SLUG = 'monopoly-es';
+    for (const board of BOARDS) {
+      const tiles = parseTiles(board.tilesFile, board.tilesVar);
+      const cards = parseCards(board.cardsFile, board.chanceVar, board.communityVar);
 
-    // Upsert canonical Spanish board
-    const [{ id: boardId }] = await sql`
-      INSERT INTO boards (slug, locale, display_name, glb_path, visible)
-      VALUES (${BOARD_SLUG}, 'es', 'Monopoly Clásico', '/models/tablero.glb', true)
-      ON CONFLICT (slug) DO UPDATE SET
-        locale       = EXCLUDED.locale,
-        display_name = EXCLUDED.display_name,
-        glb_path     = EXCLUDED.glb_path,
-        updated_at   = NOW()
-      RETURNING id
-    `;
-
-    // Upsert all 40 tiles
-    for (const t of tiles) {
-      await sql`
-        INSERT INTO board_tiles
-          (board_id, tile_index, tile_type, tile_group, name, short_name, price, color_hex)
-        VALUES (${boardId}, ${t.index}, ${t.type}, ${t.group}, ${t.name}, ${t.shortName}, ${t.price}, ${t.colorHex})
-        ON CONFLICT (board_id, tile_index) DO UPDATE SET
-          tile_type  = EXCLUDED.tile_type,
-          tile_group = EXCLUDED.tile_group,
-          name       = EXCLUDED.name,
-          short_name = EXCLUDED.short_name,
-          price      = EXCLUDED.price,
-          color_hex  = EXCLUDED.color_hex
+      // Upsert board
+      const [{ id: boardId }] = await sql`
+        INSERT INTO boards (slug, locale, display_name, glb_path, visible)
+        VALUES (${board.slug}, ${board.locale}, ${board.displayName}, ${board.glbPath}, ${board.visible})
+        ON CONFLICT (slug) DO UPDATE SET
+          locale       = EXCLUDED.locale,
+          display_name = EXCLUDED.display_name,
+          glb_path     = EXCLUDED.glb_path,
+          updated_at   = NOW()
+        RETURNING id
       `;
+
+      // Upsert tiles
+      for (const t of tiles) {
+        await sql`
+          INSERT INTO board_tiles
+            (board_id, tile_index, tile_type, tile_group, name, short_name, price, color_hex)
+          VALUES (${boardId}, ${t.index}, ${t.type}, ${t.group}, ${t.name}, ${t.shortName}, ${t.price}, ${t.colorHex})
+          ON CONFLICT (board_id, tile_index) DO UPDATE SET
+            tile_type  = EXCLUDED.tile_type,
+            tile_group = EXCLUDED.tile_group,
+            name       = EXCLUDED.name,
+            short_name = EXCLUDED.short_name,
+            price      = EXCLUDED.price,
+            color_hex  = EXCLUDED.color_hex
+        `;
+      }
+
+      // Upsert cards
+      for (const c of cards) {
+        await sql`
+          INSERT INTO board_cards
+            (board_id, card_group, card_index, card_id, text, action, amount, tile_index)
+          VALUES (${boardId}, ${c.group}, ${c.cardIndex}, ${c.cardId}, ${c.text}, ${c.action}, ${c.amount}, ${c.tileIndex})
+          ON CONFLICT (board_id, card_group, card_index) DO UPDATE SET
+            card_id    = EXCLUDED.card_id,
+            text       = EXCLUDED.text,
+            action     = EXCLUDED.action,
+            amount     = EXCLUDED.amount,
+            tile_index = EXCLUDED.tile_index
+        `;
+      }
+
+      console.log(`✓ Board '${board.slug}' synced — ${tiles.length} tiles, ${cards.length} cards`);
     }
 
-    // Upsert all 32 cards (16 chance + 16 community)
-    const allCards = [...cards.chance, ...cards.community];
-    for (const c of allCards) {
-      await sql`
-        INSERT INTO board_cards
-          (board_id, card_group, card_index, card_id, text, action, amount, tile_index)
-        VALUES (${boardId}, ${c.group}, ${c.cardIndex}, ${c.cardId}, ${c.text}, ${c.action}, ${c.amount}, ${c.tileIndex})
-        ON CONFLICT (board_id, card_group, card_index) DO UPDATE SET
-          card_id    = EXCLUDED.card_id,
-          text       = EXCLUDED.text,
-          action     = EXCLUDED.action,
-          amount     = EXCLUDED.amount,
-          tile_index = EXCLUDED.tile_index
-      `;
-    }
-
-    // Upsert tokens
+    // Upsert tokens (shared across boards)
     for (const tok of tokens) {
       await sql`
         INSERT INTO tokens (slug, glb_path, label_key, visible, sort_order)
@@ -235,7 +255,6 @@ async function syncDB() {
     }
 
     const visibleCount = tokens.filter(t => t.visible).length;
-    console.log(`✓ Board '${BOARD_SLUG}' synced — ${tiles.length} tiles, ${allCards.length} cards`);
     console.log(`✓ ${tokens.length} tokens synced (${visibleCount} visible)`);
   } finally {
     await sql.end();

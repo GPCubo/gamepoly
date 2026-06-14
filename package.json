@@ -7,7 +7,9 @@
     "generate": "nuxt generate",
     "preview": "nuxt preview",
     "sync": "node scripts/sync-all.mjs",
-    "sync:blender": "node scripts/sync-board-config.mjs",
+    "sync:blender": "node scripts/sync-board-config.mjs --board es",
+    "sync:blender:es": "node scripts/sync-board-config.mjs --board es",
+    "sync:blender:en": "node scripts/sync-board-config.mjs --board en",
     "sync:db": "node scripts/sync-db.mjs"
   },
   "dependencies": {

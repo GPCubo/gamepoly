@@ -59,24 +59,10 @@ TILE_COLORS = {
     "board_center": (0.918, 0.933, 0.890, 1),    # Fondo claro del tablero
     "plaza_grass":  (0.650, 0.820, 0.690, 1),    # Jardin central
     "plaza_path":   (0.760, 0.720, 0.640, 1),    # Caminos de piedra
-    "plaza_tile":   (0.820, 0.790, 0.700, 1),    # Claro central de piedra clara
+    "plaza_tile":   (0.820, 0.790, 0.700, 1),    # Plaza principal
     "plaza_edge":   (0.560, 0.500, 0.430, 1),    # Bordes de plaza/caminos
-    "plaza_water":  (0.360, 0.620, 0.800, 1),    # Estanque central
     "tree_trunk":   (0.420, 0.240, 0.110, 1),
-    "tree_leaf":    (0.130, 0.480, 0.220, 1),    # Verde medio
-    "tree_leaf2":   (0.090, 0.360, 0.180, 1),    # Verde oscuro
-    "tree_leaf3":   (0.240, 0.600, 0.300, 1),    # Verde claro
-    "tree_leaf4":   (0.180, 0.460, 0.430, 1),    # Verde azulado (picea)
-    "tree_leaf5":   (0.450, 0.650, 0.250, 1),    # Verde amarillento
-    "rock":         (0.580, 0.580, 0.560, 1),    # Rocas grises
-    "hedge":        (0.150, 0.380, 0.200, 1),    # Seto perimetral
-    "flower_red":   (0.880, 0.200, 0.180, 1),
-    "flower_yellow":(0.980, 0.800, 0.200, 1),
-    "flower_white": (0.950, 0.950, 0.920, 1),
-    "bench_wood":   (0.520, 0.330, 0.180, 1),    # Bancos de madera
-    "lamp_metal":   (0.120, 0.120, 0.130, 1),    # Farolas
-    "lamp_light":   (1.000, 0.880, 0.550, 1),    # Luz calida
-    "monument":     (0.930, 0.915, 0.870, 1),    # Piedra blanca (fuente)
+    "tree_leaf":    (0.130, 0.480, 0.220, 1),
 }
 
 PROPERTY_GROUPS = ["brown", "lightBlue", "pink", "orange", "red", "yellow", "green", "darkBlue"]
@@ -91,46 +77,46 @@ TILE_GROUPS = [
 
 # Datos de cada casilla: nombre corto (para 3D), nombre completo y precio
 TILE_INFO = [
-    {"short": "Salida"},                               # 0  go
-    {"short": "Ronda de Arrieta", "price": 60},        # 1  brown
-    {"short": "Arca Comunal"},                         # 2  community
-    {"short": "Plaza de Lavapies", "price": 60},       # 3  brown
-    {"short": "Impuesto"},                             # 4  tax
-    {"short": "Estacion Norte", "price": 200},         # 5  railroad
-    {"short": "La Montera", "price": 100},             # 6  lightBlue
-    {"short": "Suerte"},                               # 7  chance
-    {"short": "Calle de Alcala", "price": 100},        # 8  lightBlue
-    {"short": "Gran Via", "price": 120},               # 9  lightBlue
-    {"short": "Carcel"},                               # 10  jail
-    {"short": "Paseo del Prado", "price": 140},        # 11  pink
-    {"short": "Electrica", "price": 150},              # 12  utility
-    {"short": "Calle de Serrano", "price": 140},       # 13  pink
-    {"short": "Paseo de Recoletos", "price": 160},     # 14  pink
-    {"short": "Estacion Este", "price": 200},          # 15  railroad
-    {"short": "Calle de Goya", "price": 180},          # 16  orange
-    {"short": "Arca Comunal"},                         # 17  community
-    {"short": "Calle de Velazquez", "price": 180},     # 18  orange
-    {"short": "Castellana", "price": 200},             # 19  orange
+    {"short": "Go"},                                   # 0  go
+    {"short": "Watermill", "price": 60},               # 1  brown
+    {"short": "City Fund"},                            # 2  community
+    {"short": "Harbor", "price": 60},                  # 3  brown
+    {"short": "Tax"},                                  # 4  tax
+    {"short": "N.Terminal", "price": 200},             # 5  railroad
+    {"short": "Bay St", "price": 100},                 # 6  lightBlue
+    {"short": "Fortune"},                              # 7  chance
+    {"short": "Market Sq", "price": 100},              # 8  lightBlue
+    {"short": "Riverside", "price": 120},              # 9  lightBlue
+    {"short": "Jail"},                                 # 10  jail
+    {"short": "Grand Ave", "price": 140},              # 11  pink
+    {"short": "Power Co.", "price": 150},              # 12  utility
+    {"short": "Sunset Blvd", "price": 140},            # 13  pink
+    {"short": "Palm Dr", "price": 160},                # 14  pink
+    {"short": "E.Terminal", "price": 200},             # 15  railroad
+    {"short": "Maple Dr", "price": 180},               # 16  orange
+    {"short": "City Fund"},                            # 17  community
+    {"short": "Oak St", "price": 180},                 # 18  orange
+    {"short": "Elm Park", "price": 200},               # 19  orange
     {"short": "Parking"},                              # 20  parking
-    {"short": "Plaza de Espana", "price": 220},        # 21  red
-    {"short": "Suerte"},                               # 22  chance
-    {"short": "Fuencarral", "price": 220},             # 23  red
-    {"short": "Reforma", "price": 240},                # 24  red
-    {"short": "Estacion Sur", "price": 200},           # 25  railroad
-    {"short": "America", "price": 260},                # 26  yellow
-    {"short": "Bravo Murillo", "price": 260},          # 27  yellow
-    {"short": "Agua", "price": 150},                   # 28  utility
-    {"short": "Alberto Aguilera", "price": 280},       # 29  yellow
-    {"short": "Ve Carcel"},                            # 30  gotojail
-    {"short": "Paseo de Gracia", "price": 300},        # 31  green
-    {"short": "Rambla de Cataluna", "price": 300},     # 32  green
-    {"short": "Arca Comunal"},                         # 33  community
-    {"short": "Avenida Diagonal", "price": 320},       # 34  green
-    {"short": "Estacion Oeste", "price": 200},         # 35  railroad
-    {"short": "Suerte"},                               # 36  chance
-    {"short": "La Habana", "price": 350},              # 37  darkBlue
-    {"short": "Lujo"},                                 # 38  tax
-    {"short": "Paseo del Arte", "price": 400},         # 39  darkBlue
+    {"short": "Crown", "price": 220},                  # 21  red
+    {"short": "Fortune"},                              # 22  chance
+    {"short": "Empire Sq", "price": 220},              # 23  red
+    {"short": "Liberty St", "price": 240},             # 24  red
+    {"short": "S.Terminal", "price": 200},             # 25  railroad
+    {"short": "Sunrise", "price": 260},                # 26  yellow
+    {"short": "Horizon", "price": 260},                # 27  yellow
+    {"short": "Water Works", "price": 150},            # 28  utility
+    {"short": "Valley", "price": 280},                 # 29  yellow
+    {"short": "Go to Jail"},                           # 30  gotojail
+    {"short": "Crescent", "price": 300},               # 31  green
+    {"short": "Forest Blvd", "price": 300},            # 32  green
+    {"short": "City Fund"},                            # 33  community
+    {"short": "Lakeside", "price": 320},               # 34  green
+    {"short": "W.Terminal", "price": 200},             # 35  railroad
+    {"short": "Fortune"},                              # 36  chance
+    {"short": "Skyline", "price": 350},                # 37  darkBlue
+    {"short": "Luxury"},                               # 38  tax
+    {"short": "Diamond", "price": 400},                # 39  darkBlue
 ]
 
 # ─────────────────────────────────────────────────────────────────────────

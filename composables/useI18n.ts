@@ -1,4 +1,5 @@
 import { computed, ref, watch } from "vue";
+import { useRouter } from "vue-router";
 import {
   DEFAULT_LOCALE,
   LOCALE_STORAGE_KEY,
@@ -15,8 +16,13 @@ let initialized = false;
 
 function detectInitialLocale(): LocaleCode {
   if (typeof window === "undefined") return DEFAULT_LOCALE;
+  // 1. URL path has highest priority (e.g. /en/ → English)
+  const path = window.location.pathname;
+  if (path === "/en" || path.startsWith("/en/")) return "en" as LocaleCode;
+  // 2. Saved locale in localStorage
   const saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
   if (isLocaleCode(saved)) return saved;
+  // 3. Browser language
   const browserLocale = window.navigator.language?.slice(0, 2).toLowerCase();
   return isLocaleCode(browserLocale) ? browserLocale : DEFAULT_LOCALE;
 }
@@ -27,6 +33,7 @@ function initLocale() {
   locale.value = detectInitialLocale();
 
   if (typeof window !== "undefined") {
+    // Persist locale and update <html lang> immediately
     watch(
       locale,
       (value) => {
@@ -35,6 +42,21 @@ function initLocale() {
       },
       { immediate: true },
     );
+
+    // Update URL prefix when locale changes (skip initial fire via oldValue check)
+    let router: ReturnType<typeof useRouter> | undefined;
+    try { router = useRouter(); } catch { /* not in router context */ }
+
+    watch(locale, (value, oldValue) => {
+      if (!router || oldValue === undefined) return;
+      const path = router.currentRoute.value.fullPath;
+      const bare = path.replace(/^\/en(?=\/|$)/, "") || "/";
+      if (value === "en" && !path.startsWith("/en")) {
+        router.push("/en" + bare);
+      } else if (value !== "en" && path.startsWith("/en")) {
+        router.push(bare);
+      }
+    });
   }
 }
 

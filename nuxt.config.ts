@@ -27,5 +27,11 @@ export default defineNuxtConfig({
     "/setup": { ssr: false },
     "/game": { ssr: false },
     "/multiplayer/**": { ssr: false },
+    // English locale prefix — same pages, locale detected from URL
+    "/en": { ssr: false },
+    "/en/": { ssr: false },
+    "/en/setup": { ssr: false },
+    "/en/game": { ssr: false },
+    "/en/multiplayer/**": { ssr: false },
   },
 });
