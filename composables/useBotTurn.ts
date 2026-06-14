@@ -2,7 +2,8 @@ import { type Ref } from "vue";
 import { tStore } from "~/composables/useI18n";
 import { useGameStore, type BotDifficulty, type ExchangeProposal } from "~/stores/gameStore";
 import { getBotEngine, type BuyDecision } from "~/composables/useBotEngine";
-import { BOARD_TILES, type BoardTile } from "~/config/boardTilesConfig";
+import { useBoardStore } from "~/stores/boardStore";
+import type { BoardTile } from "~/types/board";
 
 const THINK_DELAY = 800;
 const ACTION_DELAY = 500;
@@ -33,7 +34,7 @@ export function getBotAuctionBid(tileIndex: number, currentBid: number, playerId
   const player = store.players.find((p) => p.id === playerId);
   if (!player || !player.isBot || !player.botDifficulty) return 0;
   const engine = getBotEngine(player.botDifficulty);
-  const tile = BOARD_TILES.find((t) => t.index === tileIndex);
+  const tile = useBoardStore().tiles.find((t) => t.index === tileIndex);
   if (!tile) return 0;
   return engine.decideAuctionBid(tile, currentBid, playerId, store);
 }
@@ -164,7 +165,7 @@ export function useBotTurn(
 
     const difficultyLabel = tStore(botInfo.difficulty === "difficult" ? "common.difficult" : "common.regular");
     const pos = ((player.position % 40) + 40) % 40;
-    const tile = BOARD_TILES.find((t) => t.index === pos);
+    const tile = useBoardStore().tiles.find((t) => t.index === pos);
 
     if (!tile) {
       finishBotTurn();
@@ -389,7 +390,7 @@ export function useBotTurn(
   }
 
   function getOwnedTiles(playerId: number): BoardTile[] {
-    return BOARD_TILES.filter(
+    return useBoardStore().tiles.filter(
       (tile) => tile.price !== undefined && store.propertyOwners[tile.index] === playerId,
     );
   }

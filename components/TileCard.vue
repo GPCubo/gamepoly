@@ -625,11 +625,8 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, watch, nextTick } from "vue";
-import {
-  BOARD_TILES,
-  type BoardTile,
-  type TileGroup,
-} from "~/config/boardTilesConfig";
+import { useBoardStore } from "~/stores/boardStore";
+import type { BoardTile, TileGroup } from "~/types/board";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import {
   rentBaseForPrice,
@@ -806,7 +803,7 @@ function autoFocusFirstEnabled() {
 onMounted(() => autoFocusFirstEnabled());
 
 const colorByGroup = (group: TileGroup): string =>
-  BOARD_TILES.find((t) => t.group === group)?.color ?? "#374151";
+  useBoardStore().tiles.find((t) => t.group === group)?.color ?? "#374151";
 
 const GROUP_COLORS: Record<TileGroup, string> = {
   brown: colorByGroup("brown"),

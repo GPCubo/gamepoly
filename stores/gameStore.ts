@@ -1,16 +1,9 @@
 import { defineStore } from "pinia";
 import { tStore } from "~/composables/useI18n";
 import { GAME_CONFIG } from "~/config/gameConfig";
-import {
-  BOARD_TILES,
-  CHANCE_CARDS,
-  COMMUNITY_CARDS,
-  shuffleDeck,
-  resolveCardText,
-  type BoardTile,
-  type GameCard,
-  type TileGroup,
-} from "~/config/boardTilesConfig";
+import { useBoardStore } from "~/stores/boardStore";
+import { shuffleDeck } from "~/utils/deck";
+import type { BoardTile, GameCard, TileGroup } from "~/types/board";
 import {
   houseCostForPrice,
   hotelCostForPrice,
@@ -131,9 +124,12 @@ const PROPERTY_COLOR_GROUPS = new Set<TileGroup>([
   "darkBlue",
 ]);
 
-const CARD_TILE_INDEXES = BOARD_TILES.filter((tile) => tile.type === "card")
-  .map((tile) => tile.index)
-  .sort((a, b) => a - b);
+function getCardTileIndexes(): number[] {
+  return useBoardStore().tiles
+    .filter((tile) => tile.type === "card")
+    .map((tile) => tile.index)
+    .sort((a, b) => a - b);
+}
 
 function normalizeBoardPosition(position: number): number {
   return ((position % 40) + 40) % 40;
@@ -142,7 +138,7 @@ function normalizeBoardPosition(position: number): number {
 function stepsToNextCardTile(position: number): number {
   const current = normalizeBoardPosition(position);
   return Math.min(
-    ...CARD_TILE_INDEXES.map((index) =>
+    ...getCardTileIndexes().map((index) =>
       index > current ? index - current : 40 - current + index,
     ),
   );
@@ -167,14 +163,14 @@ function diceValuesForTotal(total: number): [number, number] {
 }
 
 function getOwnableTile(tileIndex: number): BoardTile | undefined {
-  const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+  const tile = useBoardStore().tiles.find((candidate) => candidate.index === tileIndex);
   if (!tile || tile.price === undefined) return undefined;
   return tile;
 }
 
 function getPropertyGroupTiles(group: TileGroup): BoardTile[] {
   if (!PROPERTY_COLOR_GROUPS.has(group)) return [];
-  return BOARD_TILES.filter(
+  return useBoardStore().tiles.filter(
     (tile) => tile.type === "property" && tile.group === group,
   );
 }
@@ -288,10 +284,10 @@ export const useGameStore = defineStore("game", {
       this.doublesGiveExtraTurn =
         options?.doublesGiveExtraTurn ?? GAME_CONFIG.DOUBLES_GIVE_EXTRA_TURN;
       this.chanceDeck = shuffleDeck(
-        Array.from({ length: CHANCE_CARDS.length }, (_, i) => i),
+        Array.from({ length: useBoardStore().chanceCards.length }, (_, i) => i),
       );
       this.communityDeck = shuffleDeck(
-        Array.from({ length: COMMUNITY_CARDS.length }, (_, i) => i),
+        Array.from({ length: useBoardStore().communityCards.length }, (_, i) => i),
       );
       this.activeCard = null;
       this.isDoubles = false;
@@ -506,7 +502,7 @@ export const useGameStore = defineStore("game", {
     },
 
     buyProperty(tileIndex: number, playerId: number) {
-      const tile = BOARD_TILES.find((t) => t.index === tileIndex);
+      const tile = useBoardStore().tiles.find((t) => t.index === tileIndex);
       if (!tile || tile.price === undefined) return;
       const player = this.players.find((p) => p.id === playerId);
       if (!player) return;
@@ -575,7 +571,7 @@ export const useGameStore = defineStore("game", {
 
       player.cash = cash;
 
-      for (const tile of BOARD_TILES) {
+      for (const tile of useBoardStore().tiles) {
         if (tile.price === undefined) continue;
         this.propertyOwners[tile.index] = player.id;
         this._ensurePropertyDevelopment(tile.index);
@@ -590,7 +586,7 @@ export const useGameStore = defineStore("game", {
 
       player.cash = cash;
 
-      for (const tile of BOARD_TILES) {
+      for (const tile of useBoardStore().tiles) {
         if (tile.price === undefined) continue;
         this.propertyOwners[tile.index] = player.id;
         const development = this._ensurePropertyDevelopment(tile.index);
@@ -741,7 +737,7 @@ export const useGameStore = defineStore("game", {
     },
 
     ownsFullPropertyGroup(tileIndex: number, playerId: number): boolean {
-      const tile = BOARD_TILES.find(
+      const tile = useBoardStore().tiles.find(
         (candidate) => candidate.index === tileIndex,
       );
       if (!tile || tile.type !== "property") return false;
@@ -754,7 +750,7 @@ export const useGameStore = defineStore("game", {
     },
 
     hasMortgagedPropertyInColorGroup(tileIndex: number): boolean {
-      const tile = BOARD_TILES.find(
+      const tile = useBoardStore().tiles.find(
         (candidate) => candidate.index === tileIndex,
       );
       if (!tile || tile.type !== "property") return false;
@@ -765,7 +761,7 @@ export const useGameStore = defineStore("game", {
     },
 
     hasImprovementInColorGroup(tileIndex: number): boolean {
-      const tile = BOARD_TILES.find(
+      const tile = useBoardStore().tiles.find(
         (candidate) => candidate.index === tileIndex,
       );
       if (!tile || tile.type !== "property") return false;
@@ -777,7 +773,7 @@ export const useGameStore = defineStore("game", {
     },
 
     canBuildHouse(tileIndex: number, playerId: number): boolean {
-      const tile = BOARD_TILES.find(
+      const tile = useBoardStore().tiles.find(
         (candidate) => candidate.index === tileIndex,
       );
       const player = this.players.find(
@@ -808,7 +804,7 @@ export const useGameStore = defineStore("game", {
     },
 
     canBuildHotel(tileIndex: number, playerId: number): boolean {
-      const tile = BOARD_TILES.find(
+      const tile = useBoardStore().tiles.find(
         (candidate) => candidate.index === tileIndex,
       );
       const player = this.players.find(
@@ -836,7 +832,7 @@ export const useGameStore = defineStore("game", {
 
     canSellImprovement(tileIndex: number, playerId: number): boolean {
       if (this.propertyOwners[tileIndex] !== playerId) return false;
-      const tile = BOARD_TILES.find(
+      const tile = useBoardStore().tiles.find(
         (candidate) => candidate.index === tileIndex,
       );
       if (!tile || tile.type !== "property") return false;
@@ -865,7 +861,7 @@ export const useGameStore = defineStore("game", {
       playerId: number,
       direction: "build" | "sell",
     ): BoardTile[] {
-      const tile = BOARD_TILES.find(
+      const tile = useBoardStore().tiles.find(
         (candidate) => candidate.index === tileIndex,
       );
       if (!tile || tile.type !== "property") return [];
@@ -1002,7 +998,7 @@ export const useGameStore = defineStore("game", {
     getEmergencyLiquidationValue(playerId: number): number {
       let total = 0;
 
-      for (const tile of BOARD_TILES) {
+      for (const tile of useBoardStore().tiles) {
         if (
           tile.price === undefined ||
           this.propertyOwners[tile.index] !== playerId
@@ -1043,7 +1039,7 @@ export const useGameStore = defineStore("game", {
       const player = this.players.find(
         (candidate) => candidate.id === playerId,
       );
-      const tile = BOARD_TILES.find(
+      const tile = useBoardStore().tiles.find(
         (candidate) => candidate.index === tileIndex,
       );
       if (!player || !tile) return;
@@ -1062,7 +1058,7 @@ export const useGameStore = defineStore("game", {
       const player = this.players.find(
         (candidate) => candidate.id === playerId,
       );
-      const tile = BOARD_TILES.find(
+      const tile = useBoardStore().tiles.find(
         (candidate) => candidate.index === tileIndex,
       );
       if (!player || !tile) return;
@@ -1081,7 +1077,7 @@ export const useGameStore = defineStore("game", {
       const player = this.players.find(
         (candidate) => candidate.id === playerId,
       );
-      const tile = BOARD_TILES.find(
+      const tile = useBoardStore().tiles.find(
         (candidate) => candidate.index === tileIndex,
       );
       if (!player || !tile || tile.type !== "property") return;
@@ -1121,7 +1117,7 @@ export const useGameStore = defineStore("game", {
       const player = this.players.find(
         (candidate) => candidate.id === playerId,
       );
-      const tile = BOARD_TILES.find(
+      const tile = useBoardStore().tiles.find(
         (candidate) => candidate.index === tileIndex,
       );
       if (!player || !tile) return;
@@ -1150,7 +1146,7 @@ export const useGameStore = defineStore("game", {
       const player = this.players.find(
         (candidate) => candidate.id === playerId,
       );
-      const tile = BOARD_TILES.find(
+      const tile = useBoardStore().tiles.find(
         (candidate) => candidate.index === tileIndex,
       );
       if (!player || !tile || tile.type !== "property") return;
@@ -1223,7 +1219,7 @@ export const useGameStore = defineStore("game", {
       if (!player) return 0;
 
       let total = 0;
-      const mortgageableTiles = BOARD_TILES.filter(
+      const mortgageableTiles = useBoardStore().tiles.filter(
         (tile) =>
           tile.price !== undefined &&
           this.canMortgageProperty(tile.index, playerId),
@@ -1286,7 +1282,7 @@ export const useGameStore = defineStore("game", {
       if (development.mortgaged) return 0;
 
       if (tile.type === "railroad") {
-        const count = BOARD_TILES.filter(
+        const count = useBoardStore().tiles.filter(
           (t) =>
             t.type === "railroad" &&
             this.propertyOwners[t.index] === ownerId &&
@@ -1297,7 +1293,7 @@ export const useGameStore = defineStore("game", {
       }
 
       if (tile.type === "utility") {
-        const count = BOARD_TILES.filter(
+        const count = useBoardStore().tiles.filter(
           (t) =>
             t.type === "utility" &&
             this.propertyOwners[t.index] === ownerId &&
@@ -1404,7 +1400,7 @@ export const useGameStore = defineStore("game", {
 
     drawCard(group: "chance" | "community") {
       const deck = group === "chance" ? this.chanceDeck : this.communityDeck;
-      const cards = group === "chance" ? CHANCE_CARDS : COMMUNITY_CARDS;
+      const cards = group === "chance" ? useBoardStore().chanceCards : useBoardStore().communityCards;
 
       if (deck.length === 0) {
         const newDeck = shuffleDeck(
@@ -1422,7 +1418,7 @@ export const useGameStore = defineStore("game", {
       const index = currentDeck.shift()!;
       this.activeCard = {
         ...cards[index],
-        text: resolveCardText(cards[index], (idx) => tStore(`tile.${idx}.name` as any) || ``),
+        text: useBoardStore().resolveCardText(cards[index]),
       };
 
       if (group === "chance") {
@@ -1748,7 +1744,7 @@ export const useGameStore = defineStore("game", {
         const names = propertyIndexes
           .map(
             (tileIndex) =>
-              BOARD_TILES.find((tile) => tile.index === tileIndex)?.name,
+              useBoardStore().tiles.find((tile) => tile.index === tileIndex)?.name,
           )
           .filter(Boolean);
         parts.push(names.join(", "));
@@ -1769,7 +1765,7 @@ export const useGameStore = defineStore("game", {
       const clearedGroups = new Set<TileGroup>();
 
       for (const tileIndex of tileIndexes) {
-        const tile = BOARD_TILES.find(
+        const tile = useBoardStore().tiles.find(
           (candidate) => candidate.index === tileIndex,
         );
         if (!tile || tile.type !== "property") continue;

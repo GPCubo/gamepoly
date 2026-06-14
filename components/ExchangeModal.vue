@@ -280,7 +280,8 @@
 
 <script setup lang="ts">
 import { ref, computed, nextTick, onMounted, watch } from "vue";
-import { BOARD_TILES, type BoardTile, type TileType } from "~/config/boardTilesConfig";
+import { useBoardStore } from "~/stores/boardStore";
+import type { BoardTile, TileType } from "~/types/board";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
 import { useI18n } from "~/composables/useI18n";
@@ -358,7 +359,7 @@ const targetPlayer = computed(() =>
 );
 
 const myProperties = computed(() =>
-  BOARD_TILES.filter(
+  useBoardStore().tiles.filter(
     (t) =>
       (t.type === "property" || t.type === "railroad" || t.type === "utility") &&
       props.propertyOwners[t.index] === proposingPlayer.value.id,
@@ -367,7 +368,7 @@ const myProperties = computed(() =>
 
 const targetProperties = computed(() => {
   if (selectedTargetId.value === null) return [];
-  return BOARD_TILES.filter(
+  return useBoardStore().tiles.filter(
     (t) =>
       (t.type === "property" || t.type === "railroad" || t.type === "utility") &&
       props.propertyOwners[t.index] === selectedTargetId.value,
@@ -397,13 +398,13 @@ const fromPlayer = computed(() =>
 
 const offeredProperties = computed(() =>
   props.proposal
-    ? BOARD_TILES.filter((t) => props.proposal!.offerProperties.includes(t.index))
+    ? useBoardStore().tiles.filter((t) => props.proposal!.offerProperties.includes(t.index))
     : [],
 );
 
 const requestedProperties = computed(() =>
   props.proposal
-    ? BOARD_TILES.filter((t) => props.proposal!.requestProperties.includes(t.index))
+    ? useBoardStore().tiles.filter((t) => props.proposal!.requestProperties.includes(t.index))
     : [],
 );
 
@@ -469,7 +470,7 @@ function formatMoney(amount: number) {
 }
 
 function ownedCount(playerId: ExchangePlayerId) {
-  return BOARD_TILES.filter(
+  return useBoardStore().tiles.filter(
     (tile) =>
       isExchangeableTile(tile) &&
       props.propertyOwners[tile.index] === playerId,
@@ -504,10 +505,10 @@ function developmentWarningsForTransfer(propertyIndexes: number[], ownerId: Exch
   const warnings: string[] = [];
 
   for (const tileIndex of propertyIndexes) {
-    const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+    const tile = useBoardStore().tiles.find((candidate) => candidate.index === tileIndex);
     if (!tile || tile.type !== "property" || warnedGroups.has(tile.group)) continue;
 
-    const groupTiles = BOARD_TILES.filter(
+    const groupTiles = useBoardStore().tiles.filter(
       (candidate) => candidate.type === "property" && candidate.group === tile.group,
     );
     const fullGroupTransfers = groupTiles.every(

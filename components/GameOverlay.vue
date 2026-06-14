@@ -291,7 +291,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch, type Ref } from "vue";
 import { GAME_CONFIG } from "~/config/gameConfig";
-import { BOARD_TILES } from "~/config/boardTilesConfig";
+import { useBoardStore } from "~/stores/boardStore";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
 import SidebarConfig from "~/components/SidebarConfig.vue";
 import { useGameStore, type EconomicHistoryItem, type EconomicHistoryType, type PlayerState } from "~/stores/gameStore";
@@ -437,7 +437,7 @@ const minimapOwnerMarkers = computed(() =>
   Object.entries(store.propertyOwners)
     .map(([tileKey, ownerId]) => {
       const tileIndex = Number(tileKey);
-      const boardTile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      const boardTile = useBoardStore().tiles.find((candidate) => candidate.index === tileIndex);
       const owner = store.players.find((player) => player.id === ownerId);
       const token = GAME_CONFIG.TOKEN_MODELS.find((candidate) => candidate.file === owner?.tokenModel);
       if (!boardTile || !owner || !token) return null;
@@ -483,7 +483,7 @@ const minimapTiles = computed(() => {
 });
 
 function minimapTileBaseColor(tile: number) {
-  const boardTile = BOARD_TILES.find((candidate) => candidate.index === tile);
+  const boardTile = useBoardStore().tiles.find((candidate) => candidate.index === tile);
   if (boardTile?.type === "property" && boardTile.color) return boardTile.color;
   return "#9ca3af";
 }

@@ -35,7 +35,7 @@
 
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, nextTick } from "vue";
-import type { GameCard } from "~/config/boardTilesConfig";
+import type { GameCard } from "~/types/board";
 import { useI18n } from "~/composables/useI18n";
 
 const props = defineProps<{

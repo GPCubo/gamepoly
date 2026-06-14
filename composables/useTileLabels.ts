@@ -1,6 +1,7 @@
 import { ref, onMounted, watch } from "vue";
 import { CanvasTexture, SRGBColorSpace, LinearFilter } from "three";
-import { BOARD_TILES, type BoardTile } from "~/config/boardTilesConfig";
+import { useBoardStore } from "~/stores/boardStore";
+import type { BoardTile } from "~/types/board";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import { useBoardGeometry } from "./useBoardGeometry";
 import { useI18n } from "~/composables/useI18n";
@@ -248,6 +249,7 @@ function createLabelCanvas(tile: BoardTile, displayName: string): HTMLCanvasElem
 export function useTileLabels() {
   const { getTileLabelTransform } = useBoardGeometry();
   const { locale, tileName, tileShortName } = useI18n();
+  const boardStore = useBoardStore();
   const tileLabels = ref<TileLabelData[]>([]);
   const isCorner = (idx: number) => [0, 10, 20, 30].includes(idx);
 
@@ -256,7 +258,7 @@ export function useTileLabels() {
       label.texture.dispose();
     }
 
-    const labels: TileLabelData[] = BOARD_TILES.map((tile) => {
+    const labels: TileLabelData[] = boardStore.tiles.map((tile) => {
       const displayName = tile.shortName
         ? tileShortName(tile.index, tile.shortName)
         : tileName(tile.index, tile.name);

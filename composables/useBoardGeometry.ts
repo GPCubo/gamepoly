@@ -1,8 +1,9 @@
 export const Y_SUELO = 0.82;
 
-import { BOARD_TILES } from "~/config/boardTilesConfig";
+
 import { GAME_CONFIG } from "~/config/gameConfig";
-import type { BoardTile, TileGroup } from "~/config/boardTilesConfig";
+import type { BoardTile, TileGroup } from "~/types/board";
+import { useBoardStore } from "~/stores/boardStore";
 
 export type PropertyColorGroup = Extract<
   TileGroup,
@@ -37,6 +38,7 @@ export interface BoardBuildSlot {
 
 export function useBoardGeometry() {
   const ySuelo = Y_SUELO;
+  const boardStore = useBoardStore();
 
   const getCasillaCoordinates = (casillaIndex: number) => {
     const indexNormalizado = ((casillaIndex % 40) + 40) % 40;
@@ -157,17 +159,20 @@ export function useBoardGeometry() {
 
   const getPropertyTilesByGroup = (
     group: PropertyColorGroup,
-    tiles: BoardTile[] = BOARD_TILES,
-  ): BoardTile[] =>
-    tiles
+    tiles?: BoardTile[],
+  ): BoardTile[] => {
+    const _tiles = tiles ?? boardStore.tiles;
+    return _tiles
       .filter((tile) => tile.type === "property" && tile.group === group)
       .sort((a, b) => a.index - b.index);
+  };
 
   const getPropertyGroupBuildArea = (
     group: PropertyColorGroup,
-    tiles: BoardTile[] = BOARD_TILES,
+    tiles?: BoardTile[],
   ): BoardBuildArea | null => {
-    const groupTiles = getPropertyTilesByGroup(group, tiles);
+    const _tiles = tiles ?? boardStore.tiles;
+    const groupTiles = getPropertyTilesByGroup(group, _tiles);
     if (groupTiles.length === 0) return null;
 
     const first = groupTiles[0].index;
@@ -211,12 +216,13 @@ export function useBoardGeometry() {
   const getPropertyGroupBuildSlots = (
     group: PropertyColorGroup,
     slotCount: number,
-    tiles: BoardTile[] = BOARD_TILES,
+    tiles?: BoardTile[],
   ): BoardBuildSlot[] => {
-    const area = getPropertyGroupBuildArea(group, tiles);
+    const _tiles = tiles ?? boardStore.tiles;
+    const area = getPropertyGroupBuildArea(group, _tiles);
     if (!area || slotCount <= 0) return [];
 
-    const groupTiles = getPropertyTilesByGroup(group, tiles);
+    const groupTiles = getPropertyTilesByGroup(group, _tiles);
     const side = getTileSide(groupTiles[0].index);
     const slotSpacing = area.width / slotCount;
     const start = -area.width / 2 + slotSpacing / 2;
@@ -243,9 +249,10 @@ export function useBoardGeometry() {
 
   const getPropertyBuildSlot = (
     tileIndex: number,
-    tiles: BoardTile[] = BOARD_TILES,
+    tiles?: BoardTile[],
   ): BoardBuildSlot | null => {
-    const tile = tiles.find((candidate) => candidate.index === tileIndex);
+    const _tiles = tiles ?? boardStore.tiles;
+    const tile = _tiles.find((candidate) => candidate.index === tileIndex);
     if (!tile || tile.type !== "property" || !isPropertyColorGroup(tile.group))
       return null;
 
@@ -287,9 +294,10 @@ export function useBoardGeometry() {
   const getPropertyBuildingSlots = (
     tileIndex: number,
     slotCount: number,
-    tiles: BoardTile[] = BOARD_TILES,
+    tiles?: BoardTile[],
   ): BoardBuildSlot[] => {
-    const baseSlot = getPropertyBuildSlot(tileIndex, tiles);
+    const _tiles = tiles ?? boardStore.tiles;
+    const baseSlot = getPropertyBuildSlot(tileIndex, _tiles);
     if (!baseSlot || slotCount <= 0) return [];
 
     const side = getTileSide(tileIndex);

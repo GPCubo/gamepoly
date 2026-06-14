@@ -206,8 +206,8 @@ import {
   type BotExchangeResult,
 } from "~/composables/useBotTurn";
 import { GAME_CONFIG } from "~/config/gameConfig";
-import { BOARD_TILES } from "~/config/boardTilesConfig";
-import type { BoardTile } from "~/config/boardTilesConfig";
+import { useBoardStore } from "~/stores/boardStore";
+import type { BoardTile } from "~/types/board";
 import {
   BOARD_HOUSE_ASSET_GROUPS,
   BOARD_HOUSE_ASSET_DEFINITIONS,
@@ -267,7 +267,7 @@ const botTurn = useBotTurn(isTurnCompleteRef, isAnyMovingRef, {
   onBotExchangeProposed: waitForBotExchangeResponse,
 });
 const currentTile = computed(
-  () => BOARD_TILES[(store.casillaActual - 1 + 40) % 40],
+  () => useBoardStore().tiles[(store.casillaActual - 1 + 40) % 40],
 );
 
 const TAX_AMOUNTS: Record<number, number> = { 4: 200, 38: 100 };
@@ -616,7 +616,7 @@ const tileLabels = useTileLabels();
 function getConfiguredBoardHousePlacements(): BoardHouseAssetPlacement[] {
   if (runtimeConfig.public.hideAllHouses) return [];
   if (runtimeConfig.public.showAllHouses) {
-    return getAllPropertyHousePlacements(BOARD_TILES);
+    return getAllPropertyHousePlacements(useBoardStore().tiles);
   }
   return getPropertyDevelopmentPlacements(store.propertyDevelopments);
 }
@@ -720,7 +720,7 @@ function rebuildBoardHouseInstances() {
   >();
 
   placements.forEach((placement, idx) => {
-    const group = getBoardHouseAssetGroup(placement.tileIndex, BOARD_TILES);
+    const group = getBoardHouseAssetGroup(placement.tileIndex, useBoardStore().tiles);
     const modelKey = getBoardHouseAssetKey(placement.type, group);
     const source = models.get(modelKey) ?? models.get(placement.type);
     if (!source) return;

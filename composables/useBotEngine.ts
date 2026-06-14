@@ -1,5 +1,6 @@
 import { useGameStore, type BotDifficulty, type ExchangeProposal } from "~/stores/gameStore";
-import { BOARD_TILES, type BoardTile, type TileGroup } from "~/config/boardTilesConfig";
+import { useBoardStore } from "~/stores/boardStore";
+import type { BoardTile, TileGroup } from "~/types/board";
 
 type GameStore = ReturnType<typeof useGameStore>;
 type ExchangeSide = "incoming" | "outgoing";
@@ -32,7 +33,7 @@ const DICE_TOTAL_WEIGHTS: Record<number, number> = {
 };
 
 function getPropertyGroupTiles(group: TileGroup): BoardTile[] {
-  return BOARD_TILES.filter(
+  return useBoardStore().tiles.filter(
     (tile) => tile.type === "property" && tile.group === group,
   );
 }
@@ -74,7 +75,7 @@ function ownsFullGroup(playerId: number, group: TileGroup, state: GameStore): bo
 }
 
 function getPlayerProperties(playerId: number, state: GameStore): BoardTile[] {
-  return BOARD_TILES.filter((t) => state.propertyOwners[t.index] === playerId && t.price !== undefined);
+  return useBoardStore().tiles.filter((t) => state.propertyOwners[t.index] === playerId && t.price !== undefined);
 }
 
 function getPropertyCount(playerId: number, state: GameStore): number {
@@ -86,13 +87,13 @@ function isOwnableTile(tile: BoardTile): boolean {
 }
 
 function getTile(tileIndex: number): BoardTile | undefined {
-  return BOARD_TILES.find((tile) => tile.index === tileIndex);
+  return useBoardStore().tiles.find((tile) => tile.index === tileIndex);
 }
 
 function getOwnableGroupTiles(tile: BoardTile): BoardTile[] {
   if (tile.type === "property") return getPropertyGroupTiles(tile.group);
-  if (tile.type === "railroad") return BOARD_TILES.filter((candidate) => candidate.type === "railroad");
-  if (tile.type === "utility") return BOARD_TILES.filter((candidate) => candidate.type === "utility");
+  if (tile.type === "railroad") return useBoardStore().tiles.filter((candidate) => candidate.type === "railroad");
+  if (tile.type === "utility") return useBoardStore().tiles.filter((candidate) => candidate.type === "utility");
   return [];
 }
 
@@ -447,7 +448,7 @@ function difficultJailDecision(playerCash: number, state: GameStore): JailDecisi
   const ownsMonopoly = getPlayerProperties(player.id, state).some(
     (tile) => tile.type === "property" && ownsFullGroup(player.id, tile.group, state),
   );
-  const unownedOwnableCount = BOARD_TILES.filter(
+  const unownedOwnableCount = useBoardStore().tiles.filter(
     (tile) => isOwnableTile(tile) && state.propertyOwners[tile.index] === undefined,
   ).length;
   const gameStillHasGoodTargets = unownedOwnableCount >= 6;

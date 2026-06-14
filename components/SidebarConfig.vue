@@ -203,7 +203,8 @@
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Ref } from "vue";
-import { BOARD_TILES, type BoardTile, type TileGroup } from "~/config/boardTilesConfig";
+import { useBoardStore } from "~/stores/boardStore";
+import type { BoardTile, TileGroup } from "~/types/board";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
 import { useGameStore, type PropertyDevelopmentState } from "~/stores/gameStore";
 import { useI18n } from "~/composables/useI18n";
@@ -270,7 +271,7 @@ const managementDisabled = computed(
 );
 
 const activeOwnedTiles = computed(() =>
-  BOARD_TILES.filter(
+  useBoardStore().tiles.filter(
     (tile) => isOwnableTile(tile) && store.propertyOwners[tile.index] === activePlayerId.value,
   ),
 );

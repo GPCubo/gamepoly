@@ -1,4 +1,4 @@
-import type { BoardTile } from "~/config/boardTilesConfig";
+import type { BoardTile } from "~/types/board";
 
 export type BoardHouseAssetType = "casa" | "hotel";
 export type BoardHouseAssetGroup =

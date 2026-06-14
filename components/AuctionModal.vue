@@ -108,7 +108,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, nextTick, watch, type Ref } from "vue";
 import { GAME_CONFIG } from "~/config/gameConfig";
-import type { BoardTile } from "~/config/boardTilesConfig";
+import type { BoardTile } from "~/types/board";
 import type { PlayerState } from "~/stores/gameStore";
 import { useGameStore } from "~/stores/gameStore";
 import { getBotAuctionBid } from "~/composables/useBotTurn";

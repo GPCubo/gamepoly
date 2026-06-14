@@ -937,11 +937,8 @@ import { useCameraFollow } from "~/composables/useCameraFollow";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
 import { useI18n } from "~/composables/useI18n";
 import { GAME_CONFIG } from "~/config/gameConfig";
-import {
-  BOARD_TILES,
-  type BoardTile,
-  type TileGroup,
-} from "~/config/boardTilesConfig";
+import { useBoardStore } from "~/stores/boardStore";
+import type { BoardTile, TileGroup } from "~/types/board";
 import {
   houseCostForPrice,
   hotelCostForPrice,
@@ -1497,7 +1494,7 @@ function runNextQueuedMovement() {
     if (moveId !== movementSeq) return;
     if (isMyPlayer) {
       const pos = ((payload.to % 40) + 40) % 40;
-      const tile = BOARD_TILES[pos];
+      const tile = useBoardStore().tiles[pos];
       if (
         isOwnableTile(tile) &&
         mpStore.propertyOwners[tile.index] === undefined &&
@@ -1619,7 +1616,7 @@ const myPlayerInitial = computed(() => {
 });
 
 const activeOwnedTiles = computed(() =>
-  BOARD_TILES.filter(
+  useBoardStore().tiles.filter(
     (tile) =>
       isOwnableTile(tile) &&
       mpStore.propertyOwners[tile.index] === mpStore.myPlayerId,
@@ -1679,13 +1676,13 @@ function isOwnableTile(tile: BoardTile) {
 }
 
 function ownableTile(tileIndex: number) {
-  return BOARD_TILES.find(
+  return useBoardStore().tiles.find(
     (tile) => tile.index === tileIndex && isOwnableTile(tile),
   );
 }
 
 function propertyGroupTiles(group: TileGroup) {
-  return BOARD_TILES.filter(
+  return useBoardStore().tiles.filter(
     (tile) => tile.type === "property" && tile.group === group,
   );
 }
@@ -1708,7 +1705,7 @@ function normalizeText(value: string) {
 }
 
 function ownsFullPropertyGroup(tileIndex: number) {
-  const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+  const tile = useBoardStore().tiles.find((candidate) => candidate.index === tileIndex);
   if (!tile || tile.type !== "property") return false;
   const groupTiles = propertyGroupTiles(tile.group);
   return (
@@ -1721,7 +1718,7 @@ function ownsFullPropertyGroup(tileIndex: number) {
 }
 
 function hasMortgagedPropertyInColorGroup(tileIndex: number) {
-  const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+  const tile = useBoardStore().tiles.find((candidate) => candidate.index === tileIndex);
   if (!tile || tile.type !== "property") return false;
   return propertyGroupTiles(tile.group).some(
     (candidate) => developmentFor(candidate.index).mortgaged,
@@ -1729,7 +1726,7 @@ function hasMortgagedPropertyInColorGroup(tileIndex: number) {
 }
 
 function hasImprovementInColorGroup(tileIndex: number) {
-  const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+  const tile = useBoardStore().tiles.find((candidate) => candidate.index === tileIndex);
   if (!tile || tile.type !== "property") return false;
   return propertyGroupTiles(tile.group).some((candidate) => {
     const development = developmentFor(candidate.index);
@@ -1768,7 +1765,7 @@ function canManageTile(tileIndex: number) {
 }
 
 function canBuildHouse(tileIndex: number) {
-  const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+  const tile = useBoardStore().tiles.find((candidate) => candidate.index === tileIndex);
   const player = myPlayer.value;
   if (!tile || tile.type !== "property" || !player || !canManageTile(tileIndex))
     return false;
@@ -1790,7 +1787,7 @@ function canBuildHouse(tileIndex: number) {
 }
 
 function canBuildHotel(tileIndex: number) {
-  const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+  const tile = useBoardStore().tiles.find((candidate) => candidate.index === tileIndex);
   const player = myPlayer.value;
   if (!tile || tile.type !== "property" || !player || !canManageTile(tileIndex))
     return false;
@@ -1808,7 +1805,7 @@ function canBuildHotel(tileIndex: number) {
 }
 
 function canSellImprovement(tileIndex: number) {
-  const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+  const tile = useBoardStore().tiles.find((candidate) => candidate.index === tileIndex);
   if (!tile || tile.type !== "property" || !canManageTile(tileIndex))
     return false;
   const development = developmentFor(tileIndex);
@@ -1982,7 +1979,7 @@ function sellRefund(tileIndex: number) {
 }
 
 function developmentLabel(tileIndex: number) {
-  const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+  const tile = useBoardStore().tiles.find((candidate) => candidate.index === tileIndex);
   const development = developmentFor(tileIndex);
   if (development.mortgaged) return t("tile.mortgaged");
   if (tile?.type === "railroad") return t("tile.active");
@@ -2066,7 +2063,7 @@ function tileLabel(index: number) {
 
 function translatedTileName(index: number) {
   const normalized = ((index % 40) + 40) % 40;
-  const tile = BOARD_TILES[normalized];
+  const tile = useBoardStore().tiles[normalized];
   if (!tile) return "";
   return tile.shortName
     ? tileShortName(normalized, tile.shortName)
@@ -2125,7 +2122,7 @@ const minimapOwnerMarkers = computed(() =>
   Object.entries(mpStore.propertyOwners)
     .map(([tileKey, ownerId]) => {
       const tileIndex = Number(tileKey);
-      const boardTile = BOARD_TILES.find(
+      const boardTile = useBoardStore().tiles.find(
         (candidate) => candidate.index === tileIndex,
       );
       const ownerIndex = mpStore.players.findIndex(
@@ -2179,7 +2176,7 @@ const minimapTiles = computed(() => {
 });
 
 function minimapTileBaseColor(tile: number) {
-  const boardTile = BOARD_TILES.find((candidate) => candidate.index === tile);
+  const boardTile = useBoardStore().tiles.find((candidate) => candidate.index === tile);
   if (boardTile?.type === "property" && boardTile.color) return boardTile.color;
   return "#9ca3af";
 }
@@ -2329,7 +2326,7 @@ function rebuildBoardHouseInstances() {
     { source: Group; indices: number[] }
   >();
   placements.forEach((placement, idx) => {
-    const group = getBoardHouseAssetGroup(placement.tileIndex, BOARD_TILES);
+    const group = getBoardHouseAssetGroup(placement.tileIndex, useBoardStore().tiles);
     const modelKey = getBoardHouseAssetKey(placement.type, group);
     const source = models.get(modelKey) ?? models.get(placement.type);
     if (!source) return;
@@ -2473,12 +2470,12 @@ async function loadBoardAssets() {
 
 const buyTileResolved = computed(
   () =>
-    BOARD_TILES.find((t) => t.index === buyTileIndex.value) ?? BOARD_TILES[0],
+    useBoardStore().tiles.find((t) => t.index === buyTileIndex.value) ?? useBoardStore().tiles[0],
 );
 
 const auctionTileName = computed(() => {
   if (!mpStore.auction) return "";
-  const tile = BOARD_TILES.find((t) => t.index === mpStore.auction!.tileIndex);
+  const tile = useBoardStore().tiles.find((t) => t.index === mpStore.auction!.tileIndex);
   return tile ? translatedTileName(tile.index) : t("exchange.kind.property");
 });
 
@@ -2742,7 +2739,7 @@ watch(
       const p = myPlayer.value;
       if (!p) return;
       const pos = ((p.position % 40) + 40) % 40;
-      const tile = BOARD_TILES.find((t) => t.index === pos);
+      const tile = useBoardStore().tiles.find((t) => t.index === pos);
       if (!tile?.price) return;
       const ownerID = mpStore.propertyOwners[pos];
       if (!ownerID && !mpStore.isAuctionActive) {

@@ -1,18 +1,13 @@
-import { BOARD_TILES } from "~/config/boardTilesConfig";
-
 // ─────────────────────────────────────────────────────────────────────────
 // Modelo economico centralizado (SPEC-004)
 //   Costo de casa/hotel, alquiler escalado, hipoteca y deshipoteca.
-//   El rango de precios se deriva de BOARD_TILES: cambiar los precios en
-//   boardTilesConfig.ts reescala automaticamente todos los costos.
+//   PRICE_MIN/MAX corresponden al tablero canónico español (60-400).
+//   Si se agregan tableros con rangos distintos, revisar estos valores.
 // ─────────────────────────────────────────────────────────────────────────
 
-const PROPERTY_PRICES = BOARD_TILES.filter(
-  (tile) => tile.type === "property" && typeof tile.price === "number",
-).map((tile) => tile.price as number);
-
-export const PRICE_MIN = PROPERTY_PRICES.length ? Math.min(...PROPERTY_PRICES) : 0;
-export const PRICE_MAX = PROPERTY_PRICES.length ? Math.max(...PROPERTY_PRICES) : 0;
+// Price range of the canonical Spanish board (Ronda de Arrieta 60 → Paseo del Arte 400).
+export const PRICE_MIN = 60;
+export const PRICE_MAX = 400;
 
 // Rango de costo de construir una casa.
 export const HOUSE_COST_MIN = 50;
