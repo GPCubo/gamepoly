@@ -227,6 +227,7 @@ import AuctionModal from "~/components/AuctionModal.vue";
 import WinnerOverlay from "~/components/WinnerOverlay.vue";
 import CardOverlay from "~/components/CardOverlay.vue";
 import ExchangeModal from "~/components/ExchangeModal.vue";
+import { useI18n } from "~/composables/useI18n";
 import {
   Group as ThreeGroup,
   InstancedMesh,
@@ -241,6 +242,7 @@ import type { ExchangeProposalShape } from "~/components/ExchangeModal.vue";
 
 const store = useGameStore();
 const runtimeConfig = useRuntimeConfig();
+const { t } = useI18n();
 
 if (store.players.length === 0) {
   navigateTo("/");
@@ -422,9 +424,7 @@ watch(
         if (rent > 0) {
           store.collectRent(activeId, ownerId, rent);
         } else {
-          store.setStatusMessage(
-            `${tile.name} está hipotecada: no se paga alquiler`,
-          );
+          store.setStatusMessage(t("tile.mortgagedNoRent"));
         }
       }
     }
@@ -924,7 +924,7 @@ function onRenderTick({ delta }: { delta: number }) {
 onMounted(async () => {
   try {
     const loader = new GLTFLoader();
-    store.setStatusMessage("Descargando mallas 3D...");
+    store.setStatusMessage(t("game.status.loadingAssets"));
 
     const tokenModels = store.players.map((p) => p.tokenModel);
     const loadResults = await Promise.all(
@@ -948,14 +948,14 @@ onMounted(async () => {
       displayPositions[i].z = coords.z;
     }
 
-    store.setStatusMessage("¡Todo listo!");
+    store.setStatusMessage(t("game.status.ready"));
     nextTick(() => {
       if (store.isCurrentPlayerBot && store.phase === "playing") {
         botTurn.startBotTurn();
       }
     });
   } catch (error) {
-    store.setStatusMessage("Error al cargar assets.");
+    store.setStatusMessage(t("game.status.assetsError"));
     console.error(error);
   }
 });
@@ -1029,7 +1029,10 @@ function onNextTurn() {
   const activePlayer = store.activePlayer;
   if (activePlayer && activePlayer.cash < 0) {
     store.setStatusMessage(
-      `${activePlayer.name} debe $${Math.abs(activePlayer.cash)}. Hipoteca o vende mejoras antes de continuar`,
+      t("game.status.debt", {
+        player: activePlayer.name,
+        amount: Math.abs(activePlayer.cash),
+      }),
     );
     return;
   }

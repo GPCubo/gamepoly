@@ -9,8 +9,8 @@
       >
         <span class="material-symbols-outlined">{{ historyIcon(item.type) }}</span>
         <div>
-          <strong>{{ item.title }}</strong>
-          <p>{{ item.detail }}</p>
+          <strong>{{ historyTitle(item) }}</strong>
+          <p>{{ historyDetail(item) }}</p>
         </div>
         <span v-if="item.amount !== undefined" class="history-amount">
           ${{ item.amount.toLocaleString() }}
@@ -21,7 +21,7 @@
 
   <div class="players-hud">
     <div class="players-hud-title">
-      <span>Jugadores</span>
+      <span>{{ t("common.players") }}</span>
       <strong>{{ store.players.length }}</strong>
     </div>
 
@@ -40,10 +40,10 @@
         <span class="hud-name">
           {{ p.name }}
           <span v-if="p.isBot" class="hud-bot-badge" :class="p.botDifficulty === 'difficult' ? 'bot-hard' : 'bot-regular'">
-            {{ p.botDifficulty === 'difficult' ? 'Difícil' : 'Regular' }}
+            {{ p.botDifficulty === 'difficult' ? t("common.difficult") : t("common.regular") }}
           </span>
         </span>
-        <span class="hud-position">Casilla {{ playerTileNumber(p) }}/40</span>
+        <span class="hud-position">{{ t("common.tile") }} {{ playerTileNumber(p) }}/40</span>
       </div>
       <span v-if="p.inJail" class="hud-jail-badge material-symbols-outlined"
         >lock</span
@@ -61,13 +61,13 @@
     @click="minimapOpen = !minimapOpen"
   >
     <span class="material-symbols-outlined">map</span>
-    <span>Mapa</span>
+    <span>{{ t("common.map") }}</span>
   </button>
 
   <div class="minimap-wrapper" :class="{ 'minimap-open': minimapOpen }">
     <div class="board-minimap">
       <div class="minimap-header">
-        <span>Mapa</span>
+        <span>{{ t("common.map") }}</span>
         <strong>{{
           store.activePlayer ? playerTileNumber(store.activePlayer) : 0
         }}</strong>
@@ -75,9 +75,9 @@
       <div class="minimap-board" aria-hidden="true">
         <div class="minimap-center">
           <div class="minimap-legend">
-            <span><i class="legend-swatch legend-house"></i> Casas</span>
+            <span><i class="legend-swatch legend-house"></i> {{ t("tile.house") }}</span>
             <span><i class="legend-swatch legend-hotel"></i> Hotel</span>
-            <span><i class="legend-swatch legend-mortgage"></i> Hipoteca</span>
+            <span><i class="legend-swatch legend-mortgage"></i> {{ t("tile.mortgage") }}</span>
           </div>
         </div>
         <span
@@ -124,7 +124,7 @@
     </div>
     <button class="history-trigger-btn" @click="showHistoryDialog = true">
       <span class="material-symbols-outlined">history</span>
-      Ver Histórico
+      {{ t("common.history") }}
     </button>
 
     <div
@@ -133,8 +133,8 @@
       :class="{ sliding: isSliding }"
     >
       <div class="dado-titulo">
-        Total: {{ store.diceTotal }} | Casilla: {{ currentPosition }}/40
-        <span v-if="store.isDoubles" class="doubles-text"> DOBLES </span>
+        {{ t("common.total") }}: {{ store.diceTotal }} | {{ t("common.tile") }}: {{ currentPosition }}/40
+        <span v-if="store.isDoubles" class="doubles-text"> {{ t("common.doubles").toUpperCase() }} </span>
       </div>
       <div class="dados-row">
         <div
@@ -158,7 +158,7 @@
       <div class="status-player">
         <span class="status-token">{{ activeTokenMeta.icon }}</span>
         <div>
-          <span class="status-kicker">Turno actual</span>
+          <span class="status-kicker">{{ t("common.currentTurn") }}</span>
           <strong>{{ activePlayerName }}</strong>
         </div>
       </div>
@@ -166,22 +166,22 @@
       <div class="status-details">
         <span class="status-chip">
           <span class="material-symbols-outlined">location_on</span>
-          Casilla {{ currentPosition }}/40
+          {{ t("common.tile") }} {{ currentPosition }}/40
         </span>
         <span class="status-chip">
           <span class="material-symbols-outlined">casino</span>
           {{ activeTokenMeta.name }}
         </span>
-        <span v-if="store.isDoubles" class="doubles-badge">DOBLES</span>
+        <span v-if="store.isDoubles" class="doubles-badge">{{ t("common.doubles").toUpperCase() }}</span>
       </div>
 
-      <p>{{ store.statusMessage }}</p>
+      <p>{{ td(store.statusMessage) }}</p>
     </div>
 
     <div class="action-buttons">
       <div v-if="store.isBotThinking" class="bot-thinking-indicator">
         <span class="material-symbols-outlined bot-thinking-icon">smart_toy</span>
-        <span>{{ store.botActionMessage || 'Bot pensando...' }}</span>
+        <span>{{ store.botActionMessage ? td(store.botActionMessage) : t("game.botThinking") }}</span>
       </div>
       <template v-else>
       <button
@@ -193,7 +193,7 @@
         class="action-btn bail-btn"
       >
         <span class="material-symbols-outlined">lock_open</span>
-        <span>Pagar fianza (${{ store.jailBailCost }})</span>
+        <span>{{ t("game.action.payBail") }} (${{ store.jailBailCost }})</span>
       </button>
 
       <button
@@ -204,7 +204,7 @@
         class="action-btn skip-btn"
       >
         <span class="material-symbols-outlined">skip_next</span>
-        <span>Saltar</span>
+        <span>{{ t("game.action.skip") }}</span>
       </button>
 
       <button
@@ -229,7 +229,7 @@
         :class="{ 'config-active': sidebarOpen }"
       >
         <span class="material-symbols-outlined">settings</span>
-        <span>Configuracion</span>
+        <span>{{ t("common.configure") }}</span>
       </button>
       </template>
     </div>
@@ -252,8 +252,8 @@
       <div class="history-dialog">
         <div class="history-dialog-header">
           <div>
-            <span class="history-dialog-kicker">Eventos</span>
-            <span class="history-dialog-title">Histórico económico</span>
+            <span class="history-dialog-kicker">{{ t("common.events") }}</span>
+            <span class="history-dialog-title">{{ t("history.economic") }}</span>
           </div>
           <div class="history-dialog-meta">
             <span class="history-dialog-count">{{ store.economicHistory.length }}</span>
@@ -264,7 +264,7 @@
         </div>
 
         <p v-if="store.economicHistory.length === 0" class="history-dialog-empty">
-          Sin transacciones registradas
+          {{ t("history.empty") }}
         </p>
 
         <div v-else class="history-dialog-list">
@@ -275,8 +275,8 @@
           >
             <span class="history-dialog-item-icon material-symbols-outlined">{{ historyIcon(item.type) }}</span>
             <div class="history-dialog-item-copy">
-              <strong>{{ item.title }}</strong>
-              <span>{{ item.detail }}</span>
+              <strong>{{ td(item.title) }}</strong>
+              <span>{{ td(item.detail) }}</span>
             </div>
             <span v-if="item.amount !== undefined" class="history-dialog-item-amount">
               ${{ item.amount.toLocaleString() }}
@@ -295,9 +295,21 @@ import { BOARD_TILES } from "~/config/boardTilesConfig";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
 import SidebarConfig from "~/components/SidebarConfig.vue";
 import { useGameStore, type EconomicHistoryItem, type EconomicHistoryType, type PlayerState } from "~/stores/gameStore";
+import { useI18n } from "~/composables/useI18n";
 
 const store = useGameStore();
+const { t, tMaybe, td } = useI18n();
 const visibleHistorySnackbars = ref<EconomicHistoryItem[]>([]);
+
+function historyTitle(item: EconomicHistoryItem): string {
+  if (item.titleKey) return tMaybe(item.titleKey, item.params);
+  return td(item.title);
+}
+
+function historyDetail(item: EconomicHistoryItem): string {
+  if (item.detailKey) return tMaybe(item.detailKey, item.params);
+  return td(item.detail);
+}
 
 const props = defineProps<{
   currentPosition: number;
@@ -347,16 +359,19 @@ useKeyboardNavigation(actionRefs, {
 
 const activeTokenMeta = computed(() => {
   const player = store.activePlayer;
+  const token = GAME_CONFIG.TOKEN_MODELS.find((t) => t.file === player?.tokenModel);
   return (
-    GAME_CONFIG.TOKEN_MODELS.find((t) => t.file === player?.tokenModel) ?? {
+    token
+      ? { ...token, name: tMaybe(`token.${token.file}`) }
+      : {
       icon: "?",
-      name: "Ficha",
+      name: t("setup.field.token"),
     }
   );
 });
 
 const activePlayerName = computed(
-  () => store.activePlayer?.name ?? "Sin jugador",
+  () => store.activePlayer?.name ?? t("common.player"),
 );
 
 function tokenIcon(file: string) {
@@ -644,12 +659,12 @@ const isTurnDone = computed(() => store.isTurnComplete);
 const activePlayerInDebt = computed(() => activePlayerCash.value < 0);
 
 const primaryBtnLabel = computed(() => {
-  if (isTurnDone.value && activePlayerInDebt.value) return "Resolver deuda";
-  if (isTurnDone.value) return "Siguiente";
-  if (activePlayerInJail.value) return "Tirar por dobles";
-  if (store.isDiceRolling) return "Rodando...";
-  if (props.isMoving) return "Moviendo...";
-  return "Tirar Dados";
+  if (isTurnDone.value && activePlayerInDebt.value) return t("game.action.resolveDebt");
+  if (isTurnDone.value) return t("common.next");
+  if (activePlayerInJail.value) return t("game.action.rollDoubles");
+  if (store.isDiceRolling) return t("game.action.rolling");
+  if (props.isMoving) return t("game.action.moving");
+  return t("game.action.rollDice");
 });
 
 const primaryBtnIcon = computed(() => {

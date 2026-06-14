@@ -7,12 +7,12 @@
         </button>
 
         <div class="card-band">
-          <span class="band-label">{{ cardGroup === "chance" ? "SUERTE" : "ARCA COMUNAL" }}</span>
+          <span class="band-label">{{ cardGroup === "chance" ? t("tile.7.name").toUpperCase() : t("tile.2.name").toUpperCase() }}</span>
           <span class="band-emoji">{{ cardGroup === "chance" ? "🃏" : "📦" }}</span>
         </div>
 
         <div class="card-body">
-          <p class="card-text">{{ card.text }}</p>
+          <p class="card-text">{{ translatedCardText }}</p>
           <div class="card-effect">
             <span class="material-symbols-outlined effect-icon">{{ effectIcon }}</span>
             <span class="effect-text">{{ effectDescription }}</span>
@@ -25,7 +25,7 @@
             @click="resolveCard"
           >
             <span class="material-symbols-outlined">check</span>
-            {{ closeDisabled ? "Aplicando..." : "Aceptar" }}
+            {{ closeDisabled ? t("game.action.moving") : t("common.accept") }}
           </button>
         </div>
       </div>
@@ -36,6 +36,7 @@
 <script setup lang="ts">
 import { computed, ref, onMounted, onUnmounted, nextTick } from "vue";
 import type { GameCard } from "~/config/boardTilesConfig";
+import { useI18n } from "~/composables/useI18n";
 
 const props = defineProps<{
   card: GameCard;
@@ -48,6 +49,7 @@ const emit = defineEmits<{
 }>();
 
 const acceptBtnRef = ref<HTMLElement | null>(null);
+const { t, cardText, tileName } = useI18n();
 
 function resolveCard() {
   if (props.closeDisabled) return;
@@ -71,6 +73,18 @@ onUnmounted(() => {
 });
 
 const cardGroup = computed(() => props.card.group);
+const translatedCardText = computed(() =>
+  cardText(
+    props.card.id,
+    {
+      tileName:
+        props.card.tileIndex !== undefined
+          ? tileName(props.card.tileIndex)
+          : "",
+    },
+    props.card.text,
+  ),
+);
 
 const effectIcon = computed(() => {
   switch (props.card.action) {
@@ -87,17 +101,17 @@ const effectIcon = computed(() => {
 const effectDescription = computed(() => {
   switch (props.card.action) {
     case "moveTo":
-      return `Mover a casilla ${props.card.tileIndex ?? 0}`;
+      return `${t("game.action.moving")} ${props.card.tileIndex !== undefined ? tileName(props.card.tileIndex) : ""}`;
     case "moveSteps":
-      return `${(props.card.amount ?? 0) > 0 ? "Avanzar" : "Retroceder"} ${Math.abs(props.card.amount ?? 0)} casillas`;
+      return `${(props.card.amount ?? 0) > 0 ? t("game.action.moving") : t("card.ch06.text")} ${Math.abs(props.card.amount ?? 0)}`;
     case "collect":
       return `+ $${props.card.amount ?? 0}`;
     case "pay":
       return `- $${props.card.amount ?? 0}`;
     case "payEach":
-      return `- $${props.card.amount ?? 0} por jugador`;
+      return `- $${props.card.amount ?? 0} / ${t("common.player")}`;
     case "goToJail":
-      return "Ir a la cárcel";
+      return t("tile.30.name");
     default:
       return "";
   }

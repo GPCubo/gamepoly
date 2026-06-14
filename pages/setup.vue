@@ -9,8 +9,8 @@
     <div class="page-body">
       <div class="setup-card">
         <div class="card-header">
-          <h1 class="main-title">Configuración de Partida</h1>
-          <p class="subtitle">Ajusta los parámetros de tu próxima sesión.</p>
+          <h1 class="main-title">{{ t("setup.title") }}</h1>
+          <p class="subtitle">{{ t("setup.subtitle") }}</p>
         </div>
 
         <!-- Game Mode Tabs -->
@@ -21,7 +21,7 @@
             @click="selectMode('bots')"
           >
             <span class="material-symbols-outlined">smart_toy</span>
-            Bots
+            {{ t("setup.mode.bots") }}
           </button>
           <button
             class="mode-tab"
@@ -29,7 +29,7 @@
             @click="selectMode('familiar')"
           >
             <span class="material-symbols-outlined">groups</span>
-            Familiar
+            {{ t("setup.mode.family") }}
           </button>
           <button
             class="mode-tab"
@@ -37,13 +37,12 @@
             @click="selectMode('multiplayer')"
           >
             <span class="material-symbols-outlined">wifi</span>
-            Multijugador
+            {{ t("setup.mode.multiplayer") }}
           </button>
         </div>
         <div v-if="activeMode === 'multiplayer'" class="mp-panel">
           <p class="mp-desc">
-            La configuración completa se hace en el lobby. Crea una nueva mesa o
-            únete con un código compartido.
+            {{ t("setup.multiplayer.description") }}
           </p>
           <div class="mp-actions">
             <button
@@ -51,20 +50,20 @@
               @click="navigateTo('/multiplayer/lobby?mode=create')"
             >
               <span class="material-symbols-outlined">add_circle</span>
-              Crear mesa
+              {{ t("setup.multiplayer.create") }}
             </button>
             <button
               class="mp-btn mp-join"
               @click="navigateTo('/multiplayer/lobby?mode=join')"
             >
               <span class="material-symbols-outlined">login</span>
-              Unirse a mesa
+              {{ t("setup.multiplayer.join") }}
             </button>
           </div>
         </div>
 
         <div v-if="activeMode !== 'multiplayer'" class="section-block">
-          <span class="section-label">NÚMERO DE JUGADORES</span>
+          <span class="section-label">{{ t("setup.players.count") }}</span>
           <div class="player-count-bar">
             <button
               v-for="n in GAME_CONFIG.MAX_PLAYERS"
@@ -82,12 +81,12 @@
         <!-- Swipeable Player Cards -->
         <div v-if="activeMode !== 'multiplayer'" class="section-block">
           <div class="section-header">
-            <span class="section-label">PARTICIPANTES</span>
+            <span class="section-label">{{ t("setup.players.participants") }}</span>
             <span class="section-hint"
               >{{ playerPage + 1 }}–{{
                 Math.min(playerPage + 2, selectedCount)
               }}
-              de {{ selectedCount }}</span
+              {{ t("setup.players.of") }} {{ selectedCount }}</span
             >
           </div>
           <div class="carousel-wrapper">
@@ -109,7 +108,7 @@
                 >
                   <div class="player-card-top">
                     <div class="player-num-badge">{{ idx }}</div>
-                    <div class="player-card-title">Jugador {{ idx }}</div>
+                    <div class="player-card-title">{{ playerLabel(idx) }}</div>
                     <span class="material-symbols-outlined player-icon">{{
                       playerTypes[idx - 1] === "human" ? "person" : "smart_toy"
                     }}</span>
@@ -117,16 +116,16 @@
                   <div class="player-card-fields">
                     <!-- Bot type selector (Bots mode only) -->
                     <div v-if="activeMode === 'bots'" class="field-group">
-                      <label class="field-label">TIPO</label>
+                      <label class="field-label">{{ t("setup.field.type") }}</label>
                       <div class="select-wrapper">
                         <select
                           v-model="playerTypes[idx - 1]"
                           class="field-input field-select"
                           @change="onPlayerTypeChange"
                         >
-                          <option value="human">Humano</option>
-                          <option value="regular">Bot Regular</option>
-                          <option value="difficult">Bot Difícil</option>
+                          <option value="human">{{ t("common.human") }}</option>
+                          <option value="regular">{{ botName("regular", idx) }}</option>
+                          <option value="difficult">{{ botName("difficult", idx) }}</option>
                         </select>
                         <span class="material-symbols-outlined select-arrow"
                           >expand_more</span
@@ -134,7 +133,7 @@
                       </div>
                     </div>
                     <div class="field-group">
-                      <label class="field-label">NOMBRE</label>
+                      <label class="field-label">{{ t("setup.field.name") }}</label>
                       <input
                         v-model="playerNames[idx - 1]"
                         class="field-input"
@@ -142,9 +141,9 @@
                           playerTypes[idx - 1] !== 'human' &&
                           activeMode === 'bots'
                             ? playerTypes[idx - 1] === 'difficult'
-                              ? 'Bot Difícil ' + idx
-                              : 'Bot Regular ' + idx
-                            : 'Jugador ' + idx
+                              ? botName('difficult', idx)
+                              : botName('regular', idx)
+                            : playerLabel(idx)
                         "
                         :disabled="
                           activeMode === 'bots' &&
@@ -154,19 +153,19 @@
                       />
                     </div>
                     <div class="field-group">
-                      <label class="field-label">FICHA</label>
+                      <label class="field-label">{{ t("setup.field.token") }}</label>
                       <div class="select-wrapper">
                         <select
                           v-model="playerTokens[idx - 1]"
                           class="field-input field-select"
                         >
-                          <option value="" disabled>Elegir ficha</option>
+                          <option value="" disabled>{{ t("setup.token.choose") }}</option>
                           <option
                             v-for="token in availableTokens(idx - 1)"
                             :key="token.file"
                             :value="token.file"
                           >
-                            {{ token.icon }} {{ token.name }}
+                            {{ token.icon }} {{ tokenLabel(token.file) }}
                           </option>
                         </select>
                         <span class="material-symbols-outlined select-arrow"
@@ -207,9 +206,9 @@
         <div v-if="activeMode !== 'multiplayer'" class="action-row">
           <button class="settings-btn" @click="showSettings = true">
             <span class="material-symbols-outlined">tune</span>
-            Reglas
+            {{ t("common.rules") }}
           </button>
-          <button class="reset-btn" @click="resetForm">RESTABLECER</button>
+          <button class="reset-btn" @click="resetForm">{{ t("setup.actions.reset") }}</button>
           <button
             ref="startBtnRef"
             class="start-btn"
@@ -217,7 +216,7 @@
             @click="startGame"
           >
             <span class="material-symbols-outlined start-icon">play_arrow</span>
-            INICIAR
+            {{ t("setup.actions.start") }}
           </button>
         </div>
       </div>
@@ -233,7 +232,7 @@
         >
           <div class="modal-card">
             <div class="modal-header">
-              <h2 class="modal-title">Reglas Avanzadas</h2>
+              <h2 class="modal-title">{{ t("setup.rules.advanced") }}</h2>
               <button class="modal-close" @click="showSettings = false">
                 <span class="material-symbols-outlined">close</span>
               </button>
@@ -246,7 +245,7 @@
                   <div class="setting-icon-wrap setting-icon-primary">
                     <span class="material-symbols-outlined">payments</span>
                   </div>
-                  <span class="setting-title">Dinero inicial</span>
+                  <span class="setting-title">{{ t("setup.rules.startingCash") }}</span>
                   <span class="setting-value"
                     >${{ startingCash.toLocaleString() }}</span
                   >
@@ -271,7 +270,7 @@
                   <div class="setting-icon-wrap setting-icon-secondary">
                     <span class="material-symbols-outlined">stadium</span>
                   </div>
-                  <span class="setting-title">Salario (Salida)</span>
+                  <span class="setting-title">{{ t("setup.rules.goSalary") }}</span>
                   <div class="salary-input-wrap">
                     <span class="salary-prefix">$</span>
                     <input
@@ -288,9 +287,9 @@
               <!-- Toggle: Skip Buy -->
               <div class="setting-toggle-card">
                 <div class="toggle-info">
-                  <span class="toggle-title">Permitir omitir compra</span>
+                  <span class="toggle-title">{{ t("setup.rules.skipBuy") }}</span>
                   <span class="toggle-desc"
-                    >Los jugadores pueden declinar comprar propiedades</span
+                    >{{ t("setup.rules.skipBuyDesc") }}</span
                   >
                 </div>
                 <label class="toggle-label">
@@ -308,9 +307,9 @@
               <!-- Toggle: Auction Only -->
               <div class="setting-toggle-card">
                 <div class="toggle-info">
-                  <span class="toggle-title">Solo Subastas</span>
+                  <span class="toggle-title">{{ t("setup.rules.auctionOnly") }}</span>
                   <span class="toggle-desc"
-                    >Las propiedades libres solo pueden entrar en subasta</span
+                    >{{ t("setup.rules.auctionOnlyDesc") }}</span
                   >
                 </div>
                 <label class="toggle-label">
@@ -328,10 +327,9 @@
               <!-- Toggle: Doubles Extra Turn -->
               <div class="setting-toggle-card">
                 <div class="toggle-info">
-                  <span class="toggle-title">Dobles dan turno extra</span>
+                  <span class="toggle-title">{{ t("setup.rules.doublesExtra") }}</span>
                   <span class="toggle-desc"
-                    >Sacar dobles permite tirar de nuevo; 3 dobles seguidos van
-                    a la cárcel</span
+                    >{{ t("setup.rules.doublesExtraDesc") }}</span
                   >
                 </div>
                 <label class="toggle-label">
@@ -348,7 +346,7 @@
             </div>
 
             <button class="modal-done-btn" @click="showSettings = false">
-              LISTO
+              {{ t("common.done") }}
             </button>
           </div>
         </div>
@@ -362,10 +360,12 @@ import { ref, computed, onMounted, onUnmounted, nextTick, watch } from "vue";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import { applyLocalScenarioSeeds } from "~/config/localScenarioSeeds";
 import { useGameStore, type BotDifficulty } from "~/stores/gameStore";
+import { useI18n } from "~/composables/useI18n";
 
 type GameMode = "familiar" | "bots" | "multiplayer";
 
 const store = useGameStore();
+const { t, tMaybe } = useI18n();
 store.phase = "setup";
 store.players = [];
 store.activePlayerIndex = 0;
@@ -409,15 +409,16 @@ watch(
     for (let i = 0; i < GAME_CONFIG.MAX_PLAYERS; i++) {
       const type = newTypes[i];
       if (type === "regular") {
-        playerNames.value[i] = `Bot Regular ${i + 1}`;
+        playerNames.value[i] = botName("regular", i + 1);
       } else if (type === "difficult") {
-        playerNames.value[i] = `Bot Difícil ${i + 1}`;
+        playerNames.value[i] = botName("difficult", i + 1);
       } else if (
         type === "human" &&
         (playerNames.value[i].startsWith("Bot Regular") ||
-          playerNames.value[i].startsWith("Bot Difícil"))
+          playerNames.value[i].startsWith("Bot Difícil") ||
+          playerNames.value[i].startsWith("Bot Hard"))
       ) {
-        playerNames.value[i] = `Jugador ${i + 1}`;
+        playerNames.value[i] = playerLabel(i + 1);
       }
     }
   },
@@ -540,11 +541,11 @@ function startGame() {
   const salary = Math.floor(goSalary.value);
 
   if (!Number.isFinite(cash) || cash < 100) {
-    errorMsg.value = "El dinero inicial debe ser al menos $100.";
+    errorMsg.value = t("setup.error.cash");
     return;
   }
   if (!Number.isFinite(salary) || salary < 0) {
-    errorMsg.value = "El salario de salida no puede ser negativo.";
+    errorMsg.value = t("setup.error.salary");
     return;
   }
 
@@ -556,21 +557,21 @@ function startGame() {
     const isBot = type !== "human";
     const defaultName = isBot
       ? type === "difficult"
-        ? `Bot Difícil ${i + 1}`
-        : `Bot Regular ${i + 1}`
-      : `Jugador ${i + 1}`;
+        ? botName("difficult", i + 1)
+        : botName("regular", i + 1)
+      : playerLabel(i + 1);
     const name = isBot
       ? defaultName
       : playerNames.value[i].trim() || defaultName;
     const token = playerTokens.value[i];
 
     if (!token) {
-      errorMsg.value = `Jugador ${i + 1}: selecciona una ficha.`;
+      errorMsg.value = t("setup.error.token", { player: playerLabel(i + 1) });
       return;
     }
 
     if (seenTokens.has(token)) {
-      errorMsg.value = "La ficha ya está asignada a otro jugador.";
+      errorMsg.value = t("setup.error.tokenDuplicate");
       return;
     }
 
@@ -592,6 +593,18 @@ function startGame() {
   });
   applyLocalGameScenarioSeeds();
   navigateTo("/game");
+}
+
+function playerLabel(index: number) {
+  return `${t("common.player")} ${index}`;
+}
+
+function botName(type: BotDifficulty, index: number) {
+  return `${t("common.bot")} ${type === "difficult" ? t("common.difficult") : t("common.regular")} ${index}`;
+}
+
+function tokenLabel(file: string) {
+  return tMaybe(`token.${file}`);
 }
 </script>
 

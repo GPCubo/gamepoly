@@ -1,8 +1,9 @@
-import { ref, onMounted } from "vue";
+import { ref, onMounted, watch } from "vue";
 import { CanvasTexture, SRGBColorSpace, LinearFilter } from "three";
 import { BOARD_TILES, type BoardTile } from "~/config/boardTilesConfig";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import { useBoardGeometry } from "./useBoardGeometry";
+import { useI18n } from "~/composables/useI18n";
 
 export interface TileLabelData {
   index: number;
@@ -157,7 +158,7 @@ function drawTitle(
   }
 }
 
-function createLabelCanvas(tile: BoardTile): HTMLCanvasElement {
+function createLabelCanvas(tile: BoardTile, displayName: string): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   const w = GAME_CONFIG.LABEL_CANVAS_WIDTH;
   const h = GAME_CONFIG.LABEL_CANVAS_HEIGHT;
@@ -173,7 +174,6 @@ function createLabelCanvas(tile: BoardTile): HTMLCanvasElement {
   const innerW = w - padX * 2;
   const topPad = h * 0.12;
   const botPad = h * 0.1;
-  const displayName = tile.shortName || tile.name;
   const hasPrice = typeof tile.price === "number";
   const centerRect = hasCenterRect(tile);
   const font = GAME_CONFIG.LABEL_FONT_SIZE;
@@ -247,12 +247,20 @@ function createLabelCanvas(tile: BoardTile): HTMLCanvasElement {
 
 export function useTileLabels() {
   const { getTileLabelTransform } = useBoardGeometry();
+  const { locale, tileName, tileShortName } = useI18n();
   const tileLabels = ref<TileLabelData[]>([]);
   const isCorner = (idx: number) => [0, 10, 20, 30].includes(idx);
 
-  onMounted(() => {
+  function rebuildLabels() {
+    for (const label of tileLabels.value) {
+      label.texture.dispose();
+    }
+
     const labels: TileLabelData[] = BOARD_TILES.map((tile) => {
-      const canvas = createLabelCanvas(tile);
+      const displayName = tile.shortName
+        ? tileShortName(tile.index, tile.shortName)
+        : tileName(tile.index, tile.name);
+      const canvas = createLabelCanvas(tile, displayName);
       const texture = new CanvasTexture(canvas);
       texture.colorSpace = SRGBColorSpace;
       texture.anisotropy = 8;
@@ -272,7 +280,7 @@ export function useTileLabels() {
 
       return {
         index: tile.index,
-        name: tile.name,
+        name: displayName,
         type: tile.type,
         texture,
         position: transform.position,
@@ -283,7 +291,13 @@ export function useTileLabels() {
     });
 
     tileLabels.value = labels;
+  }
+
+  onMounted(() => {
+    rebuildLabels();
   });
+
+  watch(locale, rebuildLabels);
 
   return tileLabels;
 }

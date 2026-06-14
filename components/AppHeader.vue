@@ -13,8 +13,9 @@
       <span v-if="badge" class="game-header-badge">{{ badge }}</span>
     </div>
 
-    <div v-if="$slots.actions || version" class="game-header-actions">
+    <div class="game-header-actions">
       <slot name="actions" />
+      <LanguageSwitcher />
       <span v-if="version" class="game-header-version">{{ version }}</span>
     </div>
   </header>
@@ -22,6 +23,8 @@
 </template>
 
 <script setup lang="ts">
+import LanguageSwitcher from "~/components/LanguageSwitcher.vue";
+
 withDefaults(
   defineProps<{
     brand?: string;

@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import { tStore } from "~/composables/useI18n";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import {
   BOARD_TILES,
@@ -78,6 +79,9 @@ export interface EconomicHistoryItem {
   type: EconomicHistoryType;
   title: string;
   detail: string;
+  titleKey?: string;
+  detailKey?: string;
+  params?: Record<string, string | number>;
   amount?: number;
   playerIds: number[];
   createdAt: number;
@@ -127,8 +131,7 @@ const PROPERTY_COLOR_GROUPS = new Set<TileGroup>([
   "darkBlue",
 ]);
 
-const CARD_TILE_INDEXES = BOARD_TILES
-  .filter((tile) => tile.type === "card")
+const CARD_TILE_INDEXES = BOARD_TILES.filter((tile) => tile.type === "card")
   .map((tile) => tile.index)
   .sort((a, b) => a - b);
 
@@ -231,7 +234,8 @@ export const useGameStore = defineStore("game", {
       );
       return alive.length === 1 ? alive[0] : null;
     },
-    hasAnyPropertyOwned: (state) => Object.keys(state.propertyOwners).length > 0,
+    hasAnyPropertyOwned: (state) =>
+      Object.keys(state.propertyOwners).length > 0,
     canExchange: (state) => {
       if (state.phase !== "playing") return false;
       const proposal = state.exchangeProposal;
@@ -252,7 +256,15 @@ export const useGameStore = defineStore("game", {
   },
 
   actions: {
-    setupGame(configs: PlayerConfig[], options?: { goSalary?: number; canSkipBuy?: boolean; auctionOnly?: boolean; doublesGiveExtraTurn?: boolean }) {
+    setupGame(
+      configs: PlayerConfig[],
+      options?: {
+        goSalary?: number;
+        canSkipBuy?: boolean;
+        auctionOnly?: boolean;
+        doublesGiveExtraTurn?: boolean;
+      },
+    ) {
       const defaultCash = GAME_CONFIG.STARTING_CASH;
       this.players = configs.map((c, idx) => ({
         id: idx,
@@ -273,16 +285,23 @@ export const useGameStore = defineStore("game", {
       this.goSalary = options?.goSalary ?? GAME_CONFIG.GO_SALARY;
       this.canSkipBuy = options?.canSkipBuy ?? GAME_CONFIG.CAN_SKIP_BUY;
       this.auctionOnly = options?.auctionOnly ?? GAME_CONFIG.AUCTION_ONLY;
-      this.doublesGiveExtraTurn = options?.doublesGiveExtraTurn ?? GAME_CONFIG.DOUBLES_GIVE_EXTRA_TURN;
-      this.chanceDeck = shuffleDeck(Array.from({ length: CHANCE_CARDS.length }, (_, i) => i));
-      this.communityDeck = shuffleDeck(Array.from({ length: COMMUNITY_CARDS.length }, (_, i) => i));
+      this.doublesGiveExtraTurn =
+        options?.doublesGiveExtraTurn ?? GAME_CONFIG.DOUBLES_GIVE_EXTRA_TURN;
+      this.chanceDeck = shuffleDeck(
+        Array.from({ length: CHANCE_CARDS.length }, (_, i) => i),
+      );
+      this.communityDeck = shuffleDeck(
+        Array.from({ length: COMMUNITY_CARDS.length }, (_, i) => i),
+      );
       this.activeCard = null;
       this.isDoubles = false;
       this.skipMovementRequested = false;
       this.forceAllDiceRollsAsDoubles = false;
       this.forceAllDiceRollsToCards = false;
       this.economicHistory = [];
-      this.statusMessage = `¡${configs[0].name} comienza!`;
+      this.statusMessage = tStore("game.status.started", {
+        player: configs[0].name,
+      });
       this.propertyOwners = {};
       this.propertyDevelopments = {};
       this.bankruptPlayers = [];
@@ -300,7 +319,10 @@ export const useGameStore = defineStore("game", {
 
       if (Math.floor(target / 40) > Math.floor(startPosition / 40)) {
         p.cash += this.goSalary;
-        this.statusMessage = `¡${p.name} pasó por la Salida y cobró $${this.goSalary}!`;
+        this.statusMessage = tStore("game.status.passedGo", {
+          player: p.name,
+          amount: this.goSalary,
+        });
       }
 
       for (let i = p.position + 1; i <= target; i++) {
@@ -355,7 +377,10 @@ export const useGameStore = defineStore("game", {
       const total = this.players.length;
       let next = (this.activePlayerIndex + 1) % total;
       let guard = 0;
-      while (this.bankruptPlayers.includes(this.players[next].id) && guard < total) {
+      while (
+        this.bankruptPlayers.includes(this.players[next].id) &&
+        guard < total
+      ) {
         next = (next + 1) % total;
         guard++;
       }
@@ -364,7 +389,10 @@ export const useGameStore = defineStore("game", {
         GAME_CONFIG.TOKEN_MODELS.find(
           (t) => t.file === this.players[this.activePlayerIndex].tokenModel,
         )?.name ?? "?";
-      this.statusMessage = `¡Turno de ${this.players[this.activePlayerIndex].name} (${tokenName})!`;
+      this.statusMessage = tStore("game.status.turn", {
+        player: this.players[this.activePlayerIndex].name,
+        token: tokenName,
+      });
     },
 
     finishTurnKeepPlayer() {
@@ -374,7 +402,9 @@ export const useGameStore = defineStore("game", {
         GAME_CONFIG.TOKEN_MODELS.find(
           (t) => t.file === this.players[this.activePlayerIndex].tokenModel,
         )?.name ?? "?";
-      this.statusMessage = `¡${this.players[this.activePlayerIndex].name} sacó dobles, tira de nuevo!`;
+      this.statusMessage = tStore("game.status.doublesAgain", {
+        player: this.players[this.activePlayerIndex].name,
+      });
     },
 
     sendToJail(playerId: number) {
@@ -388,7 +418,7 @@ export const useGameStore = defineStore("game", {
         playerIndex: this.players.indexOf(player),
         position: 10,
       };
-      this.statusMessage = `¡${player.name} va a la cárcel!`;
+      this.statusMessage = tStore("game.status.jail", { player: player.name });
     },
 
     payJailBail(playerId: number) {
@@ -397,7 +427,10 @@ export const useGameStore = defineStore("game", {
       player.cash -= this.jailBailCost;
       player.inJail = false;
       player.jailTurns = 0;
-      this.statusMessage = `${player.name} pagó $${this.jailBailCost} de fianza y sale de la cárcel`;
+      this.statusMessage = tStore("game.status.bail", {
+        player: player.name,
+        amount: this.jailBailCost,
+      });
       this._checkBankruptcy(playerId);
     },
 
@@ -414,7 +447,9 @@ export const useGameStore = defineStore("game", {
         player.jailTurns = 0;
         player.consecutiveDoubles = 1;
         this.isDoubles = true;
-        this.statusMessage = `¡${player.name} sacó dobles y sale de la cárcel!`;
+        this.statusMessage = tStore("game.status.jailDoubles", {
+          player: player.name,
+        });
         return "freed";
       }
 
@@ -423,12 +458,18 @@ export const useGameStore = defineStore("game", {
         player.cash -= this.jailBailCost;
         player.inJail = false;
         player.jailTurns = 0;
-        this.statusMessage = `${player.name} cumplió 3 turnos, sale pagando $${this.jailBailCost}`;
+        this.statusMessage = tStore("game.status.jailForced", {
+          player: player.name,
+          amount: this.jailBailCost,
+        });
         this._checkBankruptcy(player.id);
         return "forced_free";
       }
 
-      this.statusMessage = `${player.name} no sacó dobles. Turno en cárcel (${player.jailTurns}/3)`;
+      this.statusMessage = tStore("game.status.jailStayed", {
+        player: player.name,
+        turns: player.jailTurns,
+      });
       return "stayed";
     },
 
@@ -459,7 +500,8 @@ export const useGameStore = defineStore("game", {
     canActivePlayerRoll(): boolean {
       const player = this.activePlayer;
       if (!player) return false;
-      if (player.isMoving || this.isDiceRolling || this.isTurnComplete) return false;
+      if (player.isMoving || this.isDiceRolling || this.isTurnComplete)
+        return false;
       return true;
     },
 
@@ -471,11 +513,24 @@ export const useGameStore = defineStore("game", {
       player.cash -= tile.price;
       this.propertyOwners[tileIndex] = playerId;
       this._ensurePropertyDevelopment(tileIndex);
-      this.statusMessage = `${player.name} compró ${tile.name} por $${tile.price}`;
+      this.statusMessage = tStore("game.status.buy", {
+        player: player.name,
+        tile: tile.name,
+        amount: tile.price,
+      });
+      const _purchaseParams = {
+        player: player.name,
+        tile: tile.name,
+        amount: tile.price,
+        balance: player.cash,
+      };
       this.addEconomicHistory({
         type: "purchase",
-        title: `${player.name} compró ${tile.name}`,
-        detail: `${player.name} pagó $${tile.price} por ${tile.name}. Saldo: $${player.cash}`,
+        title: tStore("history.purchase.title", _purchaseParams),
+        detail: tStore("history.purchase.detail", _purchaseParams),
+        titleKey: "history.purchase.title",
+        detailKey: "history.purchase.detail",
+        params: _purchaseParams,
         amount: tile.price,
         playerIds: [playerId],
       });
@@ -490,11 +545,24 @@ export const useGameStore = defineStore("game", {
       player.cash -= amount;
       this.propertyOwners[tileIndex] = playerId;
       this._ensurePropertyDevelopment(tileIndex);
-      this.statusMessage = `${player.name} ganó la subasta de ${tile.name} por $${amount}`;
+      this.statusMessage = tStore("game.status.auctionWon", {
+        player: player.name,
+        tile: tile.name,
+        amount,
+      });
+      const _auctionParams = {
+        player: player.name,
+        tile: tile.name,
+        amount,
+        balance: player.cash,
+      };
       this.addEconomicHistory({
         type: "auction",
-        title: `${player.name} ganó una subasta`,
-        detail: `${player.name} compró ${tile.name} en subasta por $${amount}. Saldo: $${player.cash}`,
+        title: tStore("history.auction.title", _auctionParams),
+        detail: tStore("history.auction.detail", _auctionParams),
+        titleKey: "history.auction.title",
+        detailKey: "history.auction.detail",
+        params: _auctionParams,
         amount,
         playerIds: [playerId],
       });
@@ -585,7 +653,9 @@ export const useGameStore = defineStore("game", {
         development.mortgaged = false;
       }
 
-      const opponent = this.players.find((candidate) => candidate.id !== player.id);
+      const opponent = this.players.find(
+        (candidate) => candidate.id !== player.id,
+      );
       if (opponent) {
         opponent.position = 0;
         opponent.cash = 1760;
@@ -605,7 +675,8 @@ export const useGameStore = defineStore("game", {
       this.forceAllDiceRollsAsDoubles = true;
       this.diceValues = [6, 6];
       this.isDoubles = true;
-      this.statusMessage = "Escenario local activado. Todos los tiros seran dobles";
+      this.statusMessage =
+        "Escenario local activado. Todos los tiros seran dobles";
     },
 
     seedAllPlayersInJail() {
@@ -618,25 +689,31 @@ export const useGameStore = defineStore("game", {
 
       this.moveEvent = null;
       this.isTurnComplete = false;
-      this.statusMessage = "Escenario local activado. Todos los jugadores inician en la carcel";
+      this.statusMessage =
+        "Escenario local activado. Todos los jugadores inician en la carcel";
     },
 
     seedAllPlayersLandOnCards() {
       this.forceAllDiceRollsToCards = true;
       const player = this.activePlayer;
       if (player) {
-        this.diceValues = diceValuesForTotal(stepsToNextCardTile(player.position));
+        this.diceValues = diceValuesForTotal(
+          stepsToNextCardTile(player.position),
+        );
         this.isDoubles = this.diceValues[0] === this.diceValues[1];
       }
-      this.statusMessage = "Escenario local activado. Todos los jugadores caeran en Arca Comunal o Suerte";
+      this.statusMessage =
+        "Escenario local activado. Todos los jugadores caeran en Arca Comunal o Suerte";
     },
 
     getPropertyDevelopment(tileIndex: number): PropertyDevelopmentState {
-      return this.propertyDevelopments[tileIndex] ?? {
-        houses: 0,
-        hotel: false,
-        mortgaged: false,
-      };
+      return (
+        this.propertyDevelopments[tileIndex] ?? {
+          houses: 0,
+          hotel: false,
+          mortgaged: false,
+        }
+      );
     },
 
     getHouseCost(tileIndex: number): number {
@@ -664,16 +741,22 @@ export const useGameStore = defineStore("game", {
     },
 
     ownsFullPropertyGroup(tileIndex: number, playerId: number): boolean {
-      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      const tile = BOARD_TILES.find(
+        (candidate) => candidate.index === tileIndex,
+      );
       if (!tile || tile.type !== "property") return false;
 
       const groupTiles = getPropertyGroupTiles(tile.group);
       if (groupTiles.length === 0) return false;
-      return groupTiles.every((candidate) => this.propertyOwners[candidate.index] === playerId);
+      return groupTiles.every(
+        (candidate) => this.propertyOwners[candidate.index] === playerId,
+      );
     },
 
     hasMortgagedPropertyInColorGroup(tileIndex: number): boolean {
-      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      const tile = BOARD_TILES.find(
+        (candidate) => candidate.index === tileIndex,
+      );
       if (!tile || tile.type !== "property") return false;
 
       return getPropertyGroupTiles(tile.group).some(
@@ -682,7 +765,9 @@ export const useGameStore = defineStore("game", {
     },
 
     hasImprovementInColorGroup(tileIndex: number): boolean {
-      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      const tile = BOARD_TILES.find(
+        (candidate) => candidate.index === tileIndex,
+      );
       if (!tile || tile.type !== "property") return false;
 
       return getPropertyGroupTiles(tile.group).some((candidate) => {
@@ -692,21 +777,30 @@ export const useGameStore = defineStore("game", {
     },
 
     canBuildHouse(tileIndex: number, playerId: number): boolean {
-      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
-      const player = this.players.find((candidate) => candidate.id === playerId);
+      const tile = BOARD_TILES.find(
+        (candidate) => candidate.index === tileIndex,
+      );
+      const player = this.players.find(
+        (candidate) => candidate.id === playerId,
+      );
       if (!tile || tile.type !== "property" || !player) return false;
       if (this.propertyOwners[tileIndex] !== playerId) return false;
       if (!this.ownsFullPropertyGroup(tileIndex, playerId)) return false;
       if (this.hasMortgagedPropertyInColorGroup(tileIndex)) return false;
 
       const development = this.getPropertyDevelopment(tileIndex);
-      if (development.mortgaged || development.hotel || development.houses >= 4) return false;
+      if (development.mortgaged || development.hotel || development.houses >= 4)
+        return false;
       const nextHouseLevel = development.houses + 1;
       const groupTiles = getPropertyGroupTiles(tile.group);
       const canBuildEvenly = groupTiles.every((candidate) => {
         if (candidate.index === tileIndex) return true;
-        const candidateDevelopment = this.getPropertyDevelopment(candidate.index);
-        const candidateLevel = candidateDevelopment.hotel ? 5 : candidateDevelopment.houses;
+        const candidateDevelopment = this.getPropertyDevelopment(
+          candidate.index,
+        );
+        const candidateLevel = candidateDevelopment.hotel
+          ? 5
+          : candidateDevelopment.houses;
         return candidateLevel >= nextHouseLevel - 1;
       });
       if (!canBuildEvenly) return false;
@@ -714,19 +808,26 @@ export const useGameStore = defineStore("game", {
     },
 
     canBuildHotel(tileIndex: number, playerId: number): boolean {
-      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
-      const player = this.players.find((candidate) => candidate.id === playerId);
+      const tile = BOARD_TILES.find(
+        (candidate) => candidate.index === tileIndex,
+      );
+      const player = this.players.find(
+        (candidate) => candidate.id === playerId,
+      );
       if (!tile || tile.type !== "property" || !player) return false;
       if (this.propertyOwners[tileIndex] !== playerId) return false;
       if (!this.ownsFullPropertyGroup(tileIndex, playerId)) return false;
       if (this.hasMortgagedPropertyInColorGroup(tileIndex)) return false;
 
       const development = this.getPropertyDevelopment(tileIndex);
-      if (development.mortgaged || development.hotel || development.houses < 4) return false;
+      if (development.mortgaged || development.hotel || development.houses < 4)
+        return false;
       const groupTiles = getPropertyGroupTiles(tile.group);
       const canBuildEvenly = groupTiles.every((candidate) => {
         if (candidate.index === tileIndex) return true;
-        const candidateDevelopment = this.getPropertyDevelopment(candidate.index);
+        const candidateDevelopment = this.getPropertyDevelopment(
+          candidate.index,
+        );
         return candidateDevelopment.hotel || candidateDevelopment.houses >= 4;
       });
       if (!canBuildEvenly) return false;
@@ -735,7 +836,9 @@ export const useGameStore = defineStore("game", {
 
     canSellImprovement(tileIndex: number, playerId: number): boolean {
       if (this.propertyOwners[tileIndex] !== playerId) return false;
-      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      const tile = BOARD_TILES.find(
+        (candidate) => candidate.index === tileIndex,
+      );
       if (!tile || tile.type !== "property") return false;
       const development = this.getPropertyDevelopment(tileIndex);
       if (!development.hotel && development.houses <= 0) return false;
@@ -745,11 +848,15 @@ export const useGameStore = defineStore("game", {
       const groupTiles = getPropertyGroupTiles(tile.group);
       return groupTiles.every((candidate) => {
         if (candidate.index === tileIndex) return true;
-        const candidateDevelopment = this.getPropertyDevelopment(candidate.index);
+        const candidateDevelopment = this.getPropertyDevelopment(
+          candidate.index,
+        );
         const candidateLevel = candidateDevelopment.hotel
           ? 5
           : candidateDevelopment.houses;
-        return candidateLevel <= currentLevel && candidateLevel <= nextLevel + 1;
+        return (
+          candidateLevel <= currentLevel && candidateLevel <= nextLevel + 1
+        );
       });
     },
 
@@ -758,12 +865,18 @@ export const useGameStore = defineStore("game", {
       playerId: number,
       direction: "build" | "sell",
     ): BoardTile[] {
-      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      const tile = BOARD_TILES.find(
+        (candidate) => candidate.index === tileIndex,
+      );
       if (!tile || tile.type !== "property") return [];
       if (!this.ownsFullPropertyGroup(tileIndex, playerId)) return [];
 
       const groupTiles = getPropertyGroupTiles(tile.group);
-      if (groupTiles.some((candidate) => this.propertyOwners[candidate.index] !== playerId)) {
+      if (
+        groupTiles.some(
+          (candidate) => this.propertyOwners[candidate.index] !== playerId,
+        )
+      ) {
         return [];
       }
 
@@ -777,7 +890,8 @@ export const useGameStore = defineStore("game", {
         if (minLevel >= 5) return [];
         return groupTiles.filter(
           (candidate) =>
-            developmentLevel(this.getPropertyDevelopment(candidate.index)) === minLevel,
+            developmentLevel(this.getPropertyDevelopment(candidate.index)) ===
+            minLevel,
         );
       }
 
@@ -785,22 +899,34 @@ export const useGameStore = defineStore("game", {
       if (maxLevel <= 0) return [];
       return groupTiles.filter(
         (candidate) =>
-          developmentLevel(this.getPropertyDevelopment(candidate.index)) === maxLevel,
+          developmentLevel(this.getPropertyDevelopment(candidate.index)) ===
+          maxLevel,
       );
     },
 
     getPropertyGroupBuildCost(tileIndex: number, playerId: number): number {
-      const targets = this._groupImprovementTargets(tileIndex, playerId, "build");
+      const targets = this._groupImprovementTargets(
+        tileIndex,
+        playerId,
+        "build",
+      );
       return targets.reduce((total, target) => {
         const development = this.getPropertyDevelopment(target.index);
         const level = developmentLevel(development);
-        const cost = level >= 4 ? this.getHotelCost(target.index) : this.getHouseCost(target.index);
+        const cost =
+          level >= 4
+            ? this.getHotelCost(target.index)
+            : this.getHouseCost(target.index);
         return total + cost;
       }, 0);
     },
 
     getPropertyGroupSellRefund(tileIndex: number, playerId: number): number {
-      const targets = this._groupImprovementTargets(tileIndex, playerId, "sell");
+      const targets = this._groupImprovementTargets(
+        tileIndex,
+        playerId,
+        "sell",
+      );
       return targets.reduce((total, target) => {
         const development = this.getPropertyDevelopment(target.index);
         const refund = development.hotel
@@ -810,9 +936,18 @@ export const useGameStore = defineStore("game", {
       }, 0);
     },
 
-    canBuildPropertyGroupImprovement(tileIndex: number, playerId: number): boolean {
-      const player = this.players.find((candidate) => candidate.id === playerId);
-      const targets = this._groupImprovementTargets(tileIndex, playerId, "build");
+    canBuildPropertyGroupImprovement(
+      tileIndex: number,
+      playerId: number,
+    ): boolean {
+      const player = this.players.find(
+        (candidate) => candidate.id === playerId,
+      );
+      const targets = this._groupImprovementTargets(
+        tileIndex,
+        playerId,
+        "build",
+      );
       if (!player || targets.length === 0) return false;
       const totalCost = this.getPropertyGroupBuildCost(tileIndex, playerId);
       if (player.cash < totalCost) return false;
@@ -824,10 +959,19 @@ export const useGameStore = defineStore("game", {
       });
     },
 
-    canSellPropertyGroupImprovement(tileIndex: number, playerId: number): boolean {
-      const targets = this._groupImprovementTargets(tileIndex, playerId, "sell");
+    canSellPropertyGroupImprovement(
+      tileIndex: number,
+      playerId: number,
+    ): boolean {
+      const targets = this._groupImprovementTargets(
+        tileIndex,
+        playerId,
+        "sell",
+      );
       if (targets.length === 0) return false;
-      return targets.every((target) => this.canSellImprovement(target.index, playerId));
+      return targets.every((target) =>
+        this.canSellImprovement(target.index, playerId),
+      );
     },
 
     canMortgageProperty(tileIndex: number, playerId: number): boolean {
@@ -836,13 +980,19 @@ export const useGameStore = defineStore("game", {
       if (this.propertyOwners[tileIndex] !== playerId) return false;
       const development = this.getPropertyDevelopment(tileIndex);
       if (development.mortgaged) return false;
-      if (tile.type === "property" && this.hasImprovementInColorGroup(tileIndex)) return false;
+      if (
+        tile.type === "property" &&
+        this.hasImprovementInColorGroup(tileIndex)
+      )
+        return false;
       return true;
     },
 
     canUnmortgageProperty(tileIndex: number, playerId: number): boolean {
       const tile = getOwnableTile(tileIndex);
-      const player = this.players.find((candidate) => candidate.id === playerId);
+      const player = this.players.find(
+        (candidate) => candidate.id === playerId,
+      );
       if (!tile || !player) return false;
       if (this.propertyOwners[tileIndex] !== playerId) return false;
       if (!this.getPropertyDevelopment(tileIndex).mortgaged) return false;
@@ -853,7 +1003,11 @@ export const useGameStore = defineStore("game", {
       let total = 0;
 
       for (const tile of BOARD_TILES) {
-        if (tile.price === undefined || this.propertyOwners[tile.index] !== playerId) continue;
+        if (
+          tile.price === undefined ||
+          this.propertyOwners[tile.index] !== playerId
+        )
+          continue;
 
         const development = this.getPropertyDevelopment(tile.index);
         if (tile.type === "property") {
@@ -861,7 +1015,9 @@ export const useGameStore = defineStore("game", {
             total += Math.round(this.getHotelCost(tile.index) / 2);
             total += 4 * Math.round(this.getHouseCost(tile.index) / 2);
           } else if (development.houses > 0) {
-            total += development.houses * Math.round(this.getHouseCost(tile.index) / 2);
+            total +=
+              development.houses *
+              Math.round(this.getHouseCost(tile.index) / 2);
           }
         }
 
@@ -874,7 +1030,9 @@ export const useGameStore = defineStore("game", {
     },
 
     canPlayerAvoidBankruptcy(playerId: number): boolean {
-      const player = this.players.find((candidate) => candidate.id === playerId);
+      const player = this.players.find(
+        (candidate) => candidate.id === playerId,
+      );
       if (!player) return false;
       if (player.cash >= 0) return true;
       return player.cash + this.getEmergencyLiquidationValue(playerId) >= 0;
@@ -882,8 +1040,12 @@ export const useGameStore = defineStore("game", {
 
     buildHouse(tileIndex: number, playerId: number) {
       if (!this.canBuildHouse(tileIndex, playerId)) return;
-      const player = this.players.find((candidate) => candidate.id === playerId);
-      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      const player = this.players.find(
+        (candidate) => candidate.id === playerId,
+      );
+      const tile = BOARD_TILES.find(
+        (candidate) => candidate.index === tileIndex,
+      );
       if (!player || !tile) return;
 
       const cost = this.getHouseCost(tileIndex);
@@ -897,8 +1059,12 @@ export const useGameStore = defineStore("game", {
 
     buildHotel(tileIndex: number, playerId: number) {
       if (!this.canBuildHotel(tileIndex, playerId)) return;
-      const player = this.players.find((candidate) => candidate.id === playerId);
-      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      const player = this.players.find(
+        (candidate) => candidate.id === playerId,
+      );
+      const tile = BOARD_TILES.find(
+        (candidate) => candidate.index === tileIndex,
+      );
       if (!player || !tile) return;
 
       const cost = this.getHotelCost(tileIndex);
@@ -912,11 +1078,19 @@ export const useGameStore = defineStore("game", {
 
     buildPropertyGroupImprovement(tileIndex: number, playerId: number) {
       if (!this.canBuildPropertyGroupImprovement(tileIndex, playerId)) return;
-      const player = this.players.find((candidate) => candidate.id === playerId);
-      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      const player = this.players.find(
+        (candidate) => candidate.id === playerId,
+      );
+      const tile = BOARD_TILES.find(
+        (candidate) => candidate.index === tileIndex,
+      );
       if (!player || !tile || tile.type !== "property") return;
 
-      const targets = this._groupImprovementTargets(tileIndex, playerId, "build");
+      const targets = this._groupImprovementTargets(
+        tileIndex,
+        playerId,
+        "build",
+      );
       let totalCost = 0;
 
       for (const target of targets) {
@@ -944,8 +1118,12 @@ export const useGameStore = defineStore("game", {
 
     sellImprovement(tileIndex: number, playerId: number) {
       if (!this.canSellImprovement(tileIndex, playerId)) return;
-      const player = this.players.find((candidate) => candidate.id === playerId);
-      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      const player = this.players.find(
+        (candidate) => candidate.id === playerId,
+      );
+      const tile = BOARD_TILES.find(
+        (candidate) => candidate.index === tileIndex,
+      );
       if (!player || !tile) return;
 
       const development = this._ensurePropertyDevelopment(tileIndex);
@@ -969,11 +1147,19 @@ export const useGameStore = defineStore("game", {
 
     sellPropertyGroupImprovement(tileIndex: number, playerId: number) {
       if (!this.canSellPropertyGroupImprovement(tileIndex, playerId)) return;
-      const player = this.players.find((candidate) => candidate.id === playerId);
-      const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+      const player = this.players.find(
+        (candidate) => candidate.id === playerId,
+      );
+      const tile = BOARD_TILES.find(
+        (candidate) => candidate.index === tileIndex,
+      );
       if (!player || !tile || tile.type !== "property") return;
 
-      const targets = this._groupImprovementTargets(tileIndex, playerId, "sell");
+      const targets = this._groupImprovementTargets(
+        tileIndex,
+        playerId,
+        "sell",
+      );
       let totalRefund = 0;
 
       for (const target of targets) {
@@ -1002,7 +1188,9 @@ export const useGameStore = defineStore("game", {
 
     mortgageProperty(tileIndex: number, playerId: number) {
       if (!this.canMortgageProperty(tileIndex, playerId)) return;
-      const player = this.players.find((candidate) => candidate.id === playerId);
+      const player = this.players.find(
+        (candidate) => candidate.id === playerId,
+      );
       const tile = getOwnableTile(tileIndex);
       if (!player || !tile) return;
 
@@ -1010,23 +1198,35 @@ export const useGameStore = defineStore("game", {
       const development = this._ensurePropertyDevelopment(tileIndex);
       development.mortgaged = true;
       player.cash += value;
-      this.statusMessage = `${player.name} hipotecó ${tile.name} y recibió $${value}`;
+      this.statusMessage = tStore("game.status.mortgage", {
+        player: player.name,
+        tile: tile.name,
+        amount: value,
+      });
+      const _mortgageParams = { player: player.name, tile: tile.name, amount: value, balance: player.cash };
       this.addEconomicHistory({
         type: "mortgage",
-        title: `${player.name} hipotecó ${tile.name}`,
-        detail: `${player.name} recibió $${value} por hipotecar ${tile.name}. Saldo: $${player.cash}`,
+        title: tStore("history.mortgage.title", _mortgageParams),
+        detail: tStore("history.mortgage.detail", _mortgageParams),
+        titleKey: "history.mortgage.title",
+        detailKey: "history.mortgage.detail",
+        params: _mortgageParams,
         amount: value,
         playerIds: [playerId],
       });
     },
 
     mortgageAllAvailable(playerId: number): number {
-      const player = this.players.find((candidate) => candidate.id === playerId);
+      const player = this.players.find(
+        (candidate) => candidate.id === playerId,
+      );
       if (!player) return 0;
 
       let total = 0;
       const mortgageableTiles = BOARD_TILES.filter(
-        (tile) => tile.price !== undefined && this.canMortgageProperty(tile.index, playerId),
+        (tile) =>
+          tile.price !== undefined &&
+          this.canMortgageProperty(tile.index, playerId),
       );
 
       for (const tile of mortgageableTiles) {
@@ -1039,11 +1239,19 @@ export const useGameStore = defineStore("game", {
       }
 
       if (total > 0) {
-        this.statusMessage = `${player.name} hipotecó ${mortgageableTiles.length} propiedades y recibió $${total}`;
+        this.statusMessage = tStore("game.status.mortgageMany", {
+          player: player.name,
+          count: mortgageableTiles.length,
+          amount: total,
+        });
+        const _mmParams = { player: player.name, count: mortgageableTiles.length, amount: total, balance: player.cash };
         this.addEconomicHistory({
           type: "mortgage",
-          title: `${player.name} hipotecó ${mortgageableTiles.length} propiedades`,
-          detail: `${player.name} recibió $${total} por hipotecar: ${mortgageableTiles.map((tile) => tile.name).join(", ")}. Saldo: $${player.cash}`,
+          title: tStore("history.mortgageMany.title", _mmParams),
+          detail: tStore("history.mortgageMany.detail", _mmParams),
+          titleKey: "history.mortgageMany.title",
+          detailKey: "history.mortgageMany.detail",
+          params: _mmParams,
           amount: total,
           playerIds: [playerId],
         });
@@ -1055,7 +1263,9 @@ export const useGameStore = defineStore("game", {
 
     unmortgageProperty(tileIndex: number, playerId: number) {
       if (!this.canUnmortgageProperty(tileIndex, playerId)) return;
-      const player = this.players.find((candidate) => candidate.id === playerId);
+      const player = this.players.find(
+        (candidate) => candidate.id === playerId,
+      );
       const tile = getOwnableTile(tileIndex);
       if (!player || !tile) return;
 
@@ -1063,7 +1273,11 @@ export const useGameStore = defineStore("game", {
       const development = this._ensurePropertyDevelopment(tileIndex);
       development.mortgaged = false;
       player.cash -= cost;
-      this.statusMessage = `${player.name} levantó la hipoteca de ${tile.name} por $${cost}`;
+      this.statusMessage = tStore("game.status.unmortgage", {
+        player: player.name,
+        tile: tile.name,
+        amount: cost,
+      });
       this._checkBankruptcy(playerId);
     },
 
@@ -1107,11 +1321,19 @@ export const useGameStore = defineStore("game", {
       if (!payer || !receiver || amount <= 0) return;
       payer.cash -= amount;
       receiver.cash += amount;
-      this.statusMessage = `${payer.name} pagó $${amount} de alquiler a ${receiver.name}`;
+      this.statusMessage = tStore("game.status.rent", {
+        payer: payer.name,
+        amount,
+        receiver: receiver.name,
+      });
+      const _rentParams = { payer: payer.name, amount, receiver: receiver.name };
       this.addEconomicHistory({
         type: "rent",
-        title: `${payer.name} pagó alquiler`,
-        detail: `${payer.name} pagó $${amount} a ${receiver.name}. Saldos: ${payer.name} $${payer.cash}, ${receiver.name} $${receiver.cash}`,
+        title: tStore("history.rent.title", _rentParams),
+        detail: tStore("history.rent.detail", _rentParams),
+        titleKey: "history.rent.title",
+        detailKey: "history.rent.detail",
+        params: _rentParams,
         amount,
         playerIds: [fromPlayerId, toPlayerId],
       });
@@ -1122,11 +1344,18 @@ export const useGameStore = defineStore("game", {
       const player = this.players.find((p) => p.id === playerId);
       if (!player) return;
       player.cash -= amount;
-      this.statusMessage = `${player.name} pagó $${amount} de impuesto`;
+      this.statusMessage = tStore("game.status.tax", {
+        player: player.name,
+        amount,
+      });
+      const _taxParams = { player: player.name, amount, balance: player.cash };
       this.addEconomicHistory({
         type: "tax",
-        title: `${player.name} pagó impuesto`,
-        detail: `${player.name} pagó $${amount} de impuesto. Saldo: $${player.cash}`,
+        title: tStore("history.tax.title", _taxParams),
+        detail: tStore("history.tax.detail", _taxParams),
+        titleKey: "history.tax.title",
+        detailKey: "history.tax.detail",
+        params: _taxParams,
         amount,
         playerIds: [playerId],
       });
@@ -1143,7 +1372,9 @@ export const useGameStore = defineStore("game", {
         }
       }
       const player = this.players.find((p) => p.id === playerId);
-      this.statusMessage = `¡${player?.name ?? "Jugador"} ha quebrado y es eliminado!`;
+      this.statusMessage = tStore("game.status.bankruptcy", {
+        player: player?.name ?? tStore("common.player"),
+      });
     },
 
     _checkBankruptcy(playerId: number) {
@@ -1151,7 +1382,10 @@ export const useGameStore = defineStore("game", {
       if (!player || this.bankruptPlayers.includes(playerId)) return;
       if (player.cash >= 0) return;
       if (this.canPlayerAvoidBankruptcy(playerId)) {
-        this.statusMessage = `${player.name} debe $${Math.abs(player.cash)}. Vende mejoras o hipoteca propiedades para continuar`;
+        this.statusMessage = tStore("game.status.debt", {
+          player: player.name,
+          amount: Math.abs(player.cash),
+        });
         return;
       }
       this.declareBankruptcy(playerId);
@@ -1173,7 +1407,9 @@ export const useGameStore = defineStore("game", {
       const cards = group === "chance" ? CHANCE_CARDS : COMMUNITY_CARDS;
 
       if (deck.length === 0) {
-        const newDeck = shuffleDeck(Array.from({ length: cards.length }, (_, i) => i));
+        const newDeck = shuffleDeck(
+          Array.from({ length: cards.length }, (_, i) => i),
+        );
         if (group === "chance") {
           this.chanceDeck = newDeck;
         } else {
@@ -1181,9 +1417,13 @@ export const useGameStore = defineStore("game", {
         }
       }
 
-      const currentDeck = group === "chance" ? this.chanceDeck : this.communityDeck;
+      const currentDeck =
+        group === "chance" ? this.chanceDeck : this.communityDeck;
       const index = currentDeck.shift()!;
-      this.activeCard = { ...cards[index], text: resolveCardText(cards[index]) };
+      this.activeCard = {
+        ...cards[index],
+        text: resolveCardText(cards[index]),
+      };
 
       if (group === "chance") {
         this.chanceDeck.push(index);
@@ -1207,9 +1447,10 @@ export const useGameStore = defineStore("game", {
           this.isTurnComplete = false;
           const target = card.tileIndex ?? 0;
           const currentPos = player.position % 40;
-          const steps = target > currentPos
-            ? target - currentPos
-            : (40 - currentPos) + target;
+          const steps =
+            target > currentPos
+              ? target - currentPos
+              : 40 - currentPos + target;
           await this.moveCurrentPlayer(steps);
           break;
         }
@@ -1224,23 +1465,26 @@ export const useGameStore = defineStore("game", {
             this.isTurnComplete = false;
             player.position += steps;
             if (player.position < 0) player.position += 40;
-          this.moveEvent = {
-            playerIndex: this.activePlayerIndex,
-            position: player.position,
-          };
-          this.statusMessage = `${player.name} retrocede ${Math.abs(steps)} casillas`;
-          await new Promise((resolve) => setTimeout(resolve, 0));
-          this.isTurnComplete = true;
-        }
+            this.moveEvent = {
+              playerIndex: this.activePlayerIndex,
+              position: player.position,
+            };
+            this.statusMessage = `${player.name} retrocede ${Math.abs(steps)} casillas`;
+            await new Promise((resolve) => setTimeout(resolve, 0));
+            this.isTurnComplete = true;
+          }
           break;
         }
         case "collect": {
           player.cash += card.amount ?? 0;
           this.statusMessage = `${player.name} cobra $${card.amount ?? 0}`;
+          const _cardGainParams = { player: player.name, amount: card.amount ?? 0 };
           this.addEconomicHistory({
             type: "card_gain",
-            title: `${player.name} cobró por carta`,
-            detail: `${card.text}. ${player.name} recibió $${card.amount ?? 0}. Saldo: $${player.cash}`,
+            title: tStore("history.card.title", _cardGainParams),
+            detail: card.text,
+            titleKey: "history.card.title",
+            params: _cardGainParams,
             amount: card.amount ?? 0,
             playerIds: [player.id],
           });
@@ -1249,10 +1493,13 @@ export const useGameStore = defineStore("game", {
         case "pay": {
           player.cash -= card.amount ?? 0;
           this.statusMessage = `${player.name} paga $${card.amount ?? 0}`;
+          const _cardLossParams = { player: player.name, amount: card.amount ?? 0 };
           this.addEconomicHistory({
             type: "card_loss",
-            title: `${player.name} pagó por carta`,
-            detail: `${card.text}. ${player.name} pagó $${card.amount ?? 0}. Saldo: $${player.cash}`,
+            title: tStore("history.cardLoss.title", _cardLossParams),
+            detail: card.text,
+            titleKey: "history.cardLoss.title",
+            params: _cardLossParams,
             amount: card.amount ?? 0,
             playerIds: [player.id],
           });
@@ -1270,10 +1517,13 @@ export const useGameStore = defineStore("game", {
             other.cash += amount;
           }
           this.statusMessage = `${player.name} paga $${amount} a cada jugador ($${totalPay} total)`;
+          const _cardPayParams = { player: player.name, amount: totalPay };
           this.addEconomicHistory({
             type: "card_loss",
-            title: `${player.name} pagó a otros jugadores`,
-            detail: `${card.text}. ${player.name} pagó $${amount} a ${otherPlayers.map((other) => other.name).join(", ")} ($${totalPay} total). Saldo: $${player.cash}`,
+            title: tStore("history.cardPay.title", _cardPayParams),
+            detail: card.text,
+            titleKey: "history.cardPay.title",
+            params: _cardPayParams,
             amount: totalPay,
             playerIds: [player.id, ...otherPlayers.map((other) => other.id)],
           });
@@ -1365,23 +1615,30 @@ export const useGameStore = defineStore("game", {
           return;
         }
 
-        if (proposal.offerMoney > from.cash || proposal.requestMoney > to.cash) {
+        if (
+          proposal.offerMoney > from.cash ||
+          proposal.requestMoney > to.cash
+        ) {
           this.exchangeProposal = null;
-          this.statusMessage = "Intercambio cancelado: fondos insuficientes";
+          this.statusMessage = tStore("game.status.exchangeCancelledFunds");
           return;
         }
 
         for (const tileIdx of proposal.offerProperties) {
           if (this.propertyOwners[tileIdx] !== proposal.fromPlayerId) {
             this.exchangeProposal = null;
-            this.statusMessage = "Intercambio cancelado: propiedades cambiadas";
+            this.statusMessage = tStore(
+              "game.status.exchangeCancelledProperties",
+            );
             return;
           }
         }
         for (const tileIdx of proposal.requestProperties) {
           if (this.propertyOwners[tileIdx] !== proposal.toPlayerId) {
             this.exchangeProposal = null;
-            this.statusMessage = "Intercambio cancelado: propiedades cambiadas";
+            this.statusMessage = tStore(
+              "game.status.exchangeCancelledProperties",
+            );
             return;
           }
         }
@@ -1411,20 +1668,38 @@ export const useGameStore = defineStore("game", {
         this._checkBankruptcy(to.id);
 
         const improvementRefund = fromImprovementRefund + toImprovementRefund;
-        const offeredItems = this._exchangeSideSummary(proposal.offerProperties, proposal.offerMoney);
-        const requestedItems = this._exchangeSideSummary(proposal.requestProperties, proposal.requestMoney);
+        const offeredItems = this._exchangeSideSummary(
+          proposal.offerProperties,
+          proposal.offerMoney,
+        );
+        const requestedItems = this._exchangeSideSummary(
+          proposal.requestProperties,
+          proposal.requestMoney,
+        );
+        const _exParams = { from: from.name, to: to.name, offered: offeredItems, received: requestedItems };
         this.addEconomicHistory({
           type: "exchange",
-          title: `${from.name} y ${to.name} hicieron intercambio`,
-          detail: `${from.name} entregó ${offeredItems} y recibió ${requestedItems}. Saldos: ${from.name} $${from.cash}, ${to.name} $${to.cash}`,
+          title: tStore("history.exchange.title", _exParams),
+          detail: tStore("history.exchange.detail", _exParams),
+          titleKey: "history.exchange.title",
+          detailKey: "history.exchange.detail",
+          params: _exParams,
           amount: proposal.offerMoney + proposal.requestMoney,
           playerIds: [from.id, to.id],
         });
-        this.statusMessage = improvementRefund > 0
-          ? `Intercambio realizado entre ${from.name} y ${to.name}. Mejoras vendidas por $${improvementRefund}`
-          : `Intercambio realizado entre ${from.name} y ${to.name}`;
+        this.statusMessage =
+          improvementRefund > 0
+            ? tStore("game.status.exchangeAcceptedWithImprovements", {
+                from: from.name,
+                to: to.name,
+                amount: improvementRefund,
+              })
+            : tStore("game.status.exchangeAccepted", {
+                from: from.name,
+                to: to.name,
+              });
       } else {
-        this.statusMessage = "Intercambio rechazado";
+        this.statusMessage = tStore("game.status.exchangeRejected");
       }
 
       this.exchangeProposal = null;
@@ -1460,7 +1735,10 @@ export const useGameStore = defineStore("game", {
       const parts: string[] = [];
       if (propertyIndexes.length > 0) {
         const names = propertyIndexes
-          .map((tileIndex) => BOARD_TILES.find((tile) => tile.index === tileIndex)?.name)
+          .map(
+            (tileIndex) =>
+              BOARD_TILES.find((tile) => tile.index === tileIndex)?.name,
+          )
           .filter(Boolean);
         parts.push(names.join(", "));
       }
@@ -1468,7 +1746,10 @@ export const useGameStore = defineStore("game", {
       return parts.length > 0 ? parts.join(" + ") : "sin elementos";
     },
 
-    _sellPartialExchangeDevelopments(tileIndexes: number[], ownerId: number): number {
+    _sellPartialExchangeDevelopments(
+      tileIndexes: number[],
+      ownerId: number,
+    ): number {
       const owner = this.players.find((player) => player.id === ownerId);
       if (!owner) return 0;
 
@@ -1477,7 +1758,9 @@ export const useGameStore = defineStore("game", {
       const clearedGroups = new Set<TileGroup>();
 
       for (const tileIndex of tileIndexes) {
-        const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
+        const tile = BOARD_TILES.find(
+          (candidate) => candidate.index === tileIndex,
+        );
         if (!tile || tile.type !== "property") continue;
         if (clearedGroups.has(tile.group)) continue;
 
@@ -1494,14 +1777,17 @@ export const useGameStore = defineStore("game", {
         for (const groupTile of groupTiles) {
           if (this.propertyOwners[groupTile.index] !== ownerId) continue;
           const development = this.propertyDevelopments[groupTile.index];
-          if (!development || (!development.hotel && development.houses <= 0)) continue;
+          if (!development || (!development.hotel && development.houses <= 0))
+            continue;
 
           let refund = 0;
           if (development.hotel) {
             refund += Math.round(this.getHotelCost(groupTile.index) / 2);
             refund += 4 * Math.round(this.getHouseCost(groupTile.index) / 2);
           } else {
-            refund += development.houses * Math.round(this.getHouseCost(groupTile.index) / 2);
+            refund +=
+              development.houses *
+              Math.round(this.getHouseCost(groupTile.index) / 2);
           }
 
           development.houses = 0;

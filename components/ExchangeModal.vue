@@ -1,7 +1,7 @@
 <template>
   <div class="exchange-backdrop" @click.self="spectatorMode || emit('cancel')">
     <div class="exchange-modal">
-      <button v-if="!spectatorMode" class="close-btn" tabindex="-1" aria-label="Cerrar intercambio" @click="emit('cancel')">
+      <button v-if="!spectatorMode" class="close-btn" tabindex="-1" :aria-label="t('exchange.title')" @click="emit('cancel')">
         <span class="material-symbols-outlined">close</span>
       </button>
 
@@ -9,10 +9,10 @@
         <div class="exchange-header">
           <span class="exchange-tag">
             <span class="material-symbols-outlined">sync_alt</span>
-            Intercambio
+            {{ t("exchange.title") }}
           </span>
-          <h2 class="exchange-title">Selecciona un jugador</h2>
-          <p class="exchange-subtitle">Elige con quién negociar propiedades y efectivo.</p>
+          <h2 class="exchange-title">{{ t("exchange.selectPlayer") }}</h2>
+          <p class="exchange-subtitle">{{ t("exchange.selectSubtitle") }}</p>
         </div>
         <div class="exchange-body">
           <div class="player-select-list">
@@ -28,7 +28,7 @@
               <span class="player-select-icon">{{ tokenIcon(p.tokenModel) }}</span>
               <span class="player-select-copy">
                 <strong>{{ p.name }}</strong>
-                <small>{{ ownedCount(p.id) }} propiedades</small>
+                <small>{{ ownedCount(p.id) }} {{ ownedCount(p.id) === 1 ? t("tile.property.one") : t("tile.property.many") }}</small>
               </span>
               <span class="player-select-cash">{{ formatMoney(p.cash) }}</span>
             </button>
@@ -40,7 +40,7 @@
             tabindex="0"
             @click="onSelectTarget"
           >
-            Continuar
+            {{ t("common.continue") }}
           </button>
         </div>
       </template>
@@ -49,20 +49,20 @@
         <div class="exchange-header">
           <span class="exchange-tag">
             <span class="material-symbols-outlined">handshake</span>
-            Propuesta
+            {{ t("exchange.proposal") }}
           </span>
           <h2 class="exchange-title">{{ proposingPlayer?.name }} ↔ {{ targetPlayer?.name }}</h2>
-          <p class="exchange-subtitle">Arma una oferta equilibrando propiedades y dinero.</p>
+          <p class="exchange-subtitle">{{ t("exchange.proposalSubtitle") }}</p>
         </div>
         <div class="exchange-body">
           <div class="trade-summary">
             <div>
-              <span>Tú entregas</span>
+              <span>{{ t("exchange.youGive") }}</span>
               <strong>{{ offerSummary }}</strong>
             </div>
             <span class="summary-arrow material-symbols-outlined">sync_alt</span>
             <div>
-              <span>Tú recibes</span>
+              <span>{{ t("exchange.youReceive") }}</span>
               <strong>{{ requestSummary }}</strong>
             </div>
           </div>
@@ -70,7 +70,7 @@
           <div v-if="proposalDevelopmentWarnings.length > 0" class="exchange-warning">
             <span class="material-symbols-outlined">warning</span>
             <div>
-              <strong>Este intercambio venderá mejoras</strong>
+              <strong>{{ t("exchange.warningProposal") }}</strong>
               <p>{{ proposalDevelopmentWarnings.join(" ") }}</p>
             </div>
           </div>
@@ -78,8 +78,8 @@
           <div class="exchange-columns">
             <div class="exchange-column">
               <div class="column-heading">
-                <h3 class="column-title">Tú ofreces</h3>
-                <span>{{ myProperties.length }} disp.</span>
+                <h3 class="column-title">{{ t("exchange.youOffer") }}</h3>
+                <span>{{ myProperties.length }} {{ t("exchange.availableShort") }}</span>
               </div>
               <div class="property-list">
                 <label
@@ -101,10 +101,10 @@
                   </span>
                   <span v-if="prop.price" class="property-price">{{ formatMoney(prop.price) }}</span>
                 </label>
-                <p v-if="myProperties.length === 0" class="empty-msg">Sin propiedades</p>
+                <p v-if="myProperties.length === 0" class="empty-msg">{{ t("exchange.noProperties") }}</p>
               </div>
               <div class="money-input-row">
-                <label class="money-label">Dinero</label>
+                <label class="money-label">{{ t("exchange.money") }}</label>
                 <input
                   ref="offerMoneyRef"
                   type="number"
@@ -114,13 +114,13 @@
                   :value="offerMoney"
                   @input="onOfferMoneyInput"
                 />
-                <span class="money-suffix">max {{ formatMoney(myCash) }}</span>
+                <span class="money-suffix">{{ t("exchange.max", { amount: formatMoney(myCash) }) }}</span>
               </div>
             </div>
             <div class="exchange-column">
               <div class="column-heading">
-                <h3 class="column-title">Pides a {{ targetPlayer?.name }}</h3>
-                <span>{{ targetProperties.length }} disp.</span>
+                <h3 class="column-title">{{ t("exchange.askFrom", { player: targetPlayer?.name }) }}</h3>
+                <span>{{ targetProperties.length }} {{ t("exchange.availableShort") }}</span>
               </div>
               <div class="property-list">
                 <label
@@ -142,10 +142,10 @@
                   </span>
                   <span v-if="prop.price" class="property-price">{{ formatMoney(prop.price) }}</span>
                 </label>
-                <p v-if="targetProperties.length === 0" class="empty-msg">Sin propiedades</p>
+                <p v-if="targetProperties.length === 0" class="empty-msg">{{ t("exchange.noProperties") }}</p>
               </div>
               <div class="money-input-row">
-                <label class="money-label">Dinero</label>
+                <label class="money-label">{{ t("exchange.money") }}</label>
                 <input
                   type="number"
                   class="money-input"
@@ -154,12 +154,12 @@
                   :value="requestMoney"
                   @input="onRequestMoneyInput"
                 />
-                <span class="money-suffix">max {{ formatMoney(targetPlayer!.cash) }}</span>
+                <span class="money-suffix">{{ t("exchange.max", { amount: formatMoney(targetPlayer!.cash) }) }}</span>
               </div>
             </div>
           </div>
           <div class="exchange-actions">
-            <button class="action-btn cancel-btn" tabindex="0" @click="onBackFromProposal">Atrás</button>
+            <button class="action-btn cancel-btn" tabindex="0" @click="onBackFromProposal">{{ t("common.cancel") }}</button>
             <button
               ref="sendProposalRef"
               class="action-btn confirm-btn"
@@ -167,7 +167,7 @@
               tabindex="0"
               @click="onSendProposal"
             >
-              Enviar propuesta
+              {{ t("exchange.send") }}
             </button>
           </div>
         </div>
@@ -177,20 +177,20 @@
         <div class="exchange-header">
           <span class="exchange-tag">
             <span class="material-symbols-outlined">fact_check</span>
-            Revisión
+            {{ t("exchange.review") }}
           </span>
-          <h2 class="exchange-title">Propuesta de {{ fromPlayer?.name }}</h2>
-          <p class="exchange-subtitle">Revisa lo que cambia de manos antes de aceptar.</p>
+          <h2 class="exchange-title">{{ t("exchange.offers", { player: fromPlayer?.name }) }}</h2>
+          <p class="exchange-subtitle">{{ t("exchange.reviewSubtitle") }}</p>
         </div>
         <div class="exchange-body">
           <div class="trade-summary respond-summary">
             <div>
-              <span>{{ fromPlayer?.name }} entrega</span>
+              <span>{{ t("exchange.gives", { player: fromPlayer?.name }) }}</span>
               <strong>{{ incomingSummary }}</strong>
             </div>
             <span class="summary-arrow material-symbols-outlined">sync_alt</span>
             <div>
-              <span>{{ fromPlayer?.name }} recibe</span>
+              <span>{{ t("exchange.receives", { player: fromPlayer?.name }) }}</span>
               <strong>{{ outgoingSummary }}</strong>
             </div>
           </div>
@@ -198,7 +198,7 @@
           <div v-if="respondDevelopmentWarnings.length > 0" class="exchange-warning">
             <span class="material-symbols-outlined">warning</span>
             <div>
-              <strong>Al aceptar se venderán mejoras</strong>
+              <strong>{{ t("exchange.warningAccept") }}</strong>
               <p>{{ respondDevelopmentWarnings.join(" ") }}</p>
             </div>
           </div>
@@ -206,7 +206,7 @@
           <div class="exchange-columns">
             <div class="exchange-column">
               <div class="column-heading">
-                <h3 class="column-title">{{ fromPlayer?.name }} ofrece</h3>
+                <h3 class="column-title">{{ t("exchange.offers", { player: fromPlayer?.name }) }}</h3>
               </div>
               <div class="property-list">
                 <div
@@ -221,7 +221,7 @@
                   </span>
                   <span v-if="prop.price" class="property-price">{{ formatMoney(prop.price) }}</span>
                 </div>
-                <p v-if="proposal!.offerProperties.length === 0" class="empty-msg">Sin propiedades</p>
+                <p v-if="proposal!.offerProperties.length === 0" class="empty-msg">{{ t("exchange.noProperties") }}</p>
               </div>
               <div v-if="proposal!.offerMoney > 0" class="money-display">
                 {{ formatMoney(proposal!.offerMoney) }}
@@ -229,7 +229,7 @@
             </div>
             <div class="exchange-column">
               <div class="column-heading">
-                <h3 class="column-title">{{ fromPlayer?.name }} pide</h3>
+                <h3 class="column-title">{{ t("exchange.asks", { player: fromPlayer?.name }) }}</h3>
               </div>
               <div class="property-list">
                 <div
@@ -244,7 +244,7 @@
                   </span>
                   <span v-if="prop.price" class="property-price">{{ formatMoney(prop.price) }}</span>
                 </div>
-                <p v-if="proposal!.requestProperties.length === 0" class="empty-msg">Sin propiedades</p>
+                <p v-if="proposal!.requestProperties.length === 0" class="empty-msg">{{ t("exchange.noProperties") }}</p>
               </div>
               <div v-if="proposal!.requestMoney > 0" class="money-display">
                 {{ formatMoney(proposal!.requestMoney) }}
@@ -252,11 +252,11 @@
             </div>
           </div>
           <div v-if="!spectatorMode" class="exchange-actions">
-            <button ref="rejectRef" class="action-btn cancel-btn" tabindex="0" @click="onReject">Rechazar</button>
+            <button ref="rejectRef" class="action-btn cancel-btn" tabindex="0" @click="onReject">{{ t("common.reject") }}</button>
             <button ref="renegotiateRef" class="action-btn renegotiate-btn" tabindex="0" @click="onRenegotiate">
-              Renegociar
+              {{ t("exchange.renegotiate") }}
             </button>
-            <button ref="acceptRef" class="action-btn accept-btn" tabindex="0" @click="onAccept">Aceptar</button>
+            <button ref="acceptRef" class="action-btn accept-btn" tabindex="0" @click="onAccept">{{ t("common.accept") }}</button>
           </div>
           <div v-else class="spectator-banner" :class="spectatorResult ?? ''">
             <template v-if="!spectatorResult">
@@ -265,11 +265,11 @@
             </template>
             <template v-else-if="spectatorResult === 'accepted'">
               <span class="material-symbols-outlined spectator-icon accepted-icon">check_circle</span>
-              <span class="spectator-result">Intercambio aceptado</span>
+              <span class="spectator-result">{{ t("exchange.accepted") }}</span>
             </template>
             <template v-else>
               <span class="material-symbols-outlined spectator-icon rejected-icon">cancel</span>
-              <span class="spectator-result">Intercambio rechazado</span>
+              <span class="spectator-result">{{ t("exchange.rejected") }}</span>
             </template>
           </div>
         </div>
@@ -283,6 +283,9 @@ import { ref, computed, nextTick, onMounted, watch } from "vue";
 import { BOARD_TILES, type BoardTile, type TileType } from "~/config/boardTilesConfig";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
+import { useI18n } from "~/composables/useI18n";
+
+const { t } = useI18n();
 
 export type ExchangePlayerId = number | string;
 
@@ -415,13 +418,13 @@ const requestSummary = computed(() =>
 const incomingSummary = computed(() =>
   props.proposal
     ? tradeSideSummary(props.proposal.offerProperties, props.proposal.offerMoney)
-    : "Sin elementos",
+    : t("exchange.noProperties"),
 );
 
 const outgoingSummary = computed(() =>
   props.proposal
     ? tradeSideSummary(props.proposal.requestProperties, props.proposal.requestMoney)
-    : "Sin elementos",
+    : t("exchange.noProperties"),
 );
 
 const proposalDevelopmentWarnings = computed(() => {
@@ -451,10 +454,10 @@ const respondDevelopmentWarnings = computed(() => {
 });
 
 const spectatorBannerText = computed(() => {
-  if (!props.proposal) return "Los bots están negociando...";
+  if (!props.proposal) return t("exchange.botsNegotiating");
   const from = props.players.find((p) => p.id === props.proposal!.fromPlayerId);
   const to = props.players.find((p) => p.id === props.proposal!.toPlayerId);
-  return `${to?.name ?? "Bot"} está evaluando la oferta de ${from?.name ?? "Bot"}...`;
+  return t("exchange.botEvaluating", { to: to?.name ?? "Bot", from: from?.name ?? "Bot" });
 });
 
 function tokenIcon(file: string) {
@@ -478,20 +481,21 @@ function isExchangeableTile(tile: BoardTile) {
 }
 
 function tileKindLabel(type: TileType) {
-  if (type === "railroad") return "Estación";
-  if (type === "utility") return "Servicio";
-  return "Propiedad";
+  if (type === "railroad") return t("exchange.kind.railroad");
+  if (type === "utility") return t("exchange.kind.utility");
+  return t("exchange.kind.property");
 }
 
 function tradeSideSummary(propertyIndexes: number[], money: number) {
   const parts = [];
   if (propertyIndexes.length > 0) {
-    parts.push(`${propertyIndexes.length} prop.`);
+    const propLabel = propertyIndexes.length === 1 ? t("tile.property.one") : t("tile.property.many");
+    parts.push(`${propertyIndexes.length} ${propLabel}`);
   }
   if (money > 0) {
     parts.push(formatMoney(money));
   }
-  return parts.length > 0 ? parts.join(" + ") : "Sin elementos";
+  return parts.length > 0 ? parts.join(" + ") : t("exchange.noProperties");
 }
 
 function developmentWarningsForTransfer(propertyIndexes: number[], ownerId: ExchangePlayerId) {
@@ -521,7 +525,7 @@ function developmentWarningsForTransfer(propertyIndexes: number[], ownerId: Exch
     if (improvedTiles.length === 0) continue;
 
     warnedGroups.add(tile.group);
-    const ownerName = props.players.find((player) => player.id === ownerId)?.name ?? "El jugador";
+    const ownerName = props.players.find((player) => player.id === ownerId)?.name ?? t("common.player");
     const groupName = colorGroupLabel(tile.group);
     const affected = improvedTiles
       .map((groupTile) => {

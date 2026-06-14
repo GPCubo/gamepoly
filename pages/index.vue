@@ -17,7 +17,7 @@
             <span />
           </div>
           <span class="loader-label">
-            {{ heroModelsError ? "Error al cargar" : "Cargando" }}
+            {{ heroModelsError ? t("common.loadError") : t("common.loading") }}
           </span>
         </div>
       </div>
@@ -25,11 +25,11 @@
 
     <AppHeader>
       <template #actions>
-        <nav class="header-nav" aria-label="Navegacion principal">
-          <button @click="scrollToSection('features')">Modos</button>
-          <button @click="scrollToSection('showcase')">Experiencia</button>
+        <nav class="header-nav" :aria-label="t('landing.nav.experience')">
+          <button @click="scrollToSection('features')">{{ t("landing.nav.modes") }}</button>
+          <button @click="scrollToSection('showcase')">{{ t("landing.nav.experience") }}</button>
           <button class="nav-primary" @click="navigateTo('/setup')">
-            Jugar
+            {{ t("landing.nav.play") }}
           </button>
         </nav>
       </template>
@@ -53,26 +53,24 @@
               :key="`${heroMessageIndex}-text`"
               :style="{ color: currentHeroMessage.color }"
             >
-              {{ currentHeroMessage.text }}
+            {{ t(currentHeroMessage.textKey) }}
             </span>
           </span>
           <h1 class="hero-title reveal-title">GamePoly</h1>
           <p class="hero-subtitle">
-            Crea partidas con bots, juega en familia o arma una mesa
-            multijugador con subastas, tarjetas, historico y fichas 3D en
-            movimiento.
+            {{ t("landing.hero.subtitle") }}
           </p>
           <div class="hero-actions">
             <button class="hero-primary" @click="navigateTo('/setup')">
               <span class="material-symbols-outlined">play_arrow</span>
-              Modo Individual
+              {{ t("landing.hero.single") }}
             </button>
             <button
               class="hero-secondary"
               @click="navigateTo('/multiplayer/lobby?mode=create')"
             >
               <span class="material-symbols-outlined">wifi</span>
-              Jugar con amigos
+              {{ t("landing.hero.friends") }}
             </button>
           </div>
         </div>
@@ -148,7 +146,7 @@
           </ClientOnly>
           <div class="stage-caption">
             <span class="material-symbols-outlined">view_in_ar</span>
-            Interactua con el tablero
+            {{ t("landing.hero.caption") }}
           </div>
         </div>
       </section>
@@ -156,63 +154,51 @@
       <section id="features" class="landing-strip">
         <article class="feature-chip reveal-on-scroll">
           <span class="material-symbols-outlined">casino</span>
-          <strong>Dados y dobles</strong>
-          <small>Turnos con reglas completas y ritmo visual.</small>
+          <strong>{{ t("landing.feature.dice.title") }}</strong>
+          <small>{{ t("landing.feature.dice.text") }}</small>
         </article>
         <article class="feature-chip reveal-on-scroll">
           <span class="material-symbols-outlined">style</span>
-          <strong>Suerte y Arca</strong>
-          <small>Tarjetas visibles para todos en multiplayer.</small>
+          <strong>{{ t("landing.feature.cards.title") }}</strong>
+          <small>{{ t("landing.feature.cards.text") }}</small>
         </article>
         <article class="feature-chip reveal-on-scroll">
           <span class="material-symbols-outlined">gavel</span>
-          <strong>Subastas</strong>
-          <small>Compra, pasa o compite por propiedades.</small>
+          <strong>{{ t("landing.feature.auctions.title") }}</strong>
+          <small>{{ t("landing.feature.auctions.text") }}</small>
         </article>
         <article class="feature-chip reveal-on-scroll">
           <span class="material-symbols-outlined">groups</span>
-          <strong>Multijugador</strong>
-          <small>Mesas online con bots y humanos.</small>
+          <strong>{{ t("landing.feature.multiplayer.title") }}</strong>
+          <small>{{ t("landing.feature.multiplayer.text") }}</small>
         </article>
       </section>
 
       <section id="showcase" class="scroll-showcase">
         <div class="showcase-card reveal-on-scroll">
           <span class="material-symbols-outlined">monitoring</span>
-          <h2>Historial claro</h2>
-          <p>
-            Movimientos, dinero y tarjetas quedan separados para revisar cada
-            giro de la partida.
-          </p>
+          <h2>{{ t("landing.showcase.history.title") }}</h2>
+          <p>{{ t("landing.showcase.history.text") }}</p>
         </div>
         <div class="showcase-card reveal-on-scroll">
           <span class="material-symbols-outlined">smart_toy</span>
-          <h2>Bots con criterio</h2>
-          <p>
-            Juega contra bots regulares o dificiles con decisiones de compra,
-            deuda y subasta.
-          </p>
+          <h2>{{ t("landing.showcase.bots.title") }}</h2>
+          <p>{{ t("landing.showcase.bots.text") }}</p>
         </div>
         <div class="showcase-card reveal-on-scroll">
           <span class="material-symbols-outlined">public</span>
-          <h2>Mesa online</h2>
-          <p>
-            Crea una sala, comparte el codigo y deja que el tablero mantenga a
-            todos sincronizados.
-          </p>
+          <h2>{{ t("landing.showcase.online.title") }}</h2>
+          <p>{{ t("landing.showcase.online.text") }}</p>
         </div>
       </section>
 
       <section class="landing-cta glass-readable reveal-on-scroll">
-        <span class="hero-kicker">Listo para tirar dados</span>
-        <h2>El formulario de partida ahora vive separado.</h2>
-        <p>
-          Entra a la configuracion completa para elegir modo, jugadores, fichas
-          y reglas.
-        </p>
+        <span class="hero-kicker">{{ t("landing.cta.kicker") }}</span>
+        <h2>{{ t("landing.cta.title") }}</h2>
+        <p>{{ t("landing.cta.text") }}</p>
         <button class="hero-primary" @click="navigateTo('/setup')">
           <span class="material-symbols-outlined">tune</span>
-          Ir al formulario
+          {{ t("landing.cta.button") }}
         </button>
       </section>
     </main>
@@ -225,8 +211,11 @@ import { TresCanvas } from "@tresjs/core";
 import { OrbitControls } from "@tresjs/cientos";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { Group } from "three";
+import { useI18n } from "~/composables/useI18n";
+import type { TranslationKey } from "~/locales";
 
 const heroBoardScene = shallowRef<Group | null>(null);
+const { t } = useI18n();
 const heroHatScene = shallowRef<Group | null>(null);
 const heroDedalScene = shallowRef<Group | null>(null);
 const heroStageRef = ref<HTMLElement | null>(null);
@@ -238,36 +227,36 @@ const heroModelsLoading = ref(true);
 const heroModelsError = ref(false);
 const heroMessages = [
   {
-    text: "Tablero vivo, turnos rapidos, partidas memorables",
+    textKey: "landing.hero.message.0",
     icon: "auto_awesome",
     color: "#86efac",
   },
   {
-    text: "Subastas tensas y fichas 3D en movimiento",
+    textKey: "landing.hero.message.1",
     icon: "gavel",
     color: "#facc15",
   },
   {
-    text: "Bots listos para comprar, negociar y arriesgar",
+    textKey: "landing.hero.message.2",
     icon: "smart_toy",
     color: "#93c5fd",
   },
   {
-    text: "Tarjetas, alquileres y dobles con drama controlado",
+    textKey: "landing.hero.message.3",
     icon: "style",
     color: "#f0abfc",
   },
   {
-    text: "Mesas online para jugar con tu gente",
+    textKey: "landing.hero.message.4",
     icon: "wifi",
     color: "#67e8f9",
   },
   {
-    text: "Historial claro para revisar cada jugada",
+    textKey: "landing.hero.message.5",
     icon: "monitoring",
     color: "#fb7185",
   },
-];
+] satisfies Array<{ textKey: TranslationKey; icon: string; color: string }>;
 const currentHeroMessage = computed(
   () => heroMessages[heroMessageIndex.value % heroMessages.length],
 );

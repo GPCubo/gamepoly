@@ -2,10 +2,10 @@
   <div class="winner-backdrop" @keydown.stop @click.stop>
     <div class="winner-card">
       <div class="confetti-row">🎉 🏆 🎉</div>
-      <p class="winner-label">¡GANADOR!</p>
+      <p class="winner-label">{{ t("game.winner.localLabel") }}</p>
       <h1 class="winner-name">{{ player.name }}</h1>
       <p class="winner-token">{{ tokenIcon }}</p>
-      <p class="winner-cash">con ${{ player.cash.toLocaleString() }}</p>
+      <p class="winner-cash">{{ t("game.winner.cash", { amount: player.cash.toLocaleString() }) }}</p>
       <button
         ref="newGameBtnRef"
         class="new-game-btn"
@@ -14,7 +14,7 @@
         @keydown.enter.stop
         @keydown.space.stop
       >
-        Nueva partida
+        {{ t("game.winner.newGame") }}
       </button>
     </div>
   </div>
@@ -24,8 +24,10 @@
 import { computed, ref, onMounted, nextTick } from "vue";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import type { PlayerState } from "~/stores/gameStore";
+import { useI18n } from "~/composables/useI18n";
 
 const props = defineProps<{ player: PlayerState }>();
+const { t } = useI18n();
 
 const newGameBtnRef = ref<HTMLElement | null>(null);
 

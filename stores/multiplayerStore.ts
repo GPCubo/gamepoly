@@ -76,6 +76,9 @@ export interface MPEconomicHistoryItem {
   type: string
   title: string
   detail: string
+  titleKey?: string
+  detailKey?: string
+  params?: Record<string, string | number | boolean>
   amount?: number
   playerIds: string[]
   createdAt: number
@@ -118,6 +121,8 @@ export interface MPGameState {
   isDoubles: boolean
   diceValues: [number, number]
   statusMessage: string
+  statusMessageKey?: string
+  statusMessageParams?: Record<string, string | number | boolean>
   goSalary: number
   jailBailCost: number
   canSkipBuy: boolean

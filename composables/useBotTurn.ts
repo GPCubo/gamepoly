@@ -1,4 +1,5 @@
 import { type Ref } from "vue";
+import { tStore } from "~/composables/useI18n";
 import { useGameStore, type BotDifficulty, type ExchangeProposal } from "~/stores/gameStore";
 import { getBotEngine, type BuyDecision } from "~/composables/useBotEngine";
 import { BOARD_TILES, type BoardTile } from "~/config/boardTilesConfig";
@@ -93,14 +94,14 @@ export function useBotTurn(
       (botExchangeTurnCounts.get(botInfo.id) ?? 0) + 1,
     );
 
-    const difficultyLabel = botInfo.difficulty === "difficult" ? "Dificil" : "Regular";
-    store.setBotThinking(`${player.name} (Bot ${difficultyLabel}) esta pensando...`);
+    const difficultyLabel = tStore(botInfo.difficulty === "difficult" ? "common.difficult" : "common.regular");
+    store.setBotThinking(tStore("bot.thinking", { player: player.name, difficulty: difficultyLabel }));
     await delay(THINK_DELAY);
 
     if (player.inJail) {
       const action = engine.decideJailAction(player.cash, store);
       if (action === "payBail" && player.cash >= store.jailBailCost) {
-        store.setBotThinking(`${player.name} paga fianza`);
+        store.setBotThinking(tStore("bot.payBail", { player: player.name }));
         await delay(ACTION_DELAY);
         store.payJailBail(player.id);
       }
@@ -111,7 +112,7 @@ export function useBotTurn(
       return;
     }
 
-    store.setBotThinking(`${player.name} tira los dados`);
+    store.setBotThinking(tStore("bot.rolling", { player: player.name }));
     store.showDice();
     await delay(DICE_ROLL_DELAY);
     store.finishDiceRoll();
@@ -161,7 +162,7 @@ export function useBotTurn(
     const player = store.activePlayer;
     if (!player) return;
 
-    const difficultyLabel = botInfo.difficulty === "difficult" ? "Dificil" : "Regular";
+    const difficultyLabel = tStore(botInfo.difficulty === "difficult" ? "common.difficult" : "common.regular");
     const pos = ((player.position % 40) + 40) % 40;
     const tile = BOARD_TILES.find((t) => t.index === pos);
 
@@ -192,7 +193,7 @@ export function useBotTurn(
     }
 
     if (tile.type === "card") {
-      store.setBotThinking(`${player.name} toma una carta`);
+      store.setBotThinking(tStore("bot.drawCard", { player: player.name }));
       store.drawCard(tile.group as "chance" | "community");
       if (options.onBotCardDrawn) {
         await options.onBotCardDrawn();
@@ -231,29 +232,29 @@ export function useBotTurn(
         return;
       }
 
-      store.setBotThinking(`${player.name} (Bot ${difficultyLabel}) decide sobre ${tile.name}`);
+      store.setBotThinking(tStore("bot.deciding", { player: player.name, difficulty: difficultyLabel, tile: tile.name }));
       await delay(THINK_DELAY);
 
       const decision: BuyDecision = engine.decideBuy(tile, player.cash, store);
 
       if (store.auctionOnly) {
-        store.setBotThinking(`${player.name} envia ${tile.name} a subasta`);
+        store.setBotThinking(tStore("bot.sendAuction", { player: player.name, tile: tile.name }));
         await delay(ACTION_DELAY);
         store.isAuctionActive = true;
         return;
       }
 
       if (decision === "buy" && (tile.price ?? 0) <= player.cash) {
-        store.setBotThinking(`${player.name} compra ${tile.name}`);
+        store.setBotThinking(tStore("bot.buy", { player: player.name, tile: tile.name }));
         await delay(ACTION_DELAY);
         store.buyProperty(tile.index, player.id);
       } else if (decision === "auction") {
-        store.setBotThinking(`${player.name} envia ${tile.name} a subasta`);
+        store.setBotThinking(tStore("bot.sendAuction", { player: player.name, tile: tile.name }));
         await delay(ACTION_DELAY);
         store.isAuctionActive = true;
         return;
       } else if (store.canSkipBuy) {
-        store.setBotThinking(`${player.name} omite ${tile.name}`);
+        store.setBotThinking(tStore("bot.skip", { player: player.name, tile: tile.name }));
         await delay(ACTION_DELAY);
       }
 
@@ -338,7 +339,7 @@ export function useBotTurn(
     const pairNextAllowedTurn = botExchangePairNextAllowedTurn.get(pairKey) ?? 0;
     if (turnCount < pairNextAllowedTurn) return;
 
-    store.setBotThinking(`${player.name} propone intercambio a ${target.name}`);
+    store.setBotThinking(tStore("bot.proposeExchange", { player: player.name, target: target.name }));
     await delay(THINK_DELAY);
 
     if (store.exchangeProposal || store.winner) return;
@@ -424,7 +425,7 @@ export function useBotTurn(
     const player = store.players.find((candidate) => candidate.id === playerId);
     if (!player || player.cash >= 0 || store.bankruptPlayers.includes(playerId)) return false;
 
-    store.setBotThinking(`${player.name} resuelve su deuda`);
+    store.setBotThinking(tStore("bot.resolveDebt", { player: player.name }));
     await delay(ACTION_DELAY);
 
     let guard = 0;
@@ -434,14 +435,14 @@ export function useBotTurn(
 
       const mortgageTotal = store.mortgageAllAvailable(playerId);
       if (mortgageTotal > 0) {
-        store.setBotThinking(`${player.name} hipoteca propiedades para cubrir la deuda`);
+        store.setBotThinking(tStore("bot.mortgageDebt", { player: player.name }));
         await delay(BUILD_DELAY);
         continue;
       }
 
       const groupTile = getBestGroupImprovementToSell(playerId);
       if (groupTile) {
-        store.setBotThinking(`${player.name} vende mejoras de ${groupTile.group}`);
+        store.setBotThinking(tStore("bot.sellGroupImprovement", { player: player.name, group: groupTile.group }));
         store.sellPropertyGroupImprovement(groupTile.index, playerId);
         await delay(BUILD_DELAY);
         continue;
@@ -449,7 +450,7 @@ export function useBotTurn(
 
       const singleTile = getBestSingleImprovementToSell(playerId);
       if (singleTile) {
-        store.setBotThinking(`${player.name} vende una mejora de ${singleTile.name}`);
+        store.setBotThinking(tStore("bot.sellImprovement", { player: player.name, tile: singleTile.name }));
         store.sellImprovement(singleTile.index, playerId);
         await delay(BUILD_DELAY);
         continue;
@@ -459,7 +460,7 @@ export function useBotTurn(
     }
 
     if (player.cash < 0 && !store.bankruptPlayers.includes(playerId)) {
-      store.setBotThinking(`${player.name} no puede cubrir la deuda`);
+      store.setBotThinking(tStore("bot.bankrupt", { player: player.name }));
       await delay(ACTION_DELAY);
       store.declareBankruptcy(playerId);
     }

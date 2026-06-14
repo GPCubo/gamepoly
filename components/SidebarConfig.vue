@@ -2,7 +2,7 @@
   <Transition name="sidebar">
     <div v-if="open" class="sidebar-config">
       <div class="sidebar-header">
-        <span class="sidebar-title">Configuracion</span>
+        <span class="sidebar-title">{{ t("common.configure") }}</span>
         <button class="sidebar-close" tabindex="-1" @click="emit('close')">x</button>
       </div>
 
@@ -10,8 +10,8 @@
         <section class="player-summary">
           <div class="player-avatar">{{ activePlayerInitial }}</div>
           <div class="player-summary-copy">
-            <span>Turno actual</span>
-            <strong>{{ store.activePlayer?.name ?? "Jugador" }}</strong>
+            <span>{{ t("common.currentTurn") }}</span>
+            <strong>{{ store.activePlayer?.name ?? t("common.player") }}</strong>
           </div>
           <div class="player-cash">${{ (store.activePlayer?.cash ?? 0).toLocaleString() }}</div>
         </section>
@@ -27,7 +27,7 @@
             @click="onExchangeClick"
           >
             <span class="material-symbols-outlined">swap_horiz</span>
-            <span>Intercambio</span>
+            <span>{{ t("game.action.exchange") }}</span>
           </button>
 
           <button
@@ -38,7 +38,7 @@
             @click="onCameraToggle"
           >
             <span class="material-symbols-outlined">videocam</span>
-            <span>{{ store.isCamFollowActive ? "Camara fija" : "Camara libre" }}</span>
+            <span>{{ store.isCamFollowActive ? t("game.action.cameraFixed") : t("game.action.cameraFree") }}</span>
           </button>
 
           <button
@@ -51,7 +51,7 @@
             @click="onMortgageAll"
           >
             <span class="material-symbols-outlined">account_balance_wallet</span>
-            <span>Hipotecar todo +${{ mortgageAllValue }}</span>
+            <span>{{ t("tile.mortgageAction") }} +${{ mortgageAllValue }}</span>
           </button>
 
         </div>
@@ -59,8 +59,8 @@
         <section class="property-panel">
           <div class="panel-heading">
             <div>
-              <span class="panel-kicker">Gestion</span>
-              <span class="panel-title">Propiedades</span>
+              <span class="panel-kicker">{{ t("game.action.manage") }}</span>
+              <span class="panel-title">{{ t("tile.property.many") }}</span>
             </div>
             <span class="panel-count">{{ filteredOwnedTiles.length }}/{{ activeOwnedTiles.length }}</span>
           </div>
@@ -70,16 +70,16 @@
             <input
               v-model="searchTerm"
               type="search"
-              placeholder="Buscar por nombre, color o estado"
+              :placeholder="t('common.search')"
             />
           </label>
 
           <p v-if="!activeOwnedTiles.length" class="empty-text">
-            Sin propiedades
+            {{ t("exchange.noProperties") }}
           </p>
 
           <p v-else-if="!filteredOwnedTiles.length" class="empty-text">
-            Sin resultados
+            {{ t("common.noResults") }}
           </p>
 
           <div v-else class="property-groups">
@@ -93,7 +93,7 @@
                 <span class="group-color" />
                 <div>
                   <strong>{{ group.label }}</strong>
-                  <span>{{ group.tiles.length }} {{ group.tiles.length === 1 ? "propiedad" : "propiedades" }}</span>
+                  <span>{{ group.tiles.length }} {{ group.tiles.length === 1 ? t("tile.property.one") : t("tile.property.many") }}</span>
                 </div>
               </header>
 
@@ -105,7 +105,7 @@
                   @click="onBuildGroup(group)"
                 >
                   <span class="material-symbols-outlined">add_home</span>
-                  <span>Comprar grupo ${{ groupBuildCost(group) }}</span>
+                  <span>{{ t("tile.buy") }} ${{ groupBuildCost(group) }}</span>
                 </button>
                 <button
                   class="mini-action sell-action"
@@ -114,7 +114,7 @@
                   @click="onSellGroup(group)"
                 >
                   <span class="material-symbols-outlined">real_estate_agent</span>
-                  <span>Vender grupo +${{ groupSellRefund(group) }}</span>
+                  <span>{{ t("tile.sellHouse") }} +${{ groupSellRefund(group) }}</span>
                 </button>
               </div>
 
@@ -129,7 +129,7 @@
                   <div class="property-main">
                     <span class="property-accent" />
                     <div class="property-copy">
-                      <strong>{{ tile.shortName ?? tile.name }}</strong>
+                      <strong>{{ displayTileName(tile) }}</strong>
                       <span>{{ developmentLabel(tile) }}</span>
                     </div>
                     <span class="property-price" v-if="tile.price !== undefined">${{ tile.price }}</span>
@@ -144,7 +144,7 @@
                       @click="onBuildHouse(tile)"
                     >
                       <span class="material-symbols-outlined">home_work</span>
-                      <span>Casa ${{ store.getHouseCost(tile.index) }}</span>
+                      <span>{{ t("tile.house") }} ${{ store.getHouseCost(tile.index) }}</span>
                     </button>
 
                     <button
@@ -155,7 +155,7 @@
                       @click="onBuildHotel(tile)"
                     >
                       <span class="material-symbols-outlined">apartment</span>
-                      <span>Hotel ${{ store.getHotelCost(tile.index) }}</span>
+                      <span>{{ t("tile.hotel") }} ${{ store.getHotelCost(tile.index) }}</span>
                     </button>
 
                     <button
@@ -166,7 +166,7 @@
                       @click="onSellImprovement(tile)"
                     >
                       <span class="material-symbols-outlined">sell</span>
-                      <span>Vender +${{ sellRefund(tile) }}</span>
+                      <span>{{ t("tile.sellHouse") }} +${{ sellRefund(tile) }}</span>
                     </button>
 
                     <button
@@ -177,7 +177,7 @@
                       @click="onMortgage(tile)"
                     >
                       <span class="material-symbols-outlined">account_balance</span>
-                      <span>Hipotecar +${{ store.getMortgageValue(tile.index) }}</span>
+                      <span>{{ t("tile.mortgageAction") }} +${{ store.getMortgageValue(tile.index) }}</span>
                     </button>
 
                     <button
@@ -188,7 +188,7 @@
                       @click="onUnmortgage(tile)"
                     >
                       <span class="material-symbols-outlined">paid</span>
-                      <span>Pagar ${{ store.getUnmortgageCost(tile.index) }}</span>
+                      <span>{{ t("tile.unmortgageAction") }} ${{ store.getUnmortgageCost(tile.index) }}</span>
                     </button>
                   </div>
                 </article>
@@ -206,8 +206,10 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch, type Ref } from
 import { BOARD_TILES, type BoardTile, type TileGroup } from "~/config/boardTilesConfig";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
 import { useGameStore, type PropertyDevelopmentState } from "~/stores/gameStore";
+import { useI18n } from "~/composables/useI18n";
 
 const store = useGameStore();
+const { t } = useI18n();
 
 const props = defineProps<{
   open: boolean;
@@ -239,16 +241,16 @@ const PROPERTY_GROUP_ORDER: TileGroup[] = [
 ];
 
 const PROPERTY_GROUP_LABELS: Partial<Record<TileGroup, string>> = {
-  brown: "Marron",
-  lightBlue: "Azul claro",
-  pink: "Rosa",
-  orange: "Naranja",
-  red: "Rojo",
-  yellow: "Amarillo",
-  green: "Verde",
-  darkBlue: "Azul oscuro",
-  railroad: "Estaciones",
-  utility: "Servicios",
+  brown: "group.brown",
+  lightBlue: "group.lightBlue",
+  pink: "group.pink",
+  orange: "group.orange",
+  red: "group.red",
+  yellow: "group.yellow",
+  green: "group.green",
+  darkBlue: "group.darkBlue",
+  railroad: "group.railroad",
+  utility: "group.utility",
 };
 
 interface OwnedTileGroup {
@@ -369,7 +371,12 @@ function tileAccentStyle(tile: BoardTile) {
 }
 
 function groupLabelFor(tile: BoardTile) {
-  return PROPERTY_GROUP_LABELS[tile.group] ?? tile.group;
+  const key = PROPERTY_GROUP_LABELS[tile.group];
+  return key ? t(key as any) : tile.group;
+}
+
+function displayTileName(tile: BoardTile) {
+  return t(`tile.${tile.index}.${tile.shortName ? "short" : "name"}` as any);
 }
 
 function normalizeText(value: string) {
@@ -382,13 +389,13 @@ function normalizeText(value: string) {
 
 function developmentLabel(tile: BoardTile) {
   const development = developmentFor(tile);
-  if (development.mortgaged) return "Hipotecada";
-  if (tile.type === "railroad") return "Activa";
-  if (tile.type === "utility") return "Activa";
-  if (development.hotel) return "Hotel";
-  if (development.houses > 0) return `${development.houses}/4 casas`;
-  if (store.ownsFullPropertyGroup(tile.index, activePlayerId.value)) return "Grupo completo";
-  return "Sin mejoras";
+  if (development.mortgaged) return t("tile.mortgaged");
+  if (tile.type === "railroad") return t("tile.active");
+  if (tile.type === "utility") return t("tile.active");
+  if (development.hotel) return t("tile.hotel");
+  if (development.houses > 0) return `${development.houses}/4 ${t("tile.house")}`;
+  if (store.ownsFullPropertyGroup(tile.index, activePlayerId.value)) return t("tile.fullGroup");
+  return t("tile.noImprovements");
 }
 
 function canBuildHouse(tile: BoardTile) {

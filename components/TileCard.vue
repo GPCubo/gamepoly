@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <Transition name="card">
     <div class="tile-card" @click.self="onBackdropClick">
       <div class="card-inner">
@@ -31,23 +31,23 @@
             <div class="band-header">
               <span class="band-label">{{ groupLabel }}</span>
             </div>
-            <h2 class="band-title">{{ tile.name }}</h2>
+            <h2 class="band-title">{{ displayTileName }}</h2>
           </div>
           <div class="card-body">
             <div class="price-section">
               <div class="price-left">
-                <span class="price-micro">INVERSIÓN</span>
-                <span class="price-caption">PRECIO</span>
+                <span class="price-micro">{{ t("tile.investment").toUpperCase() }}</span>
+                <span class="price-caption">{{ t("tile.price").toUpperCase() }}</span>
               </div>
               <span class="price-value">${{ tile.price }}</span>
             </div>
             <div class="metrics-grid">
               <div class="metric-card">
-                <span class="metric-label">ALQUILER</span>
+                <span class="metric-label">{{ t("tile.rent").toUpperCase() }}</span>
                 <span class="metric-value">${{ rentAmount ?? rentBase }}</span>
               </div>
               <div class="metric-card">
-                <span class="metric-label">HIPOTECA</span>
+                <span class="metric-label">{{ t("tile.mortgage").toUpperCase() }}</span>
                 <span class="metric-value"
                   >${{
                     mortgageValue ?? Math.round((tile.price ?? 0) / 2)
@@ -58,12 +58,12 @@
             <div class="development-rates">
               <div class="development-rates-top">
                 <div>
-                  <span class="rates-kicker">MEJORAS</span>
-                  <strong>Casas y hotel</strong>
+                  <span class="rates-kicker">{{ t("tile.improvements").toUpperCase() }}</span>
+                  <strong>{{ t("tile.housesHotel") }}</strong>
                 </div>
                 <div class="rates-costs">
-                  <span>Casa ${{ houseCost ?? 0 }}</span>
-                  <span>Hotel ${{ hotelCost ?? 0 }}</span>
+                  <span>{{ t("tile.house") }} ${{ houseCost ?? 0 }}</span>
+                  <span>{{ t("tile.hotel") }} ${{ hotelCost ?? 0 }}</span>
                 </div>
               </div>
               <div class="rates-grid">
@@ -82,22 +82,22 @@
               <div class="own-status-row">
                 <div class="own-banner">
                   <span class="material-symbols-outlined filled">home</span>
-                  <span>Es tuya</span>
+                  <span>{{ t("tile.ownerMine") }}</span>
                 </div>
                 <div
                   class="development-panel"
                   :class="{ mortgaged: isMortgaged }"
                 >
-                  <span class="development-label">DESARROLLO</span>
+                  <span class="development-label">{{ t("tile.development").toUpperCase() }}</span>
                   <strong>{{ developmentLabel }}</strong>
                   <span v-if="isMortgaged" class="development-note"
-                    >No cobra alquiler</span
+                    >{{ t("tile.noRent") }}</span
                   >
                   <span v-else-if="canBuildHouse" class="development-note"
-                    >Casa: ${{ houseCost }}</span
+                    >{{ t("tile.house") }}: ${{ houseCost }}</span
                   >
                   <span v-else-if="canBuildHotel" class="development-note"
-                    >Hotel: ${{ hotelCost }}</span
+                    >{{ t("tile.hotel") }}: ${{ hotelCost }}</span
                   >
                 </div>
               </div>
@@ -114,7 +114,7 @@
                   <span class="material-symbols-outlined filled"
                     >home_work</span
                   >
-                  <span>Construir casa ${{ houseCost }}</span>
+                  <span>{{ t("tile.buildHouse") }} ${{ houseCost }}</span>
                 </button>
                 <button
                   v-if="!hasHotel && (houses ?? 0) >= 4"
@@ -128,7 +128,7 @@
                   <span class="material-symbols-outlined filled"
                     >apartment</span
                   >
-                  <span>Ampliar a hotel ${{ hotelCost }}</span>
+                  <span>{{ t("tile.buildHotel") }} ${{ hotelCost }}</span>
                 </button>
                 <button
                   v-if="canSellImprovement || hasHotel || (houses ?? 0) > 0"
@@ -152,7 +152,7 @@
                   @click="canMortgage && emit('mortgage')"
                 >
                   <span class="material-symbols-outlined">account_balance</span>
-                  <span>Hipotecar +${{ mortgageValue }}</span>
+                  <span>{{ t("tile.mortgageAction") }} +${{ mortgageValue }}</span>
                 </button>
                 <button
                   v-else
@@ -164,7 +164,7 @@
                   @click="canUnmortgage && emit('unmortgage')"
                 >
                   <span class="material-symbols-outlined">paid</span>
-                  <span>Levantar hipoteca ${{ unmortgageCost }}</span>
+                  <span>{{ t("tile.unmortgageAction") }} ${{ unmortgageCost }}</span>
                 </button>
               </div>
               <button
@@ -174,18 +174,18 @@
                 @click="emit('close')"
               >
                 <span class="material-symbols-outlined">arrow_forward</span>
-                <span>Siguiente</span>
+                <span>{{ t("common.next") }}</span>
               </button>
             </template>
             <template v-else-if="ownerState === 'other'">
               <div v-if="isMortgaged" class="mortgage-banner">
                 <span class="material-symbols-outlined">account_balance</span>
-                <span>Propiedad hipotecada: no se paga alquiler</span>
+                <span>{{ t("tile.mortgagedNoRent") }}</span>
               </div>
               <div v-else class="penalty-banner">
                 <span class="penalty-amount">−${{ rentAmount }}</span>
                 <span class="penalty-label"
-                  >Alquiler pagado a {{ ownerName }}</span
+                  >{{ t("tile.rentPaidTo", { owner: ownerName ?? "" }) }}</span
                 >
               </div>
               <button
@@ -195,7 +195,7 @@
                 @click="emit('close')"
               >
                 <span class="material-symbols-outlined">arrow_forward</span>
-                <span>Siguiente</span>
+                <span>{{ t("common.next") }}</span>
               </button>
             </template>
             <template v-else>
@@ -210,7 +210,7 @@
                   @click="canAfford && emit('buy')"
                 >
                   <span class="material-symbols-outlined filled">payments</span>
-                  <span>{{ canAfford ? "Comprar" : "Sin fondos" }}</span>
+                  <span>{{ canAfford ? t("tile.buy") : t("tile.noFunds") }}</span>
                 </button>
                 <button
                   ref="auctionBtnRef"
@@ -219,7 +219,7 @@
                   @click="emit('auction')"
                 >
                   <span class="material-symbols-outlined">gavel</span>
-                  <span>Subastar</span>
+                  <span>{{ t("tile.auction") }}</span>
                 </button>
                 <button
                   v-if="canSkipBuy && !auctionOnly"
@@ -229,7 +229,7 @@
                   @click="emit('skip')"
                 >
                   <span class="material-symbols-outlined">skip_next</span>
-                  <span>Omitir</span>
+                  <span>{{ t("tile.skip") }}</span>
                 </button>
               </div>
             </template>
@@ -240,27 +240,27 @@
         <template v-else-if="tile.type === 'railroad'">
           <div class="color-band railroad-band">
             <div class="band-header">
-              <span class="band-label">FERROCARRIL</span>
+              <span class="band-label">{{ t("tile.railroad").toUpperCase() }}</span>
             </div>
-            <h2 class="band-title">{{ tile.name }}</h2>
+            <h2 class="band-title">{{ displayTileName }}</h2>
             <span class="band-emoji">🚂</span>
           </div>
           <div class="card-body">
             <div class="price-section">
               <div class="price-left">
-                <span class="price-micro">INVERSIÓN</span>
-                <span class="price-caption">PRECIO</span>
+                <span class="price-micro">{{ t("tile.investment").toUpperCase() }}</span>
+                <span class="price-caption">{{ t("tile.price").toUpperCase() }}</span>
               </div>
               <span class="price-value">${{ tile.price }}</span>
             </div>
             <div class="metrics-grid">
               <div class="metric-card">
-                <span class="metric-label">ALQUILER</span>
+                <span class="metric-label">{{ t("tile.rent").toUpperCase() }}</span>
                 <span class="metric-value">${{ rentAmount ?? 25 }}</span>
                 <small class="metric-note">1:$25 2:$50 3:$100 4:$200</small>
               </div>
               <div class="metric-card">
-                <span class="metric-label">HIPOTECA</span>
+                <span class="metric-label">{{ t("tile.mortgage").toUpperCase() }}</span>
                 <span class="metric-value"
                   >${{
                     mortgageValue ?? Math.round((tile.price ?? 0) / 2)
@@ -271,16 +271,16 @@
             <template v-if="ownerState === 'own'">
               <div class="own-banner">
                 <span class="material-symbols-outlined filled">home</span>
-                <span>Es tuyo</span>
+                <span>{{ t("tile.ownerMineMasculine") }}</span>
               </div>
               <div
                 class="development-panel"
                 :class="{ mortgaged: isMortgaged }"
               >
-                <span class="development-label">ESTADO</span>
+                <span class="development-label">{{ t("tile.state").toUpperCase() }}</span>
                 <strong>{{ developmentLabel }}</strong>
                 <span v-if="isMortgaged" class="development-note"
-                  >No cobra alquiler</span
+                  >{{ t("tile.noRent") }}</span
                 >
               </div>
               <div class="action-stack management-actions">
@@ -294,7 +294,7 @@
                   @click="canMortgage && emit('mortgage')"
                 >
                   <span class="material-symbols-outlined">account_balance</span>
-                  <span>Hipotecar +${{ mortgageValue }}</span>
+                  <span>{{ t("tile.mortgageAction") }} +${{ mortgageValue }}</span>
                 </button>
                 <button
                   v-else
@@ -306,7 +306,7 @@
                   @click="canUnmortgage && emit('unmortgage')"
                 >
                   <span class="material-symbols-outlined">paid</span>
-                  <span>Levantar hipoteca ${{ unmortgageCost }}</span>
+                  <span>{{ t("tile.unmortgageAction") }} ${{ unmortgageCost }}</span>
                 </button>
               </div>
               <button
@@ -316,18 +316,18 @@
                 @click="emit('close')"
               >
                 <span class="material-symbols-outlined">arrow_forward</span>
-                <span>Siguiente</span>
+                <span>{{ t("common.next") }}</span>
               </button>
             </template>
             <template v-else-if="ownerState === 'other'">
               <div v-if="isMortgaged" class="mortgage-banner">
                 <span class="material-symbols-outlined">account_balance</span>
-                <span>Propiedad hipotecada: no se paga alquiler</span>
+                <span>{{ t("tile.mortgagedNoRent") }}</span>
               </div>
               <div v-else class="penalty-banner">
                 <span class="penalty-amount">−${{ rentAmount }}</span>
                 <span class="penalty-label"
-                  >Alquiler pagado a {{ ownerName }}</span
+                  >{{ t("tile.rentPaidTo", { owner: ownerName ?? "" }) }}</span
                 >
               </div>
               <button
@@ -337,7 +337,7 @@
                 @click="emit('close')"
               >
                 <span class="material-symbols-outlined">arrow_forward</span>
-                <span>Siguiente</span>
+                <span>{{ t("common.next") }}</span>
               </button>
             </template>
             <template v-else>
@@ -352,7 +352,7 @@
                   @click="canAfford && emit('buy')"
                 >
                   <span class="material-symbols-outlined filled">payments</span>
-                  <span>{{ canAfford ? "Comprar" : "Sin fondos" }}</span>
+                  <span>{{ canAfford ? t("tile.buy") : t("tile.noFunds") }}</span>
                 </button>
                 <button
                   ref="auctionBtnRailRef"
@@ -361,7 +361,7 @@
                   @click="emit('auction')"
                 >
                   <span class="material-symbols-outlined">gavel</span>
-                  <span>Subastar</span>
+                  <span>{{ t("tile.auction") }}</span>
                 </button>
                 <button
                   v-if="canSkipBuy && !auctionOnly"
@@ -371,7 +371,7 @@
                   @click="emit('skip')"
                 >
                   <span class="material-symbols-outlined">skip_next</span>
-                  <span>Omitir</span>
+                  <span>{{ t("tile.skip") }}</span>
                 </button>
               </div>
             </template>
@@ -382,9 +382,9 @@
         <template v-else-if="tile.type === 'utility'">
           <div class="color-band utility-band">
             <div class="band-header">
-              <span class="band-label">SERVICIO</span>
+              <span class="band-label">{{ t("tile.utility").toUpperCase() }}</span>
             </div>
-            <h2 class="band-title">{{ tile.name }}</h2>
+            <h2 class="band-title">{{ displayTileName }}</h2>
             <span class="band-emoji">{{
               tile.name.includes("Agua") ? "💧" : "💡"
             }}</span>
@@ -392,19 +392,19 @@
           <div class="card-body">
             <div class="price-section">
               <div class="price-left">
-                <span class="price-micro">INVERSIÓN</span>
-                <span class="price-caption">PRECIO</span>
+                <span class="price-micro">{{ t("tile.investment").toUpperCase() }}</span>
+                <span class="price-caption">{{ t("tile.price").toUpperCase() }}</span>
               </div>
               <span class="price-value">${{ tile.price }}</span>
             </div>
             <div class="metrics-grid">
               <div class="metric-card">
-                <span class="metric-label">ALQUILER</span>
+                <span class="metric-label">{{ t("tile.rent").toUpperCase() }}</span>
                 <span class="metric-value">${{ rentAmount ?? 0 }}</span>
                 <small class="metric-note">1 servicio: dados | 2: dados x8</small>
               </div>
               <div class="metric-card">
-                <span class="metric-label">HIPOTECA</span>
+                <span class="metric-label">{{ t("tile.mortgage").toUpperCase() }}</span>
                 <span class="metric-value"
                   >${{
                     mortgageValue ?? Math.round((tile.price ?? 0) / 2)
@@ -415,16 +415,16 @@
             <template v-if="ownerState === 'own'">
               <div class="own-banner">
                 <span class="material-symbols-outlined filled">home</span>
-                <span>Es tuyo</span>
+                <span>{{ t("tile.ownerMineMasculine") }}</span>
               </div>
               <div
                 class="development-panel"
                 :class="{ mortgaged: isMortgaged }"
               >
-                <span class="development-label">ESTADO</span>
+                <span class="development-label">{{ t("tile.state").toUpperCase() }}</span>
                 <strong>{{ developmentLabel }}</strong>
                 <span v-if="isMortgaged" class="development-note"
-                  >No cobra alquiler</span
+                  >{{ t("tile.noRent") }}</span
                 >
               </div>
               <div class="action-stack management-actions">
@@ -438,7 +438,7 @@
                   @click="canMortgage && emit('mortgage')"
                 >
                   <span class="material-symbols-outlined">account_balance</span>
-                  <span>Hipotecar +${{ mortgageValue }}</span>
+                  <span>{{ t("tile.mortgageAction") }} +${{ mortgageValue }}</span>
                 </button>
                 <button
                   v-else
@@ -450,7 +450,7 @@
                   @click="canUnmortgage && emit('unmortgage')"
                 >
                   <span class="material-symbols-outlined">paid</span>
-                  <span>Levantar hipoteca ${{ unmortgageCost }}</span>
+                  <span>{{ t("tile.unmortgageAction") }} ${{ unmortgageCost }}</span>
                 </button>
               </div>
               <button
@@ -460,18 +460,18 @@
                 @click="emit('close')"
               >
                 <span class="material-symbols-outlined">arrow_forward</span>
-                <span>Siguiente</span>
+                <span>{{ t("common.next") }}</span>
               </button>
             </template>
             <template v-else-if="ownerState === 'other'">
               <div v-if="isMortgaged" class="mortgage-banner">
                 <span class="material-symbols-outlined">account_balance</span>
-                <span>Propiedad hipotecada: no se paga alquiler</span>
+                <span>{{ t("tile.mortgagedNoRent") }}</span>
               </div>
               <div v-else class="penalty-banner">
                 <span class="penalty-amount">−${{ rentAmount }}</span>
                 <span class="penalty-label"
-                  >Alquiler pagado a {{ ownerName }}</span
+                  >{{ t("tile.rentPaidTo", { owner: ownerName ?? "" }) }}</span
                 >
               </div>
               <button
@@ -481,7 +481,7 @@
                 @click="emit('close')"
               >
                 <span class="material-symbols-outlined">arrow_forward</span>
-                <span>Siguiente</span>
+                <span>{{ t("common.next") }}</span>
               </button>
             </template>
             <template v-else>
@@ -496,7 +496,7 @@
                   @click="canAfford && emit('buy')"
                 >
                   <span class="material-symbols-outlined filled">payments</span>
-                  <span>{{ canAfford ? "Comprar" : "Sin fondos" }}</span>
+                  <span>{{ canAfford ? t("tile.buy") : t("tile.noFunds") }}</span>
                 </button>
                 <button
                   ref="auctionBtnUtilRef"
@@ -505,7 +505,7 @@
                   @click="emit('auction')"
                 >
                   <span class="material-symbols-outlined">gavel</span>
-                  <span>Subastar</span>
+                  <span>{{ t("tile.auction") }}</span>
                 </button>
                 <button
                   v-if="canSkipBuy && !auctionOnly"
@@ -515,7 +515,7 @@
                   @click="emit('skip')"
                 >
                   <span class="material-symbols-outlined">skip_next</span>
-                  <span>Omitir</span>
+                  <span>{{ t("tile.skip") }}</span>
                 </button>
               </div>
             </template>
@@ -526,9 +526,9 @@
         <template v-else-if="tile.type === 'tax'">
           <div class="color-band tax-band">
             <div class="band-header">
-              <span class="band-label">IMPUESTO</span>
+              <span class="band-label">{{ t("tile.tax").toUpperCase() }}</span>
             </div>
-            <h2 class="band-title">{{ tile.name }}</h2>
+            <h2 class="band-title">{{ displayTileName }}</h2>
             <span class="band-emoji">💸</span>
           </div>
           <div class="card-body">
@@ -536,9 +536,9 @@
               <span class="penalty-amount"
                 >−${{ TAX_AMOUNTS[tile.index] ?? 100 }}</span
               >
-              <span class="penalty-label">Pagado al banco</span>
+              <span class="penalty-label">{{ t("tile.tax") }}</span>
             </div>
-            <p class="auto-deduct">Descontado automáticamente</p>
+            <p class="auto-deduct">{{ t("common.done") }}</p>
             <button
               ref="closeActionBtnRefTax"
               class="action-btn next-action-btn"
@@ -546,7 +546,7 @@
               @click="emit('close')"
             >
               <span class="material-symbols-outlined">arrow_forward</span>
-              <span>Siguiente</span>
+              <span>{{ t("common.next") }}</span>
             </button>
           </div>
         </template>
@@ -556,17 +556,17 @@
           <div class="color-band" :style="{ background: groupColor }">
             <div class="band-header">
               <span class="band-label">{{
-                tile.group === "chance" ? "SUERTE" : "ARCA COMUNAL"
+                tile.group === "chance" ? t("tile.7.name").toUpperCase() : t("tile.2.name").toUpperCase()
               }}</span>
             </div>
-            <h2 class="band-title">{{ tile.name }}</h2>
+            <h2 class="band-title">{{ displayTileName }}</h2>
             <span class="band-emoji">{{
               tile.group === "chance" ? "🃏" : "📦"
             }}</span>
           </div>
           <div class="card-body">
-            <p class="card-hint">¡Roba una carta!</p>
-            <p class="auto-deduct">Sigue las instrucciones de la carta</p>
+            <p class="card-hint">{{ t("tile.card") }}</p>
+            <p class="auto-deduct">{{ t("tile.card") }}</p>
             <button
               ref="closeActionBtnRefCard"
               class="action-btn next-action-btn"
@@ -574,7 +574,7 @@
               @click="emit('close')"
             >
               <span class="material-symbols-outlined">arrow_forward</span>
-              <span>Siguiente</span>
+              <span>{{ t("common.next") }}</span>
             </button>
           </div>
         </template>
@@ -583,18 +583,18 @@
         <template v-else-if="tile.type === 'corner'">
           <div
             class="color-band corner-band"
-            :style="{ background: CORNER_META[tile.group]?.color ?? '#333' }"
+            :style="{ background: cornerMeta?.color ?? '#333' }"
           >
             <div class="band-header">
               <span class="band-label">{{
-                CORNER_META[tile.group]?.label ?? ""
+                cornerMeta?.label ?? ""
               }}</span>
             </div>
-            <h2 class="band-title">{{ tile.name }}</h2>
-            <span class="band-emoji">{{ CORNER_META[tile.group]?.icon }}</span>
+            <h2 class="band-title">{{ displayTileName }}</h2>
+            <span class="band-emoji">{{ cornerMeta?.icon }}</span>
           </div>
           <div class="card-body">
-            <p class="corner-msg">{{ CORNER_META[tile.group]?.msg }}</p>
+            <p class="corner-msg">{{ cornerMeta?.msg }}</p>
             <button
               ref="closeActionBtnRefCorner"
               class="action-btn next-action-btn"
@@ -602,7 +602,7 @@
               @click="emit('close')"
             >
               <span class="material-symbols-outlined">arrow_forward</span>
-              <span>Siguiente</span>
+              <span>{{ t("common.next") }}</span>
             </button>
           </div>
         </template>
@@ -636,8 +636,10 @@ import {
   rentForDevelopment,
 } from "~/config/economyConfig";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
+import { useI18n } from "~/composables/useI18n";
 
 const CURRENCY_SYMBOL = GAME_CONFIG.CURRENCY_SYMBOL;
+const { t, tileName, tileShortName } = useI18n();
 
 const props = defineProps<{
   tile: BoardTile;
@@ -827,49 +829,46 @@ const GROUP_COLORS: Record<TileGroup, string> = {
 };
 
 const GROUP_LABELS: Partial<Record<TileGroup, string>> = {
-  brown: "MARRÓN",
-  lightBlue: "AZUL CLARO",
-  pink: "ROSA",
-  orange: "NARANJA",
-  red: "ROJO",
-  yellow: "AMARILLO",
-  green: "VERDE",
-  darkBlue: "AZUL OSCURO",
+  brown: "group.brown",
+  lightBlue: "group.lightBlue",
+  pink: "group.pink",
+  orange: "group.orange",
+  red: "group.red",
+  yellow: "group.yellow",
+  green: "group.green",
+  darkBlue: "group.darkBlue",
 };
 
 const CORNER_META: Partial<
-  Record<TileGroup, { icon: string; color: string; msg: string; label: string }>
+  Record<TileGroup, { icon: string; color: string; msgKey: string; labelKey: string }>
 > = {
-  go: {
-    icon: "🚀",
-    color: "#b91c1c",
-    msg: "¡Cada vez que pases cobras salario!",
-    label: "SALIDA",
-  },
-  jail: {
-    icon: "⛓️",
-    color: "#4b5563",
-    msg: "Solo estás de visita. Nada que hacer aquí.",
-    label: "CÁRCEL",
-  },
-  parking: {
-    icon: "🅿️",
-    color: "#1e40af",
-    msg: "Descansa aquí. No pasa nada — es gratis.",
-    label: "PARKING",
-  },
-  gotojail: {
-    icon: "🚔",
-    color: "#b91c1c",
-    msg: "¡Ve directamente a la cárcel! No cobres el sueldo.",
-    label: "VE A LA CÁRCEL",
-  },
+  go: { icon: "GO", color: "#b91c1c", msgKey: "tile.visit", labelKey: "tile.0.name" },
+  jail: { icon: "J", color: "#4b5563", msgKey: "tile.visit", labelKey: "tile.10.name" },
+  parking: { icon: "P", color: "#1e40af", msgKey: "tile.visit", labelKey: "tile.20.name" },
+  gotojail: { icon: "!", color: "#b91c1c", msgKey: "tile.visit", labelKey: "tile.30.name" },
 };
-
 const TAX_AMOUNTS: Record<number, number> = { 4: 200, 38: 100 };
 
 const groupColor = computed(() => GROUP_COLORS[props.tile.group] ?? "#374151");
-const groupLabel = computed(() => GROUP_LABELS[props.tile.group] ?? "");
+const groupLabel = computed(() => {
+  const key = GROUP_LABELS[props.tile.group];
+  return key ? t(key as any).toUpperCase() : "";
+});
+const displayTileName = computed(() =>
+  props.tile.shortName
+    ? tileShortName(props.tile.index, props.tile.shortName)
+    : tileName(props.tile.index, props.tile.name),
+);
+const cornerMeta = computed(() => {
+  const meta = CORNER_META[props.tile.group];
+  if (!meta) return null;
+  return {
+    icon: meta.icon,
+    color: meta.color,
+    label: t(meta.labelKey as any).toUpperCase(),
+    msg: t(meta.msgKey as any),
+  };
+});
 const rentBase = computed(() => rentBaseForPrice(props.tile.price ?? 0));
 const propertyRentSchedule = computed(() => {
   const price = props.tile.price ?? 0;
@@ -877,41 +876,42 @@ const propertyRentSchedule = computed(() => {
 
   return [
     {
-      label: "1 casa",
+      label: `1 ${t("tile.house").toLowerCase()}`,
       rent: rentForDevelopment(price, 1, false),
       active: !props.hasHotel && houses === 1,
     },
     {
-      label: "2 casas",
+      label: `2 ${t("tile.house").toLowerCase()}s`,
       rent: rentForDevelopment(price, 2, false),
       active: !props.hasHotel && houses === 2,
     },
     {
-      label: "3 casas",
+      label: `3 ${t("tile.house").toLowerCase()}s`,
       rent: rentForDevelopment(price, 3, false),
       active: !props.hasHotel && houses === 3,
     },
     {
-      label: "4 casas",
+      label: `4 ${t("tile.house").toLowerCase()}s`,
       rent: rentForDevelopment(price, 4, false),
       active: !props.hasHotel && houses === 4,
     },
     {
-      label: "Hotel",
+      label: t("tile.hotel"),
       rent: rentForDevelopment(price, 0, true),
       active: Boolean(props.hasHotel),
     },
   ];
 });
 const developmentLabel = computed(() => {
-  if (props.isMortgaged) return "Hipotecada";
-  if (props.hasHotel) return "Hotel";
+  if (props.isMortgaged) return t("tile.mortgaged");
+  if (props.hasHotel) return t("tile.hotel");
   const houses = props.houses ?? 0;
-  if (houses === 0) return "Sin mejoras";
-  return `${houses} ${houses === 1 ? "casa" : "casas"}`;
+  if (houses === 0) return t("tile.noImprovements");
+  const house = t("tile.house").toLowerCase();
+  return `${houses} ${houses === 1 ? house : `${house}s`}`;
 });
 const improvementSellLabel = computed(() =>
-  props.hasHotel ? "Vender hotel" : "Vender casa",
+  props.hasHotel ? t("tile.sellHotel") : t("tile.sellHouse"),
 );
 </script>
 
@@ -1669,3 +1669,4 @@ const improvementSellLabel = computed(() =>
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 </style>
+

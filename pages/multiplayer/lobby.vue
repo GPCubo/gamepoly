@@ -4,14 +4,14 @@
     <div class="ambient-glow ambient-2" />
     <div class="ambient-glow ambient-3" />
 
-    <AppHeader back-to="/" badge="Multijugador" />
+    <AppHeader back-to="/" :badge="t('lobby.badge')" />
 
     <div class="page-body">
       <!-- Room view -->
       <div v-if="roomTableId" class="lobby-card lobby-room-card">
         <div class="card-header room-header">
           <div>
-            <h1 class="main-title">Sala {{ roomTableId }}</h1>
+            <h1 class="main-title">{{ t("lobby.room.title", { tableId: roomTableId }) }}</h1>
             <p class="subtitle">{{ roomSubtitle }}</p>
           </div>
           <span class="room-favicon material-symbols-outlined">casino</span>
@@ -19,7 +19,7 @@
 
         <div class="invite-panel">
           <div class="invite-copy">
-            <span class="section-label">INVITACION</span>
+            <span class="section-label">{{ t("lobby.invite") }}</span>
             <strong>{{ roomTableId }}</strong>
             <span>{{ inviteUrl }}</span>
           </div>
@@ -27,12 +27,12 @@
             <span class="material-symbols-outlined">{{
               inviteCopied ? "check" : "content_copy"
             }}</span>
-            {{ inviteCopied ? "Copiado" : "Copiar URL" }}
+            {{ inviteCopied ? t("common.copied") : t("common.copyUrl") }}
           </button>
         </div>
 
         <div class="section-block">
-          <span class="section-label">CASILLAS</span>
+          <span class="section-label">{{ t("lobby.slots") }}</span>
           <div class="slots-grid room-slots-grid">
             <div
               v-for="(player, idx) in roomPlayers"
@@ -51,10 +51,10 @@
               <div class="slot-top">
                 <span class="slot-num">{{ idx + 1 }}</span>
                 <span v-if="player.id === roomPlayerId" class="slot-you-badge"
-                  >Tu</span
+                  >{{ t("common.you") }}</span
                 >
                 <span v-if="startOrderWinnerId === player.id" class="first-badge"
-                  >Va primero</span
+                  >{{ t("lobby.first") }}</span
                 >
               </div>
               <strong class="room-player-name">{{ roomPlayerName(player) }}</strong>
@@ -73,7 +73,7 @@
                 {{ roomPlayerStatus(player) }}
               </span>
               <span v-if="player.controlledByBot" class="roll-pill">
-                Bot temporal
+                {{ t("common.temporaryBot") }}
               </span>
               <span v-if="rollForPlayer(player.id)" class="roll-pill">
                 {{ rollForPlayer(player.id)?.diceValues.join(" + ") }} =
@@ -85,7 +85,7 @@
 
         <div class="start-order-panel">
           <div>
-            <span class="section-label">ORDEN INICIAL</span>
+            <span class="section-label">{{ t("lobby.startOrder") }}</span>
             <p>{{ startOrderMessage }}</p>
           </div>
           <button
@@ -104,20 +104,20 @@
       <!-- Join view -->
       <div v-else-if="mode === 'join'" class="lobby-card">
         <div class="card-header">
-          <h1 class="main-title">Unirse a mesa</h1>
+          <h1 class="main-title">{{ t("lobby.join.title") }}</h1>
           <p class="subtitle">{{ joinSubtitle }}</p>
         </div>
         <div class="field-group">
-          <label class="field-label">TU NOMBRE</label>
+          <label class="field-label">{{ t("lobby.field.name") }}</label>
           <input
             v-model="playerName"
             class="field-input"
-            placeholder="Cómo te llamas?"
+            :placeholder="t('lobby.placeholder.name')"
             maxlength="20"
           />
         </div>
         <div class="field-group">
-          <label class="field-label">TU FICHA</label>
+          <label class="field-label">{{ t("lobby.field.token") }}</label>
           <div class="token-choice-grid">
             <button
               v-for="token in tokenModels"
@@ -128,12 +128,12 @@
               @click="joinTokenModel = token.file"
             >
               <span>{{ token.icon }}</span>
-              {{ token.name }}
+              {{ tokenLabel(token.file) }}
             </button>
           </div>
         </div>
         <div class="field-group">
-          <label class="field-label">CÓDIGO DE MESA</label>
+          <label class="field-label">{{ t("lobby.field.code") }}</label>
           <input
             v-model="joinCode"
             class="field-input field-mono"
@@ -143,10 +143,10 @@
         </div>
         <p v-if="errorMsg" class="error-msg">{{ errorMsg }}</p>
         <div class="action-row">
-          <button class="reset-btn" @click="mode = 'create'">Crear mesa</button>
+          <button class="reset-btn" @click="mode = 'create'">{{ t("lobby.create.button") }}</button>
           <button class="start-btn" :disabled="joining" @click="joinTable">
             <span class="material-symbols-outlined">login</span>
-            {{ joining ? "Uniéndose..." : "UNIRSE" }}
+            {{ joining ? t("lobby.join.joining") : t("lobby.join.button") }}
           </button>
         </div>
       </div>
@@ -154,24 +154,22 @@
       <!-- Create view -->
       <div v-else class="lobby-card">
         <div class="card-header">
-          <h1 class="main-title">Nueva mesa</h1>
-          <p class="subtitle">
-            Configura los slots y las reglas de la partida.
-          </p>
+          <h1 class="main-title">{{ t("lobby.create.title") }}</h1>
+          <p class="subtitle">{{ t("lobby.create.subtitle") }}</p>
         </div>
 
         <!-- Player name -->
         <div class="field-group">
-          <label class="field-label">TU NOMBRE</label>
+          <label class="field-label">{{ t("lobby.field.name") }}</label>
           <input
             v-model="playerName"
             class="field-input"
-            placeholder="Cómo te llamas?"
+            :placeholder="t('lobby.placeholder.name')"
             maxlength="20"
           />
         </div>
         <div class="field-group">
-          <label class="field-label">TU FICHA</label>
+          <label class="field-label">{{ t("lobby.field.token") }}</label>
           <div class="token-choice-grid">
             <button
               v-for="token in tokenModels"
@@ -182,14 +180,14 @@
               @click="playerTokenModel = token.file"
             >
               <span>{{ token.icon }}</span>
-              {{ token.name }}
+              {{ tokenLabel(token.file) }}
             </button>
           </div>
         </div>
 
         <!-- Slot count -->
         <div class="section-block">
-          <span class="section-label">NÚMERO DE SLOTS</span>
+          <span class="section-label">{{ t("lobby.slotCount") }}</span>
           <div class="player-count-bar">
             <button
               v-for="n in maxLobbySlots"
@@ -206,7 +204,7 @@
 
         <!-- Slot configuration -->
         <div class="section-block">
-          <span class="section-label">SLOTS</span>
+          <span class="section-label">{{ t("lobby.slots") }}</span>
           <div class="slots-grid">
             <div
               v-for="(slot, idx) in visibleSlots"
@@ -216,15 +214,15 @@
             >
               <div class="slot-top">
                 <span class="slot-num">{{ idx + 1 }}</span>
-                <span v-if="idx === 0" class="slot-you-badge">Tú</span>
+                <span v-if="idx === 0" class="slot-you-badge">{{ t("common.you") }}</span>
               </div>
               <div class="field-group" v-if="idx > 0">
                 <label class="field-label">TIPO</label>
                 <div class="select-wrapper">
                   <select v-model="slot.type" class="field-input field-select">
-                    <option value="open">Esperando jugador</option>
-                    <option value="bot_regular">Bot Regular</option>
-                    <option value="bot_difficult">Bot Difícil</option>
+                    <option value="open">{{ t("lobby.slot.open") }}</option>
+                    <option value="bot_regular">{{ t("common.bot") }} {{ t("common.regular") }}</option>
+                    <option value="bot_difficult">{{ t("common.bot") }} {{ t("common.difficult") }}</option>
                   </select>
                   <span class="material-symbols-outlined select-arrow"
                     >expand_more</span
@@ -232,8 +230,7 @@
                 </div>
               </div>
               <div class="slot-type-label" v-if="idx === 0">
-                <span class="material-symbols-outlined">person</span> Jugador
-                humano
+                <span class="material-symbols-outlined">person</span> {{ t("lobby.slot.human") }}
               </div>
             </div>
           </div>
@@ -243,11 +240,11 @@
         <div class="section-block">
           <button class="settings-btn" @click="showRules = !showRules">
             <span class="material-symbols-outlined">tune</span>
-            {{ showRules ? "Ocultar reglas" : "Configurar reglas" }}
+            {{ showRules ? t("lobby.rules.hide") : t("lobby.rules.show") }}
           </button>
           <div v-if="showRules" class="rules-panel">
             <div class="rule-row">
-              <span class="rule-label">Dinero inicial</span>
+              <span class="rule-label">{{ t("setup.rules.startingCash") }}</span>
               <span class="rule-value">${{ startingCash }}</span>
             </div>
             <input
@@ -259,7 +256,7 @@
               class="range-input"
             />
             <div class="rule-row">
-              <span class="rule-label">Salario (GO)</span>
+              <span class="rule-label">{{ t("setup.rules.goSalary") }}</span>
               <input
                 v-model.number="goSalary"
                 type="number"
@@ -269,11 +266,11 @@
               />
             </div>
             <label class="toggle-row">
-              <span>Dobles dan turno extra</span>
+              <span>{{ t("setup.rules.doublesExtra") }}</span>
               <input type="checkbox" v-model="doublesGiveExtra" />
             </label>
             <label class="toggle-row">
-              <span>Solo subastas</span>
+              <span>{{ t("setup.rules.auctionOnly") }}</span>
               <input type="checkbox" v-model="auctionOnly" />
             </label>
           </div>
@@ -283,11 +280,11 @@
 
         <div class="action-row">
           <button class="reset-btn" @click="mode = 'join'">
-            Unirse a mesa
+            {{ t("lobby.join.button") }}
           </button>
           <button class="start-btn" :disabled="creating" @click="createTable">
             <span class="material-symbols-outlined">add_circle</span>
-            {{ creating ? "Creando..." : "CREAR MESA" }}
+            {{ creating ? t("lobby.create.creating") : t("lobby.create.button") }}
           </button>
         </div>
       </div>
@@ -303,11 +300,13 @@ import { GAME_CONFIG } from "~/config/gameConfig";
 import { enabledLocalScenarioSeedKeys } from "~/config/localScenarioSeeds";
 import { useGameSocket } from "~/composables/useGameSocket";
 import type { MPPlayerState } from "~/stores/multiplayerStore";
+import { useI18n } from "~/composables/useI18n";
 
 const mpStore = useMultiplayerStore();
 const socket = useGameSocket();
 const route = useRoute();
 const { track } = useAnalytics();
+const { t, tMaybe } = useI18n();
 
 const mode = ref<"create" | "join">(
   route.query.mode === "join" ? "join" : "create",
@@ -375,13 +374,13 @@ const inviteUrl = computed(() => {
 });
 const joinSubtitle = computed(() =>
   joinCode.value
-    ? `Te invitaron a la mesa ${joinCode.value}. Ingresa tu nombre para unirte.`
-    : "Ingresa el codigo de la mesa que te compartieron.",
+    ? t("lobby.join.invited", { tableId: joinCode.value })
+    : t("lobby.join.subtitle"),
 );
 const roomSubtitle = computed(() => {
-  if (!mpStore.state) return "Preparando sala...";
-  if (mpStore.phase === "setup") return "Comparte la sala y definan quien juega primero.";
-  return "Partida lista. Entrando al tablero...";
+  if (!mpStore.state) return t("lobby.room.preparing");
+  if (mpStore.phase === "setup") return t("lobby.room.setup");
+  return t("lobby.room.ready");
 });
 const currentRoundRolls = computed(() =>
   (startOrder.value?.rolls ?? []).filter(
@@ -403,23 +402,23 @@ const canRollStartOrder = computed(() => {
   );
 });
 const startOrderButtonLabel = computed(() => {
-  if (hasOpenRoomSlots.value) return "Esperando jugadores";
-  if (startOrder.value?.status === "complete") return "Orden definido";
-  if (!canRollStartOrder.value) return "Esperando tiradas";
-  return startOrder.value?.status === "tiebreak" ? "Desempatar" : "Tirar dados";
+  if (hasOpenRoomSlots.value) return t("lobby.waitingPlayers");
+  if (startOrder.value?.status === "complete") return t("lobby.orderDefined");
+  if (!canRollStartOrder.value) return t("lobby.waitingRolls");
+  return startOrder.value?.status === "tiebreak" ? t("lobby.tiebreak") : t("lobby.rollStart");
 });
 const startOrderMessage = computed(() => {
-  if (hasOpenRoomSlots.value) return "Aun hay casillas abiertas para invitados.";
+  if (hasOpenRoomSlots.value) return t("lobby.openSlots");
   const order = startOrder.value;
-  if (!order) return "Preparando tirada inicial.";
+  if (!order) return t("lobby.preparingRoll");
   if (order.status === "complete") {
     const winner = roomPlayers.value.find((p) => p.id === order.winnerId);
-    return `${winner?.name ?? "El ganador"} va primero.`;
+    return t("lobby.winnerFirst", { player: winner?.name ?? t("common.player") });
   }
   if (order.status === "tiebreak") {
-    return "Hay empate en la tirada mayor. Solo los empatados vuelven a tirar.";
+    return t("lobby.tiebreakMessage");
   }
-  return "Cada participante tira una vez. El total mas alto empieza.";
+  return t("lobby.rollMessage");
 });
 
 function isOpenRoomPlayer(player: MPPlayerState) {
@@ -435,20 +434,20 @@ function rollForPlayer(playerId: string) {
 }
 
 function roomPlayerName(player: MPPlayerState) {
-  if (isOpenRoomPlayer(player)) return "Esperando jugador";
+  if (isOpenRoomPlayer(player)) return t("lobby.slot.open");
   return player.name;
 }
 
 function roomPlayerStatus(player: MPPlayerState) {
-  if (isOpenRoomPlayer(player)) return "Abierto para invitado";
-  if (!player.isBot && !player.connected) return "Desconectado";
-  if (player.controlledByBot) return "Bot temporal";
-  if (startOrderWinnerId.value === player.id) return "Primer turno";
-  if (isTiedPlayer(player.id)) return "Empatado";
-  if (rollForPlayer(player.id)) return "Tirada lista";
+  if (isOpenRoomPlayer(player)) return t("lobby.slot.guest");
+  if (!player.isBot && !player.connected) return t("common.disconnected");
+  if (player.controlledByBot) return t("common.temporaryBot");
+  if (startOrderWinnerId.value === player.id) return t("lobby.slot.firstTurn");
+  if (isTiedPlayer(player.id)) return t("lobby.slot.tied");
+  if (rollForPlayer(player.id)) return t("lobby.slot.rollReady");
   if ((startOrder.value?.requiredPlayerIds ?? []).includes(player.id))
-    return player.isBot ? "Bot participa" : "Pendiente de tirar";
-  return player.isBot ? "Bot" : "Conectado";
+    return player.isBot ? t("lobby.slot.botParticipates") : t("lobby.slot.pendingRoll");
+  return player.isBot ? t("common.bot") : t("common.connected");
 }
 
 function connectRoom(tableId: string, playerId: string) {
@@ -531,13 +530,17 @@ function tokenIcon(file: string) {
 }
 
 function tokenName(file: string) {
-  return tokenModels.find((token) => token.file === file)?.name ?? "Ficha";
+  return tMaybe(`token.${file}`);
+}
+
+function tokenLabel(file: string) {
+  return tMaybe(`token.${file}`);
 }
 
 async function createTable() {
   errorMsg.value = "";
   if (!playerName.value.trim()) {
-    errorMsg.value = "Ingresa tu nombre.";
+    errorMsg.value = t("lobby.error.name");
     return;
   }
   creating.value = true;
@@ -562,8 +565,8 @@ async function createTable() {
         difficulty: diff,
         name:
           s.type === "bot_difficult"
-            ? `Bot Difícil ${i + 1}`
-            : `Bot Regular ${i + 1}`,
+            ? `${t("common.bot")} ${t("common.difficult")} ${i + 1}`
+            : `${t("common.bot")} ${t("common.regular")} ${i + 1}`,
         tokenModel,
       };
     });
@@ -587,7 +590,7 @@ async function createTable() {
 
     if (!res.ok) {
       const text = await res.text();
-      errorMsg.value = text || "Error al crear la mesa";
+      errorMsg.value = text || t("lobby.error.create");
       return;
     }
 
@@ -602,7 +605,7 @@ async function createTable() {
     }
     connectRoom(data.tableId, data.playerId);
   } catch (e) {
-    errorMsg.value = "No se pudo conectar al servidor";
+    errorMsg.value = t("lobby.error.server");
     console.error(e);
   } finally {
     creating.value = false;
@@ -612,11 +615,11 @@ async function createTable() {
 async function joinTable() {
   errorMsg.value = "";
   if (!playerName.value.trim()) {
-    errorMsg.value = "Ingresa tu nombre.";
+    errorMsg.value = t("lobby.error.name");
     return;
   }
   if (!joinCode.value.trim()) {
-    errorMsg.value = "Ingresa el código de la mesa.";
+    errorMsg.value = t("lobby.error.code");
     return;
   }
   joining.value = true;
@@ -635,7 +638,7 @@ async function joinTable() {
 
     if (!res.ok) {
       const text = await res.text();
-      errorMsg.value = text || "No se pudo unir a la mesa";
+      errorMsg.value = text || t("lobby.error.join");
       return;
     }
 
@@ -650,7 +653,7 @@ async function joinTable() {
     }
     connectRoom(joinCode.value.trim(), data.playerId);
   } catch (e) {
-    errorMsg.value = "No se pudo conectar al servidor";
+    errorMsg.value = t("lobby.error.server");
     console.error(e);
   } finally {
     joining.value = false;

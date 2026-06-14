@@ -5,15 +5,15 @@
         <div class="header-topline">
           <span class="auction-tag">
             <span class="material-symbols-outlined">gavel</span>
-            Subasta
+            {{ t("auction.title") }}
           </span>
-          <span class="auction-round">{{ activeBidders.length }} activos</span>
+          <span class="auction-round">{{ t("auction.active", { count: activeBidders.length }) }}</span>
         </div>
         <div class="property-heading">
           <span class="property-color" :style="{ background: tile.color ?? '#64748b' }"></span>
           <div>
-            <h2 class="auction-title">{{ tile.name }}</h2>
-            <p class="auction-price">Precio de lista {{ formatMoney(tile.price ?? 0) }}</p>
+            <h2 class="auction-title">{{ displayTileName }}</h2>
+            <p class="auction-price">{{ t("auction.listPrice", { amount: formatMoney(tile.price ?? 0) }) }}</p>
           </div>
         </div>
       </div>
@@ -22,14 +22,14 @@
         <template v-if="phase === 'bidding'">
           <div class="bid-board">
             <div class="bid-current" :class="{ 'no-bid': currentBid === 0 }">
-              <span class="bid-label">Puja actual</span>
+              <span class="bid-label">{{ t("auction.currentBid") }}</span>
               <strong>{{ currentBid === 0 ? "--" : formatMoney(currentBid) }}</strong>
-              <small>{{ leaderId === null ? "Sin lider todavia" : `Lidera ${leaderName}` }}</small>
+              <small>{{ leaderId === null ? t("auction.noLeader") : t("auction.leads", { player: leaderName }) }}</small>
             </div>
             <div class="bid-next">
-              <span>Turno</span>
+              <span>{{ t("common.turn") }}</span>
               <strong>{{ currentBidderName }}</strong>
-              <small>{{ formatMoney(currentBidderCash) }} disponible</small>
+              <small>{{ t("auction.available", { amount: formatMoney(currentBidderCash) }) }}</small>
             </div>
           </div>
 
@@ -50,12 +50,12 @@
 
           <button ref="passBtnRef" class="pass-btn" tabindex="0" :disabled="currentBidderIsBot" @click="pass">
             <span class="material-symbols-outlined">not_interested</span>
-            Pasar turno
+            {{ t("auction.pass") }}
           </button>
 
           <div class="auction-roster">
             <div class="roster-heading">
-              <span>Participantes</span>
+              <span>{{ t("auction.participants") }}</span>
               <strong>{{ activeBidders.length }}/{{ players.length }}</strong>
             </div>
             <div class="player-list">
@@ -72,7 +72,7 @@
                 <span class="player-avatar">{{ tokenIcon(player.tokenModel) }}</span>
                 <span class="player-name">{{ player.name }}</span>
                 <span class="player-meta">
-                  {{ player.id === leaderId ? "Lider" : activeBidders.includes(player.id) ? formatMoney(player.cash) : "Fuera" }}
+                  {{ player.id === leaderId ? t("auction.leader") : activeBidders.includes(player.id) ? formatMoney(player.cash) : t("auction.out") }}
                 </span>
               </div>
             </div>
@@ -81,23 +81,23 @@
 
         <div v-else-if="phase === 'sold'" class="result-panel sold">
           <span class="result-icon material-symbols-outlined">emoji_events</span>
-          <span class="result-kicker">Subasta cerrada</span>
+          <span class="result-kicker">{{ t("auction.closed") }}</span>
           <p class="result-msg">
-            <strong>{{ leaderName }}</strong> gana <strong>{{ tile.name }}</strong>
+            {{ t("auction.wins", { player: leaderName, tile: displayTileName }) }}
           </p>
           <p class="result-amount">{{ formatMoney(currentBid) }}</p>
           <button ref="closeSoldBtnRef" class="result-btn" tabindex="0" @click="emitResult">
-            Continuar
+            {{ t("common.continue") }}
           </button>
         </div>
 
         <div v-else-if="phase === 'unsold'" class="result-panel unsold">
           <span class="result-icon material-symbols-outlined">block</span>
-          <span class="result-kicker">Sin comprador</span>
-          <p class="result-msg">Nadie compro <strong>{{ tile.name }}</strong>.</p>
-          <p class="result-sub">La propiedad queda libre.</p>
+          <span class="result-kicker">{{ t("auction.unsold") }}</span>
+          <p class="result-msg">{{ t("auction.noBuyer", { tile: displayTileName }) }}</p>
+          <p class="result-sub">{{ t("auction.free") }}</p>
           <button ref="closeUnsoldBtnRef" class="result-btn secondary" tabindex="0" @click="emitResult">
-            Continuar
+            {{ t("common.continue") }}
           </button>
         </div>
       </div>
@@ -113,8 +113,10 @@ import type { PlayerState } from "~/stores/gameStore";
 import { useGameStore } from "~/stores/gameStore";
 import { getBotAuctionBid } from "~/composables/useBotTurn";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
+import { useI18n } from "~/composables/useI18n";
 
 const gameStore = useGameStore();
+const { t, tileName, tileShortName } = useI18n();
 
 const props = defineProps<{
   tile: BoardTile;
@@ -156,6 +158,11 @@ const currentBidderIsBot = computed(
 
 const leaderName = computed(
   () => props.players.find((p) => p.id === leaderId.value)?.name ?? "?",
+);
+const displayTileName = computed(() =>
+  props.tile.shortName
+    ? tileShortName(props.tile.index, props.tile.shortName)
+    : tileName(props.tile.index, props.tile.name),
 );
 
 const biddingRefs = computed(() => {

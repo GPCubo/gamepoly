@@ -71,13 +71,16 @@ const (
 )
 
 type EconomicHistoryItem struct {
-	ID        int                 `json:"id"`
-	Type      EconomicHistoryType `json:"type"`
-	Title     string              `json:"title"`
-	Detail    string              `json:"detail"`
-	Amount    *int                `json:"amount,omitempty"`
-	PlayerIDs []string            `json:"playerIds"`
-	CreatedAt int64              `json:"createdAt"`
+	ID           int                    `json:"id"`
+	Type         EconomicHistoryType    `json:"type"`
+	Title        string                 `json:"title"`
+	Detail       string                 `json:"detail"`
+	TitleKey     string                 `json:"titleKey,omitempty"`
+	DetailKey    string                 `json:"detailKey,omitempty"`
+	MessageParams map[string]any        `json:"params,omitempty"`
+	Amount       *int                   `json:"amount,omitempty"`
+	PlayerIDs    []string               `json:"playerIds"`
+	CreatedAt    int64                 `json:"createdAt"`
 }
 
 // AuctionState holds all state for an ongoing auction.
@@ -126,6 +129,8 @@ type GameState struct {
 	IsDoubles                   bool           `json:"isDoubles"`
 	DiceValues                  [2]int         `json:"diceValues"`
 	StatusMessage               string         `json:"statusMessage"`
+	StatusMessageKey            string         `json:"statusMessageKey,omitempty"`
+	StatusMessageParams         map[string]any `json:"statusMessageParams,omitempty"`
 	ForceAllDiceRollsAsDoubles bool           `json:"-"`
 	ForceAllDiceRollsToCards   bool           `json:"-"`
 	GoSalary                    int            `json:"goSalary"`

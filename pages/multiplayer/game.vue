@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="mp-game-page">
     <div class="history-snackbar-stack" aria-live="polite">
       <TransitionGroup name="history-snackbar">
@@ -12,8 +12,8 @@
             historyIcon(item.type)
           }}</span>
           <div>
-            <strong>{{ item.title }}</strong>
-            <p>{{ item.detail }}</p>
+            <strong>{{ translatedHistoryTitle(item) }}</strong>
+            <p>{{ translatedHistoryDetail(item) }}</p>
           </div>
           <span v-if="item.amount !== undefined" class="history-amount">
             ${{ item.amount.toLocaleString() }}
@@ -27,9 +27,9 @@
       <div class="conn-card">
         <span class="material-symbols-outlined conn-icon">wifi_off</span>
         <p v-if="socket.reconnectAttempts.value > 0">
-          Reconectando... (intento {{ socket.reconnectAttempts.value }}/5)
+          {{ t("game.connection.reconnecting", { current: socket.reconnectAttempts.value }) }}
         </p>
-        <p v-else>Conectando al servidor...</p>
+        <p v-else>{{ t("game.connection.connecting") }}</p>
       </div>
     </div>
 
@@ -37,9 +37,12 @@
     <div v-if="mpStore.winner" class="winner-overlay">
       <div class="winner-card">
         <span class="material-symbols-outlined winner-icon">emoji_events</span>
-        <h2>¡{{ mpStore.winner.name }} ganó!</h2>
-        <button class="action-btn" @click="navigateTo('/multiplayer/lobby')">
-          Volver al lobby
+        <h2>{{ t("game.winner.title", { player: mpStore.winner.name }) }}</h2>
+        <button
+          class="action-btn winner-lobby-btn"
+          @click="navigateTo('/multiplayer/lobby')"
+        >
+          {{ t("game.winner.backLobby") }}
         </button>
       </div>
     </div>
@@ -108,14 +111,14 @@
         <span class="board-loading-dots" aria-hidden="true"></span>
       </div>
       <div v-if="boardLoadError" class="board-loading board-error">
-        No se pudo cargar el mapa 3D.
+        {{ t("game.status.assetsError") }}
       </div>
     </ClientOnly>
 
     <!-- Connected players HUD -->
     <div class="players-hud" v-if="mpStore.state">
       <div class="players-hud-title">
-        <span>Jugadores</span>
+        <span>{{ t("common.players") }}</span>
         <strong>{{ mpStore.players.length }}</strong>
       </div>
       <div
@@ -141,20 +144,20 @@
                 p.botDifficulty === 'difficult' ? 'bot-hard' : 'bot-regular'
               "
             >
-              {{ p.botDifficulty === "difficult" ? "Difícil" : "Regular" }}
+              {{ p.botDifficulty === "difficult" ? t("common.difficult") : t("common.regular") }}
             </span>
             <span v-if="p.id === mpStore.myPlayerId" class="hud-you-badge"
-              >Tú</span
+              >{{ t("common.you") }}</span
             >
             <span v-if="!p.isBot && !p.connected" class="hud-offline-badge"
-              >Offline</span
+              >{{ t("common.offline") }}</span
             >
             <span v-if="p.controlledByBot" class="hud-temp-bot-badge"
-              >Bot temp.</span
+              >{{ t("common.temporaryBot") }}</span
             >
           </span>
           <span class="hud-position"
-            >Casilla {{ (p.position % 40) + 1 }}/40</span
+            >{{ t("common.tile") }} {{ (p.position % 40) + 1 }}/40</span
           >
         </div>
         <span class="hud-cash" :class="{ 'hud-negative': p.cash < 0 }">
@@ -171,7 +174,7 @@
       @click="minimapOpen = !minimapOpen"
     >
       <span class="material-symbols-outlined">map</span>
-      <span>Mapa</span>
+      <span>{{ t("common.map") }}</span>
     </button>
 
     <div
@@ -181,16 +184,16 @@
     >
       <div class="board-minimap">
         <div class="minimap-header">
-          <span>Mapa</span>
+          <span>{{ t("common.map") }}</span>
           <strong>{{ currentPosition }}</strong>
         </div>
         <div class="minimap-board" aria-hidden="true">
           <div class="minimap-center">
             <div class="minimap-legend">
-              <span><i class="legend-swatch legend-house"></i> Casas</span>
+              <span><i class="legend-swatch legend-house"></i> {{ t("tile.house") }}</span>
               <span><i class="legend-swatch legend-hotel"></i> Hotel</span>
               <span
-                ><i class="legend-swatch legend-mortgage"></i> Hipoteca</span
+                ><i class="legend-swatch legend-mortgage"></i> {{ t("tile.mortgage") }}</span
               >
             </div>
           </div>
@@ -242,15 +245,15 @@
         @click="showHistoryDialog = true"
       >
         <span class="material-symbols-outlined">history</span>
-        Ver Historico
+        {{ t("common.history") }}
       </button>
     </div>
 
     <Transition name="dice">
       <div v-if="diceVisible" class="dado-wrapper dice-overlay">
         <div class="dado-titulo">
-          Total: {{ mpStore.diceTotal }} | Casilla: {{ currentPosition }}/40
-          <span v-if="mpStore.isDoubles" class="doubles-text"> DOBLES </span>
+          {{ t("common.total") }}: {{ mpStore.diceTotal }} | {{ t("common.tile") }}: {{ currentPosition }}/40
+          <span v-if="mpStore.isDoubles" class="doubles-text"> {{ t("common.doubles").toUpperCase() }} </span>
         </div>
         <div class="dados-row">
           <div
@@ -270,16 +273,16 @@
         <div class="status-player">
           <span class="status-token">{{ activeTokenIcon }}</span>
           <div>
-            <span class="status-kicker">Turno actual</span>
+            <span class="status-kicker">{{ t("common.currentTurn") }}</span>
             <strong>{{ mpStore.activePlayer?.name ?? "—" }}</strong>
           </div>
         </div>
         <div class="status-details">
           <span class="status-chip">
             <span class="material-symbols-outlined">location_on</span>
-            Casilla {{ currentPosition }}/40
+            {{ t("common.tile") }} {{ currentPosition }}/40
           </span>
-          <span v-if="mpStore.isDoubles" class="doubles-badge">DOBLES</span>
+          <span v-if="mpStore.isDoubles" class="doubles-badge">{{ t("common.doubles").toUpperCase() }}</span>
           <span v-if="!socket.connected.value" class="offline-badge">
             <span class="material-symbols-outlined">wifi_off</span>
           </span>
@@ -292,7 +295,7 @@
             {{ turnTimerLabel }}
           </span>
         </div>
-        <p>{{ mpStore.statusMessage }}</p>
+        <p>{{ translatedStatusMessage }}</p>
       </div>
 
       <!-- Debt warning: shown when player has recoverable negative cash -->
@@ -301,29 +304,25 @@
           >account_balance_wallet</span
         >
         <div class="debt-warning-copy">
-          <strong
-            >Deuda pendiente: ${{
+          <strong>
+            {{ t("game.debt.pending") }}: ${{
               Math.abs(myPlayer?.cash ?? 0).toLocaleString()
-            }}</strong
-          >
-          <span
-            >Vende mejoras o hipoteca propiedades en
-            <strong>Configuración</strong> para cubrir la deuda.</span
-          >
+            }}
+          </strong>
+          <span>{{ t("game.debt.help") }}</span>
         </div>
         <button class="debt-config-btn" @click="sidebarOpen = true">
           <span class="material-symbols-outlined">settings</span>
-          Gestionar
+          {{ t("game.action.manage") }}
         </button>
       </div>
-
       <div class="action-buttons">
         <!-- Bot thinking -->
         <div v-if="mpStore.isBotThinking" class="bot-thinking-indicator">
           <span class="material-symbols-outlined bot-thinking-icon"
             >smart_toy</span
           >
-          <span>{{ mpStore.botActionMessage || "Bot pensando..." }}</span>
+          <span>{{ mpStore.botActionMessage ? td(mpStore.botActionMessage) : t("game.botThinking") }}</span>
         </div>
 
         <template v-else-if="mpStore.isMyTurn && !mpStore.isTurnComplete">
@@ -339,7 +338,7 @@
             @click="send('pay_bail')"
           >
             <span class="material-symbols-outlined">lock_open</span>
-            Pagar fianza (${{ mpStore.state?.jailBailCost ?? 50 }})
+            {{ t("game.action.payBail") }} (${{ mpStore.state?.jailBailCost ?? 50 }})
           </button>
 
           <!-- Roll -->
@@ -350,7 +349,7 @@
             @click="send('roll_dice')"
           >
             <span class="material-symbols-outlined">casino</span>
-            Tirar Dados
+            {{ t("game.action.rollDice") }}
           </button>
         </template>
 
@@ -362,14 +361,14 @@
             @click="send('next_turn')"
           >
             <span class="material-symbols-outlined">navigate_next</span>
-            Siguiente
+            {{ t("common.next") }}
           </button>
         </template>
 
         <template v-else-if="!mpStore.isMyTurn && !mpStore.isCurrentPlayerBot">
           <div class="waiting-indicator">
             <span class="material-symbols-outlined">hourglass_empty</span>
-            Esperando a {{ mpStore.activePlayer?.name }}...
+            {{ t("game.waitingFor", { player: mpStore.activePlayer?.name ?? t("common.player") }) }}
           </div>
         </template>
 
@@ -380,14 +379,14 @@
           @click="sidebarOpen = !sidebarOpen"
         >
           <span class="material-symbols-outlined">settings</span>
-          Configuracion
+          {{ t("common.configure") }}
         </button>
       </div>
     </div>
 
     <div v-if="mpStore.state" class="perf-widget">
-      <span>FPS {{ fps }}</span>
-      <span>Ping {{ pingLabel }}</span>
+      <span>{{ t("common.fps") }} {{ fps }}</span>
+      <span>{{ t("common.ping") }} {{ pingLabel }}</span>
     </div>
 
     <!-- Buy decision (landing on unowned property) -->
@@ -421,10 +420,10 @@
       <div class="card-card">
         <span class="card-group">{{
           mpStore.activeCard.group === "chance"
-            ? "🃏 Suerte"
-            : "📦 Arca Comunal"
+            ? `🃏 ${t("tile.7.name")}`
+            : `📦 ${t("tile.2.name")}`
         }}</span>
-        <p class="card-text">{{ mpStore.activeCard.text }}</p>
+        <p class="card-text">{{ translatedActiveCardText }}</p>
         <button
           ref="acceptCardBtnRef"
           class="action-btn roll-btn"
@@ -433,8 +432,8 @@
         >
           {{
             mpStore.isMyTurn
-              ? "Aceptar"
-              : `Esperando a ${mpStore.activePlayer?.name ?? "jugador"}`
+              ? t("common.accept")
+              : t("game.waitingFor", { player: mpStore.activePlayer?.name ?? t("common.player") })
           }}
         </button>
       </div>
@@ -447,16 +446,16 @@
     >
       <div class="auction-card">
         <div class="auction-header-section">
-          <span class="auction-tag">🔨 Subasta</span>
+          <span class="auction-tag">🔨 {{ t("auction.title") }}</span>
           <strong>{{ auctionTileName }}</strong>
         </div>
         <div class="auction-bid-info">
           <div>
-            <span class="bid-label">Puja actual</span>
+            <span class="bid-label">{{ t("auction.currentBid") }}</span>
             <span class="bid-amount">${{ mpStore.auction.currentBid }}</span>
           </div>
           <div>
-            <span class="bid-label">Turno</span>
+            <span class="bid-label">{{ t("common.turn") }}</span>
             <span class="bid-bidder">{{ currentAuctionBidderName }}</span>
           </div>
         </div>
@@ -484,10 +483,10 @@
           class="pass-bid-btn"
           @click="send('pass_bid')"
         >
-          Pasar turno
+          {{ t("auction.pass") }}
         </button>
         <p v-else class="waiting-auction">
-          Esperando a {{ currentAuctionBidderName }}...
+          {{ t("game.waitingFor", { player: currentAuctionBidderName }) }}
         </p>
       </div>
     </div>
@@ -522,13 +521,13 @@
       <span class="material-symbols-outlined">{{
         socket.connected.value ? "wifi" : "wifi_off"
       }}</span>
-      {{ socket.connected.value ? "En línea" : "Desconectado" }}
+      {{ socket.connected.value ? t("common.online") : t("common.disconnected") }}
     </div>
 
     <Transition name="sidebar">
       <div v-if="sidebarOpen" class="sidebar-config">
         <div class="sidebar-header">
-          <span class="sidebar-title">Configuracion</span>
+          <span class="sidebar-title">{{ t("common.configure") }}</span>
           <button
             class="sidebar-close"
             tabindex="-1"
@@ -542,8 +541,8 @@
           <section class="player-summary">
             <div class="player-avatar">{{ myPlayerInitial }}</div>
             <div class="player-summary-copy">
-              <span>Tu estado</span>
-              <strong>{{ myPlayer?.name ?? "Jugador" }}</strong>
+              <span>{{ t("common.you") }}</span>
+              <strong>{{ myPlayer?.name ?? t("common.player") }}</strong>
             </div>
             <div class="player-cash">
               ${{ (myPlayer?.cash ?? 0).toLocaleString() }}
@@ -557,7 +556,7 @@
               @click="sidebarOpen = false"
             >
               <span class="material-symbols-outlined">casino</span>
-              <span>Volver al tablero</span>
+              <span>{{ t("game.action.backToBoard") }}</span>
             </button>
 
             <button
@@ -569,7 +568,7 @@
               @click="onOpenExchange()"
             >
               <span class="material-symbols-outlined">sync_alt</span>
-              <span>Intercambio</span>
+              <span>{{ t("game.action.exchange") }}</span>
             </button>
 
             <button
@@ -582,7 +581,7 @@
                 {{ mpStore.isCamFollowActive ? "videocam" : "videocam_off" }}
               </span>
               <span>{{
-                mpStore.isCamFollowActive ? "Camara fija" : "Camara libre"
+                mpStore.isCamFollowActive ? t("game.action.cameraFixed") : t("game.action.cameraFree")
               }}</span>
             </button>
 
@@ -597,15 +596,15 @@
               <span class="material-symbols-outlined"
                 >account_balance_wallet</span
               >
-              <span>Hipotecar todo +${{ mortgageAllValue }}</span>
+              <span>{{ t("tile.mortgageAction") }} +${{ mortgageAllValue }}</span>
             </button>
           </div>
 
           <section class="property-panel">
             <div class="panel-heading">
               <div>
-                <span class="panel-kicker">Gestion</span>
-                <span class="panel-title">Propiedades</span>
+                <span class="panel-kicker">{{ t("game.action.manage") }}</span>
+                <span class="panel-title">{{ t("tile.property.many") }}</span>
               </div>
               <span class="panel-count"
                 >{{ filteredOwnedTiles.length }}/{{
@@ -620,16 +619,16 @@
                 ref="propertySearchInputRef"
                 v-model="searchTerm"
                 type="search"
-                placeholder="Buscar por nombre, color o estado"
+                :placeholder="t('common.search')"
               />
             </label>
 
             <p v-if="!activeOwnedTiles.length" class="empty-text">
-              Sin propiedades
+              {{ t("exchange.noProperties") }}
             </p>
 
             <p v-else-if="!filteredOwnedTiles.length" class="empty-text">
-              Sin resultados
+              {{ t("common.noResults") }}
             </p>
 
             <div v-else class="property-groups">
@@ -646,7 +645,7 @@
                     <span
                       >{{ group.tiles.length }}
                       {{
-                        group.tiles.length === 1 ? "propiedad" : "propiedades"
+                        group.tiles.length === 1 ? t("tile.property.one") : t("tile.property.many")
                       }}</span
                     >
                   </div>
@@ -661,7 +660,7 @@
                     @click="onBuildGroup(group)"
                   >
                     <span class="material-symbols-outlined">add_home</span>
-                    <span>Comprar grupo ${{ groupBuildCost(group) }}</span>
+                    <span>{{ t("sidebar.buildGroup", { amount: groupBuildCost(group) }) }}</span>
                   </button>
                   <button
                     :ref="captureSidebarListEl"
@@ -673,7 +672,7 @@
                     <span class="material-symbols-outlined"
                       >real_estate_agent</span
                     >
-                    <span>Vender grupo +${{ groupSellRefund(group) }}</span>
+                    <span>{{ t("sidebar.sellGroup", { amount: groupSellRefund(group) }) }}</span>
                   </button>
                 </div>
 
@@ -712,7 +711,7 @@
                         @click="send('build_house', { tileIndex: tile.index })"
                       >
                         <span class="material-symbols-outlined">home_work</span>
-                        <span>Casa ${{ houseCost(tile.index) }}</span>
+                        <span>{{ t("tile.house") }} ${{ houseCost(tile.index) }}</span>
                       </button>
 
                       <button
@@ -748,7 +747,7 @@
                         "
                       >
                         <span class="material-symbols-outlined">sell</span>
-                        <span>Vender +${{ sellRefund(tile.index) }}</span>
+                        <span>{{ t("tile.sellHouse") }} +${{ sellRefund(tile.index) }}</span>
                       </button>
 
                       <button
@@ -762,7 +761,7 @@
                         <span class="material-symbols-outlined"
                           >account_balance</span
                         >
-                        <span>Hipotecar +${{ mortgageValue(tile.index) }}</span>
+                        <span>{{ t("tile.mortgageAction") }} +${{ mortgageValue(tile.index) }}</span>
                       </button>
 
                       <button
@@ -774,7 +773,7 @@
                         @click="send('unmortgage', { tileIndex: tile.index })"
                       >
                         <span class="material-symbols-outlined">paid</span>
-                        <span>Pagar ${{ unmortgageCost(tile.index) }}</span>
+                        <span>{{ t("tile.unmortgageAction") }} ${{ unmortgageCost(tile.index) }}</span>
                       </button>
                     </div>
                   </article>
@@ -795,8 +794,8 @@
         <div class="history-dialog">
           <div class="history-dialog-header">
             <div>
-              <span class="history-dialog-kicker">Eventos</span>
-              <span class="history-dialog-title">Historico</span>
+              <span class="history-dialog-kicker">{{ t("common.events") }}</span>
+              <span class="history-dialog-title">{{ t("common.history") }}</span>
             </div>
             <div class="history-dialog-meta">
               <span class="history-dialog-count">{{ activeHistoryCount }}</span>
@@ -844,8 +843,8 @@
                 >{{ historyIcon(item.type) }}</span
               >
               <div class="history-dialog-item-copy">
-                <strong>{{ item.title }}</strong>
-                <span>{{ item.detail }}</span>
+                <strong>{{ translatedHistoryTitle(item) }}</strong>
+                <span>{{ translatedHistoryDetail(item) }}</span>
               </div>
               <span
                 v-if="item.amount !== undefined"
@@ -891,11 +890,11 @@
               >
               <div class="history-dialog-item-copy">
                 <strong>{{ cardHistoryTitle(item) }}</strong>
-                <span>{{ item.text }}</span>
-                <span>{{ item.effect }}</span>
+                <span>{{ cardText(item.cardId, { tileName: item.tileIndex !== undefined ? translatedTileName(item.tileIndex) : "" }, item.text) }}</span>
+                <span>{{ td(item.effect) }}</span>
               </div>
               <span class="history-dialog-item-amount">
-                {{ item.group === "chance" ? "Suerte" : "Arca" }}
+                {{ item.group === "chance" ? t("tile.7.name") : t("tile.2.name") }}
               </span>
             </article>
           </div>
@@ -936,6 +935,7 @@ import { useBoardGeometry } from "~/composables/useBoardGeometry";
 import { usePieceAnimation } from "~/composables/usePieceAnimation";
 import { useCameraFollow } from "~/composables/useCameraFollow";
 import { useKeyboardNavigation } from "~/composables/useKeyboardNavigation";
+import { useI18n } from "~/composables/useI18n";
 import { GAME_CONFIG } from "~/config/gameConfig";
 import {
   BOARD_TILES,
@@ -975,6 +975,9 @@ type SnackbarItem = {
   type: string;
   title: string;
   detail: string;
+  titleKey?: string;
+  detailKey?: string;
+  params?: Record<string, string | number | boolean>;
   amount?: number;
   playerIds?: string[];
   createdAt?: number;
@@ -992,6 +995,7 @@ const socket = useGameSocket();
 const perfStats = usePerformanceStats();
 const route = useRoute();
 const { track } = useAnalytics();
+const { t, tMaybe, td, tileName, tileShortName, cardText } = useI18n();
 
 const tableId = route.query.tableId as string;
 const playerId = route.query.playerId as string;
@@ -1085,17 +1089,25 @@ const fps = computed(() => perfStats.fps.value);
 const pingLabel = computed(() =>
   socket.pingMs.value === null ? "-- ms" : `${socket.pingMs.value} ms`,
 );
+const translatedStatusMessage = computed(() => {
+  const state = mpStore.state;
+  if (state?.statusMessageKey && tMaybe(state.statusMessageKey) !== state.statusMessageKey) {
+    return tMaybe(state.statusMessageKey, state.statusMessageParams);
+  }
+  return td(mpStore.statusMessage);
+});
 const boardLoadingMessages = [
-  "Cargando tablero 🎲",
-  "Configurando partida ⚙️",
-  "Personalizando mapa ✨",
-  "Ubicando fichas 🚗",
-  "Casi está 🚀",
+  "board.loading.0",
+  "board.loading.1",
+  "board.loading.2",
+  "board.loading.3",
+  "board.loading.4",
 ];
-const currentBoardLoadingMessage = computed(
-  () =>
-    boardLoadingMessages[boardLoadingIndex.value % boardLoadingMessages.length],
-);
+const boardLoadingEmojis = ["🎲", "⚙️", "✨", "🚗", "🚀"];
+const currentBoardLoadingMessage = computed(() => {
+  const idx = boardLoadingIndex.value % boardLoadingMessages.length;
+  return `${t(boardLoadingMessages[idx] as any)} ${boardLoadingEmojis[idx]}`;
+});
 
 const normalizedPlayerTiles = computed(() =>
   mpStore.players.map((player) => ((player.position % 40) + 40) % 40),
@@ -1417,7 +1429,7 @@ function onMovementComplete() {
 
 function showBotThinking(delayMs: number) {
   if (botThinkingTimer) clearTimeout(botThinkingTimer);
-  mpStore.setBotThinking(true, "Bot pensando...");
+  mpStore.setBotThinking(true, t("game.botThinking"));
   botThinkingTimer = setTimeout(() => {
     mpStore.setBotThinking(false);
     botThinkingTimer = null;
@@ -1581,17 +1593,17 @@ const PROPERTY_GROUP_ORDER: TileGroup[] = [
   "utility",
 ];
 
-const PROPERTY_GROUP_LABELS: Partial<Record<TileGroup, string>> = {
-  brown: "Marron",
-  lightBlue: "Azul claro",
-  pink: "Rosa",
-  orange: "Naranja",
-  red: "Rojo",
-  yellow: "Amarillo",
-  green: "Verde",
-  darkBlue: "Azul oscuro",
-  railroad: "Estaciones",
-  utility: "Servicios",
+const PROPERTY_GROUP_KEYS: Partial<Record<TileGroup, string>> = {
+  brown: "group.brown",
+  lightBlue: "group.lightBlue",
+  pink: "group.pink",
+  orange: "group.orange",
+  red: "group.red",
+  yellow: "group.yellow",
+  green: "group.green",
+  darkBlue: "group.darkBlue",
+  railroad: "group.railroad",
+  utility: "group.utility",
 };
 
 interface OwnedTileGroup {
@@ -1683,7 +1695,8 @@ function developmentFor(tileIndex: number): MPPropertyDevelopment {
 }
 
 function groupLabelFor(tile: BoardTile) {
-  return PROPERTY_GROUP_LABELS[tile.group] ?? tile.group;
+  const key = PROPERTY_GROUP_KEYS[tile.group];
+  return key ? tMaybe(key) : (tile.group ?? "");
 }
 
 function normalizeText(value: string) {
@@ -1971,13 +1984,13 @@ function sellRefund(tileIndex: number) {
 function developmentLabel(tileIndex: number) {
   const tile = BOARD_TILES.find((candidate) => candidate.index === tileIndex);
   const development = developmentFor(tileIndex);
-  if (development.mortgaged) return "Hipotecada";
-  if (tile?.type === "railroad") return "Activa";
-  if (tile?.type === "utility") return "Activa";
-  if (development.hotel) return "Hotel";
-  if (development.houses > 0) return `${development.houses}/4 casas`;
-  if (ownsFullPropertyGroup(tileIndex)) return "Grupo completo";
-  return "Sin mejoras";
+  if (development.mortgaged) return t("tile.mortgaged");
+  if (tile?.type === "railroad") return t("tile.active");
+  if (tile?.type === "utility") return t("tile.active");
+  if (development.hotel) return t("tile.hotel");
+  if (development.houses > 0) return `${development.houses}/4 ${t("tile.house").toLowerCase()}s`;
+  if (ownsFullPropertyGroup(tileIndex)) return t("tile.fullGroup");
+  return t("tile.noImprovements");
 }
 
 function historyIcon(type: string) {
@@ -1999,22 +2012,36 @@ function historyIcon(type: string) {
   return icons[type] ?? "receipt_long";
 }
 
+function translatedHistoryTitle(item: MPEconomicHistoryItem | SnackbarItem) {
+  const keyed = "titleKey" in item && item.titleKey
+    ? tMaybe(item.titleKey, item.params)
+    : item.title;
+  return td(keyed);
+}
+
+function translatedHistoryDetail(item: MPEconomicHistoryItem | SnackbarItem) {
+  const keyed = "detailKey" in item && item.detailKey
+    ? tMaybe(item.detailKey, item.params)
+    : item.detail;
+  return td(keyed);
+}
+
 const historyTabs = computed(() => [
   {
     key: "money" as const,
-    label: "Dinero",
+    label: t("history.money"),
     icon: "payments",
     count: mpStore.economicHistory.length,
   },
   {
     key: "tiles" as const,
-    label: "Casillas",
+    label: t("history.tiles"),
     icon: "casino",
     count: mpStore.movementHistory.length,
   },
   {
     key: "cards" as const,
-    label: "Tarjetas",
+    label: t("history.cards"),
     icon: "style",
     count: mpStore.cardHistory.length,
   },
@@ -2027,9 +2054,9 @@ const activeHistoryCount = computed(() => {
 });
 
 const activeHistoryEmptyText = computed(() => {
-  if (activeHistoryTab.value === "tiles") return "Sin movimientos de casillas";
-  if (activeHistoryTab.value === "cards") return "Sin tarjetas registradas";
-  return "Sin transacciones registradas";
+  if (activeHistoryTab.value === "tiles") return t("history.tiles");
+  if (activeHistoryTab.value === "cards") return t("history.cards");
+  return t("history.empty");
 });
 
 function tileLabel(index: number) {
@@ -2037,29 +2064,38 @@ function tileLabel(index: number) {
   return `${normalized + 1}`;
 }
 
+function translatedTileName(index: number) {
+  const normalized = ((index % 40) + 40) % 40;
+  const tile = BOARD_TILES[normalized];
+  if (!tile) return "";
+  return tile.shortName
+    ? tileShortName(normalized, tile.shortName)
+    : tileName(normalized, tile.name);
+}
+
 function movementHistoryTitle(item: MPMovementHistoryItem) {
   if (item.source === "card") {
-    return `${item.playerName} se movio por tarjeta`;
+    return t("movement.byCard", { player: item.playerName });
   }
-  return `${item.playerName} saco ${item.diceTotal}`;
+  return t("movement.byDice", { player: item.playerName, total: item.diceTotal });
 }
 
 function movementHistoryDetail(item: MPMovementHistoryItem) {
   const from =
-    BOARD_TILES[((item.from % 40) + 40) % 40]?.name ??
-    `Casilla ${tileLabel(item.from)}`;
+    translatedTileName(((item.from % 40) + 40) % 40) ??
+    `${t("common.tile")} ${tileLabel(item.from)}`;
   const to =
-    BOARD_TILES[((item.to % 40) + 40) % 40]?.name ??
-    `Casilla ${tileLabel(item.to)}`;
+    translatedTileName(((item.to % 40) + 40) % 40) ??
+    `${t("common.tile")} ${tileLabel(item.to)}`;
   if (item.source === "card") {
     return `${from} -> ${to}${item.cardText ? ` | ${item.cardText}` : ""}`;
   }
-  return `Dados ${item.diceValues[0]} + ${item.diceValues[1]} | ${from} -> ${to}`;
+  return `${t("movement.diceRoll", { d1: item.diceValues[0], d2: item.diceValues[1] })} | ${from} -> ${to}`;
 }
 
 function cardHistoryTitle(item: MPCardHistoryItem) {
-  const group = item.group === "chance" ? "Suerte" : "Arca Comunal";
-  return `${item.playerName} robo ${group}`;
+  const group = item.group === "chance" ? t("tile.7.name") : t("tile.2.name");
+  return `${item.playerName} ${group}`;
 }
 
 const minimapMarkers = computed(() => {
@@ -2443,7 +2479,15 @@ const buyTileResolved = computed(
 const auctionTileName = computed(() => {
   if (!mpStore.auction) return "";
   const tile = BOARD_TILES.find((t) => t.index === mpStore.auction!.tileIndex);
-  return tile?.name ?? "Propiedad";
+  return tile ? translatedTileName(tile.index) : t("exchange.kind.property");
+});
+
+const translatedActiveCardText = computed(() => {
+  const card = mpStore.activeCard;
+  if (!card) return "";
+  const targetName =
+    card.tileIndex !== undefined ? translatedTileName(card.tileIndex) : "";
+  return cardText(card.id, { tileName: targetName }, card.text);
 });
 
 const isMyAuctionTurn = computed(() => {
@@ -2834,6 +2878,17 @@ watch(
   font-size: 24px;
   font-weight: 800;
   margin: 0;
+}
+
+.winner-lobby-btn {
+  color: #042f1f;
+  background: #22c55e;
+  box-shadow: 0 14px 28px rgba(34, 197, 94, 0.32);
+}
+
+.winner-lobby-btn:hover {
+  background: #86efac;
+  transform: translateY(-2px);
 }
 
 .players-hud {
@@ -4914,3 +4969,4 @@ watch(
   line-height: 1;
 }
 </style>
+
