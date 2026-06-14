@@ -95,12 +95,88 @@ Las cartas mantienen la misma mecánica (`action`, `amount`, `tileIndex`) pero c
 - `tile.X.short` para tiles con nombre corto
 - `card.ch01.text` ... `card.co16.text` con textos en inglés
 
-### Selección automática de board por locale
+### URL como fuente de locale (nuevo)
 
-`plugins/board.client.ts` se actualiza:
+La URL define el idioma activo:
+- `/` `/setup` `/game` `/multiplayer/...` → **español** (sin prefijo)
+- `/en/` `/en/setup` `/en/game` `/en/multiplayer/...` → **inglés**
+
+**Prioridad de detección** (de mayor a menor):
+1. Prefijo en la URL (`/en/` → inglés)
+2. `localStorage` (preserva selección manual previa)
+3. Idioma del browser
+4. `DEFAULT_LOCALE` (`es`)
+
+**Al cambiar de idioma**, la app navega hacia la misma ruta con/sin el prefijo `/en`:
+```
+/game  →  cambiar a inglés  →  /en/game
+/en/game  →  cambiar a español  →  /game
+```
+
+#### Cambios en `composables/useI18n.ts`
+
+`detectInitialLocale` debe leer la URL antes que el localStorage:
 ```ts
-import { useI18n } from '~/composables/useI18n'
+function detectInitialLocale(): LocaleCode {
+  if (typeof window === "undefined") return DEFAULT_LOCALE;
+  // 1. URL path tiene prioridad
+  const path = window.location.pathname;
+  if (path === '/en' || path.startsWith('/en/')) return 'en';
+  // 2. localStorage
+  const saved = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+  if (isLocaleCode(saved)) return saved;
+  // 3. Browser language
+  const browserLocale = window.navigator.language?.slice(0, 2).toLowerCase();
+  return isLocaleCode(browserLocale) ? browserLocale : DEFAULT_LOCALE;
+}
+```
 
+Y al cambiar locale, actualizar la URL:
+```ts
+watch(locale, (value) => {
+  localStorage.setItem(LOCALE_STORAGE_KEY, value);
+  document.documentElement.lang = value;
+  // Redirigir con/sin prefijo /en
+  const path = window.location.pathname;
+  const bare = path.replace(/^\/en(?=\/|$)/, '') || '/';
+  if (value === 'en' && !path.startsWith('/en')) {
+    navigateTo('/en' + bare);
+  } else if (value === 'es' && path.startsWith('/en')) {
+    navigateTo(bare);
+  }
+});
+```
+
+#### Cambios en `nuxt.config.ts`
+
+Agregar las rutas `/en/**` a `routeRules` para que `nuxt generate` las pre-renderice:
+```ts
+routeRules: {
+  "/": { ssr: false },
+  "/setup": { ssr: false },
+  "/game": { ssr: false },
+  "/multiplayer/**": { ssr: false },
+  "/en": { ssr: false },
+  "/en/": { ssr: false },
+  "/en/setup": { ssr: false },
+  "/en/game": { ssr: false },
+  "/en/multiplayer/**": { ssr: false },
+},
+```
+
+#### Cambios en nginx (servidor)
+
+El servidor debe servir el mismo `index.html` para cualquier ruta `/en/**`. Agregar a la configuración de nginx:
+```nginx
+location /en/ {
+  try_files $uri $uri/ /index.html;
+}
+```
+
+#### Selección de board por locale
+
+`plugins/board.client.ts` lee el locale ya inicializado por `useI18n` (que ahora incluye detección por URL):
+```ts
 export default defineNuxtPlugin(async () => {
   const boardStore = useBoardStore()
   const { locale } = useI18n()
@@ -109,12 +185,12 @@ export default defineNuxtPlugin(async () => {
 })
 ```
 
-Cuando el usuario cambia de idioma en tiempo real (watch en locale), el boardStore debe refetchear:
+Al cambiar locale en runtime, el boardStore refetchea automáticamente (watch en `boardStore.ts`):
 ```ts
-// en app.vue o en el store mismo
+// En stores/boardStore.ts — watch reactivo al locale
+const { locale } = useI18n()
 watch(locale, async (newLocale) => {
-  const slug = newLocale === 'en' ? 'board-en' : 'board-es'
-  await boardStore.fetchBoard(slug)
+  await fetchBoard(newLocale === 'en' ? 'board-en' : 'board-es')
 })
 ```
 
@@ -146,6 +222,9 @@ Esto requiere actualizar el sync-db.mjs y ejecutar `sync:db` para migrar el slug
 - `scripts/sync-db.mjs` — iterar sobre ambos tableros (es + en) leyendo `boardTilesConfigEs/En.ts` y `boardCardsConfigEs/En.ts`
 - `scripts/sync-all.mjs` — actualizar para pasar el parámetro de board al sync de Blender
 - `plugins/board.client.ts` — seleccionar slug según locale activo
+- `composables/useI18n.ts` — `detectInitialLocale` lee URL primero; watch actualiza URL al cambiar locale
+- `stores/boardStore.ts` — watch en locale para refetch automático
+- `nuxt.config.ts` — agregar `routeRules` para rutas `/en/**`
 - `locales/en.ts` — completar todas las claves `tile.X.name`, `tile.X.short`, `card.X.text`
 - `locales/es.ts` — verificar y completar claves faltantes
 - `locales/index.ts` — agregar las nuevas claves a `TranslationKey` si es necesario
@@ -161,14 +240,20 @@ Esto requiere actualizar el sync-db.mjs y ejecutar `sync:db` para migrar el slug
 6. Extender `scripts/sync-db.mjs` para sincronizar ambos tableros: upsert de `board-es` (desde `boardTilesConfigEs.ts` + `boardCardsConfigEs.ts`) y `board-en` (desde `boardTilesConfigEn.ts` + `boardCardsConfigEn.ts`).
 7. Actualizar `locales/en.ts`: agregar las 27 claves de propiedades faltantes + shorts + 32 card texts.
 8. Actualizar `locales/es.ts`: verificar y completar claves de cartas faltantes.
-9. Actualizar `plugins/board.client.ts` para seleccionar slug por locale.
-10. Agregar watch en `boardStore` para refetch al cambiar locale.
-11. Agregar scripts `sync:blender:es` y `sync:blender:en` en `package.json`.
-12. Correr `npm run sync:db` en producción para poblar `board-en` y renombrar el slug español.
-13. Verificar en el browser: cambiar idioma a inglés → tablero muestra nombres en inglés.
+9. Actualizar `composables/useI18n.ts`: `detectInitialLocale` lee URL primero; watch redirige al cambiar locale.
+10. Actualizar `nuxt.config.ts`: agregar rutas `/en/**` a `routeRules`.
+11. Actualizar `plugins/board.client.ts` para seleccionar slug por locale.
+12. Actualizar `stores/boardStore.ts`: watch en locale para refetch automático del board.
+13. Agregar scripts `sync:blender:es` y `sync:blender:en` en `package.json`.
+14. Correr `npm run sync:db` en producción para poblar `board-en` y crear `board-es`.
+15. Actualizar nginx: agregar `location /en/ { try_files $uri $uri/ /index.html; }`.
+16. Verificar en el browser: navegar a `/en/` → UI en inglés, tablero en inglés. Cambiar a español → redirige a `/`.
 
 ## Criterios de Aceptación
 
+- [ ] Navegar a `/en/` carga la app en inglés; navegar a `/` carga la app en español.
+- [ ] Cambiar idioma dentro de la app redirige la URL (ej. `/game` → `/en/game`).
+- [ ] Recargar la página en `/en/game` mantiene el idioma inglés (URL tiene prioridad sobre localStorage).
 - [ ] `npm run sync:blender` (tablero español) termina sin errores y actualiza el Python de Blender.
 - [ ] `npm run sync:blender:en` (tablero inglés) termina sin errores.
 - [ ] `GET /api/v1/boards/board-en` devuelve 40 tiles con nombres en inglés y 32 cartas con textos en inglés.
