@@ -2440,6 +2440,13 @@ async function loadBoardAssets() {
   boardLoadError.value = false;
 
   try {
+    // Ensure the board for the current locale is loaded before loading 3D assets.
+    const { locale } = useI18n();
+    const expectedSlug = locale.value === "en" ? "board-en" : "board-es";
+    if (boardStore.slug !== expectedSlug) {
+      await boardStore.fetchBoard(expectedSlug);
+    }
+
     const loader = new GLTFLoader();
     const [boardResult, tokenResults, houseModels] = await Promise.all([
       tableroScene.value

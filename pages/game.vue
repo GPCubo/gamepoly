@@ -243,7 +243,7 @@ import type { ExchangeProposalShape } from "~/components/ExchangeModal.vue";
 const store = useGameStore();
 const boardStore = useBoardStore();
 const runtimeConfig = useRuntimeConfig();
-const { t } = useI18n();
+const { t, locale } = useI18n();
 
 if (store.players.length === 0) {
   navigateTo("/");
@@ -926,6 +926,13 @@ onMounted(async () => {
   try {
     const loader = new GLTFLoader();
     store.setStatusMessage(t("game.status.loadingAssets"));
+
+    // Ensure the board for the current locale is loaded before loading 3D assets.
+    // (The plugin's async watch may not have completed yet when this mounts.)
+    const expectedSlug = locale.value === "en" ? "board-en" : "board-es";
+    if (boardStore.slug !== expectedSlug) {
+      await boardStore.fetchBoard(expectedSlug);
+    }
 
     const tokenModels = store.players.map((p) => p.tokenModel);
     const loadResults = await Promise.all(
