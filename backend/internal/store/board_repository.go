@@ -93,6 +93,34 @@ func (r *BoardRepository) GetVisibleBoards(ctx context.Context, locale string) (
 	return boards, rows.Err()
 }
 
+// GetAllVisibleBoards returns all boards with visible=true across all locales.
+func (r *BoardRepository) GetAllVisibleBoards(ctx context.Context) ([]Board, error) {
+	if r == nil {
+		return nil, nil
+	}
+
+	rows, err := r.pg.Pool.Query(ctx, `
+		SELECT id, slug, locale, display_name, glb_path, visible
+		FROM boards
+		WHERE visible = TRUE
+		ORDER BY locale, created_at
+	`)
+	if err != nil {
+		return nil, fmt.Errorf("query boards: %w", err)
+	}
+	defer rows.Close()
+
+	var boards []Board
+	for rows.Next() {
+		var b Board
+		if err := rows.Scan(&b.ID, &b.Slug, &b.Locale, &b.DisplayName, &b.GLBPath, &b.Visible); err != nil {
+			return nil, fmt.Errorf("scan board: %w", err)
+		}
+		boards = append(boards, b)
+	}
+	return boards, rows.Err()
+}
+
 // GetBoardBySlug returns a single board by its slug.
 func (r *BoardRepository) GetBoardBySlug(ctx context.Context, slug string) (*Board, error) {
 	if r == nil {

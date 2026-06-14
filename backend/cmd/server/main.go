@@ -124,7 +124,7 @@ func main() {
 // loadBoardsIntoRegistry fetches all visible boards from the DB and registers
 // them in the registry. Converts store.BoardTile → config.BoardTile in-place.
 func loadBoardsIntoRegistry(ctx context.Context, repo *store.BoardRepository, reg *game.BoardRegistry) error {
-	boards, err := repo.GetVisibleBoards(ctx, "es")
+	boards, err := repo.GetAllVisibleBoards(ctx)
 	if err != nil {
 		return err
 	}
