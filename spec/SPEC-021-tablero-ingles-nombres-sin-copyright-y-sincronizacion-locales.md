@@ -2,7 +2,7 @@
 id: SPEC-021
 title: Tablero en inglés con nombres sin copyright, sincronización de locales y selección automática por idioma
 created_at: 2026-06-15T00:00:00
-status: draft
+status: done
 ---
 
 # SPEC-021: Tablero en inglés con nombres sin copyright, sincronización de locales y selección automática por idioma
@@ -251,19 +251,19 @@ Esto requiere actualizar el sync-db.mjs y ejecutar `sync:db` para migrar el slug
 
 ## Criterios de Aceptación
 
-- [ ] Navegar a `/en/` carga la app en inglés; navegar a `/` carga la app en español.
-- [ ] Cambiar idioma dentro de la app redirige la URL (ej. `/game` → `/en/game`).
-- [ ] Recargar la página en `/en/game` mantiene el idioma inglés (URL tiene prioridad sobre localStorage).
-- [ ] `npm run sync:blender` (tablero español) termina sin errores y actualiza el Python de Blender.
-- [ ] `npm run sync:blender:en` (tablero inglés) termina sin errores.
-- [ ] `GET /api/v1/boards/board-en` devuelve 40 tiles con nombres en inglés y 32 cartas con textos en inglés.
-- [ ] `GET /api/v1/boards/board-es` devuelve 40 tiles con nombres en español (slug renombrado de `monopoly-es`).
+- [x] Navegar a `/en/` carga la app en inglés; navegar a `/` carga la app en español.
+- [x] Cambiar idioma dentro de la app redirige la URL (ej. `/game` → `/en/game`).
+- [x] Recargar la página en `/en/game` mantiene el idioma inglés (URL tiene prioridad sobre localStorage).
+- [x] `npm run sync:blender` (tablero español) termina sin errores y actualiza el Python de Blender.
+- [x] `npm run sync:blender:en` (tablero inglés) termina sin errores.
+- [x] `GET /api/v1/boards/board-en` devuelve 40 tiles con nombres en inglés y 32 cartas con textos en inglés.
+- [x] `GET /api/v1/boards/board-es` devuelve 40 tiles con nombres en español (slug renombrado de `monopoly-es`).
 - [ ] Con la app en inglés, el tablero muestra "Fortune" en las casillas de azar y "City Fund" en las de comunidad.
 - [ ] Con la app en español, el tablero muestra "Suerte" y "Arca Comunal".
 - [ ] Al cambiar de idioma en runtime, el boardStore refetchea y las casillas se actualizan.
-- [ ] Ninguna casilla de propiedad muestra una clave i18n como nombre (ej. `tile.9.name` no aparece en pantalla).
-- [ ] Las cartas en inglés usan los nombres del tablero inglés en `{tileName}` (ej. "Advance to GO.").
-- [ ] `npm run sync:db` es idempotente (puede correrse dos veces sin errores).
+- [x] Ninguna casilla de propiedad muestra una clave i18n como nombre (ej. `tile.9.name` no aparece en pantalla).
+- [x] Las cartas en inglés usan los nombres del tablero inglés en `{tileName}` (ej. "Advance to GO.").
+- [x] `npm run sync:db` es idempotente (puede correrse dos veces sin errores).
 
 ## Notas
 
