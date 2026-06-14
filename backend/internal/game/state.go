@@ -31,6 +31,10 @@ type PlayerState struct {
 	ConsecutiveDoubles int           `json:"consecutiveDoubles"`
 	IsBot              bool          `json:"isBot"`
 	BotDifficulty      BotDifficulty `json:"botDifficulty,omitempty"`
+	Connected          bool          `json:"connected"`
+	ControlledByBot    bool          `json:"controlledByBot"`
+	DisconnectedAt     int64         `json:"disconnectedAt,omitempty"`
+	ReconnectGraceMs   int           `json:"reconnectGraceMs,omitempty"`
 }
 
 type PropertyDevelopment struct {
@@ -129,6 +133,8 @@ type GameState struct {
 	CanSkipBuy                  bool           `json:"canSkipBuy"`
 	AuctionOnly                 bool           `json:"auctionOnly"`
 	DoublesGiveExtra            bool           `json:"doublesGiveExtraTurn"`
+	TurnDeadlineAt              int64          `json:"turnDeadlineAt,omitempty"`
+	TurnDurationMs              int            `json:"turnDurationMs,omitempty"`
 
 	PropertyOwners       map[int]string              `json:"propertyOwners"`
 	PropertyDevelopments map[int]PropertyDevelopment `json:"propertyDevelopments"`

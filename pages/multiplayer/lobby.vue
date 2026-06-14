@@ -44,6 +44,7 @@
                   'room-slot-open': isOpenRoomPlayer(player),
                   'room-slot-winner': startOrderWinnerId === player.id,
                   'room-slot-tied': isTiedPlayer(player.id),
+                  'room-slot-disconnected': !player.isBot && !player.connected && !isOpenRoomPlayer(player),
                 },
               ]"
             >
@@ -70,6 +71,9 @@
                       : "person"
                 }}</span>
                 {{ roomPlayerStatus(player) }}
+              </span>
+              <span v-if="player.controlledByBot" class="roll-pill">
+                Bot temporal
               </span>
               <span v-if="rollForPlayer(player.id)" class="roll-pill">
                 {{ rollForPlayer(player.id)?.diceValues.join(" + ") }} =
@@ -437,6 +441,8 @@ function roomPlayerName(player: MPPlayerState) {
 
 function roomPlayerStatus(player: MPPlayerState) {
   if (isOpenRoomPlayer(player)) return "Abierto para invitado";
+  if (!player.isBot && !player.connected) return "Desconectado";
+  if (player.controlledByBot) return "Bot temporal";
   if (startOrderWinnerId.value === player.id) return "Primer turno";
   if (isTiedPlayer(player.id)) return "Empatado";
   if (rollForPlayer(player.id)) return "Tirada lista";
@@ -846,6 +852,11 @@ async function joinTable() {
 
 .room-slot-tied {
   border-color: rgba(255, 209, 101, 0.48);
+}
+
+.room-slot-disconnected {
+  border-color: rgba(248, 113, 113, 0.42);
+  background: rgba(127, 29, 29, 0.18);
 }
 
 .room-player-name {

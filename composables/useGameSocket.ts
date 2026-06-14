@@ -15,19 +15,24 @@ export interface SendOptions {
 const RECONNECT_DELAY_MS = 2000
 const MAX_RECONNECT_ATTEMPTS = 5
 const HEARTBEAT_INTERVAL_MS = 10_000
+const PING_INTERVAL_MS = 3_000
 
 export function useGameSocket() {
   const connected = ref(false)
   const reconnectAttempts = ref(0)
   const lastError = ref<string | null>(null)
+  const pingMs = ref<number | null>(null)
   const { track } = useAnalytics()
 
   let ws: WebSocket | null = null
   let heartbeatTimer: ReturnType<typeof setInterval> | null = null
+  let pingTimer: ReturnType<typeof setInterval> | null = null
   let reconnectTimer: ReturnType<typeof setTimeout> | null = null
   let tableId = ''
   let playerId = ''
   let messageHandlers: Array<(msg: SocketMessage) => void> = []
+  let pingSeq = 0
+  const pendingPings = new Map<number, number>()
 
   function onMessage(handler: (msg: SocketMessage) => void) {
     messageHandlers.push(handler)
@@ -56,6 +61,18 @@ export function useGameSocket() {
     ws.onmessage = (event) => {
       try {
         const msg: SocketMessage = JSON.parse(event.data)
+        if (msg.type === 'pong') {
+          const payload = msg.payload as { seq?: number } | undefined
+          const seq = payload?.seq
+          if (typeof seq === 'number' && pendingPings.has(seq)) {
+            const startedAt = pendingPings.get(seq) ?? Date.now()
+            pendingPings.delete(seq)
+            const rtt = Date.now() - startedAt
+            pingMs.value = pingMs.value === null
+              ? rtt
+              : Math.round(pingMs.value * 0.7 + rtt * 0.3)
+          }
+        }
         messageHandlers.forEach(h => h(msg))
       } catch {
         // ignore malformed messages
@@ -65,6 +82,7 @@ export function useGameSocket() {
     ws.onclose = (event) => {
       connected.value = false
       stopHeartbeat()
+      stopPing()
       track('websocket_disconnected', { clean: event.wasClean ? 1 : 0 })
       if (!event.wasClean && reconnectAttempts.value < MAX_RECONNECT_ATTEMPTS) {
         scheduleReconnect()
@@ -86,6 +104,7 @@ export function useGameSocket() {
 
   function disconnect() {
     stopHeartbeat()
+    stopPing()
     clearReconnectTimer()
     if (ws) {
       ws.close(1000, 'user disconnect')
@@ -98,6 +117,7 @@ export function useGameSocket() {
     heartbeatTimer = setInterval(() => {
       send('heartbeat')
     }, HEARTBEAT_INTERVAL_MS)
+    startPing()
   }
 
   function stopHeartbeat() {
@@ -105,6 +125,27 @@ export function useGameSocket() {
       clearInterval(heartbeatTimer)
       heartbeatTimer = null
     }
+  }
+
+  function startPing() {
+    stopPing()
+    pingTimer = setInterval(() => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return
+      pingSeq += 1
+      pendingPings.set(pingSeq, Date.now())
+      send('ping', { seq: pingSeq, sentAt: Date.now() })
+      for (const [seq, startedAt] of pendingPings) {
+        if (Date.now() - startedAt > 15_000) pendingPings.delete(seq)
+      }
+    }, PING_INTERVAL_MS)
+  }
+
+  function stopPing() {
+    if (pingTimer !== null) {
+      clearInterval(pingTimer)
+      pingTimer = null
+    }
+    pendingPings.clear()
   }
 
   function scheduleReconnect() {
@@ -129,6 +170,7 @@ export function useGameSocket() {
     connected,
     reconnectAttempts,
     lastError,
+    pingMs,
     connect,
     send,
     disconnect,

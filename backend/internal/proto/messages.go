@@ -76,6 +76,16 @@ type PlayerDisconnectedPayload struct {
 	GracePeriodMs int    `json:"gracePeriodMs"`
 }
 
+type PlayerReconnectedPayload struct {
+	PlayerID string `json:"playerId"`
+	Name     string `json:"name"`
+}
+
+type PingPayload struct {
+	Seq    int   `json:"seq"`
+	SentAt int64 `json:"sentAt"`
+}
+
 type DiceRolledPayload struct {
 	Values    [2]int `json:"values"`
 	Total     int    `json:"total"`
@@ -174,7 +184,7 @@ type GameOverPayload struct {
 
 type TurnTimeoutPayload struct {
 	PlayerID     string `json:"playerId"`
-	NextPlayerID string `json:"nextPlayerId"`
+	NextPlayerID string `json:"nextPlayerId,omitempty"`
 }
 
 type BotThinkingPayload struct {

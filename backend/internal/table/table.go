@@ -55,6 +55,7 @@ type Table struct {
 	Inbox         chan IncomingAction
 	botTimer      *time.Timer
 	inactiveTimer *time.Timer
+	turnTimer     *time.Timer
 	quit          chan struct{}
 	mu            sync.RWMutex
 	lastActivity  time.Time
@@ -85,6 +86,7 @@ const (
 	pingPeriod        = 50 * time.Second
 	clientMoveStep    = 300 * time.Millisecond
 	clientMoveReveal  = 600 * time.Millisecond
+	turnDuration      = 60 * time.Second
 )
 
 // NewTable builds a Table from pre-built slots and starts the game.
@@ -125,6 +127,9 @@ func NewTable(id string, slots []PlayerSlot, opts game.GameOptions, repo Finishe
 	t.botTimer = time.NewTimer(0)
 	t.botTimer.Stop()
 	t.inactiveTimer = time.NewTimer(inactivityTimeout)
+	t.turnTimer = time.NewTimer(0)
+	t.turnTimer.Stop()
+	t.resetTurnTimer()
 	return t
 }
 
@@ -136,6 +141,7 @@ func (t *Table) Run() {
 		}
 		t.botTimer.Stop()
 		t.inactiveTimer.Stop()
+		t.turnTimer.Stop()
 	}()
 
 	t.maybeScheduleBotTurn()
@@ -146,14 +152,25 @@ func (t *Table) Run() {
 			t.lastActivity = time.Now()
 			t.inactiveTimer.Reset(inactivityTimeout)
 			t.processAction(action)
-			t.Broadcast(proto.NewSnapshot(t.State))
-			t.maybeScheduleBotTurn()
-			t.checkGameOver()
+			if action.Type != "heartbeat" && action.Type != "ping" {
+				t.Broadcast(proto.NewSnapshot(t.State))
+				t.maybeScheduleBotTurn()
+				t.resetTurnTimer()
+				t.checkGameOver()
+			}
 
 		case <-t.botTimer.C:
 			t.executeBotStep()
 			t.Broadcast(proto.NewSnapshot(t.State))
 			t.maybeScheduleBotTurn()
+			t.resetTurnTimer()
+			t.checkGameOver()
+
+		case <-t.turnTimer.C:
+			t.handleTurnTimeout()
+			t.Broadcast(proto.NewSnapshot(t.State))
+			t.maybeScheduleBotTurn()
+			t.resetTurnTimer()
 			t.checkGameOver()
 
 		case <-t.inactiveTimer.C:
@@ -179,16 +196,31 @@ func (t *Table) Close() {
 
 // AddConn registers a WebSocket connection for a human player.
 func (t *Table) AddConn(conn *PlayerConn) {
+	var reconnected *proto.PlayerReconnectedPayload
 	t.mu.Lock()
 	slot, ok := t.Slots[conn.PlayerID]
 	if ok && !slot.IsBot {
 		slot.Conn = conn
+		if p := t.State.FindPlayer(conn.PlayerID); p != nil {
+			p.Connected = true
+			p.ControlledByBot = false
+			p.DisconnectedAt = 0
+			p.ReconnectGraceMs = 0
+			reconnected = &proto.PlayerReconnectedPayload{
+				PlayerID: p.ID,
+				Name:     p.Name,
+			}
+		}
 	}
 	t.mu.Unlock()
 
+	if reconnected != nil {
+		t.Broadcast(proto.New("player_reconnected", *reconnected))
+	}
 	go t.writePump(conn)
 	// Send full snapshot immediately
 	t.sendTo(conn.PlayerID, proto.NewSnapshot(t.State))
+	t.Broadcast(proto.NewSnapshot(t.State))
 }
 
 // RemoveConn handles WebSocket disconnect.
@@ -196,12 +228,16 @@ func (t *Table) RemoveConn(playerID string) {
 	t.mu.Lock()
 	if slot, ok := t.Slots[playerID]; ok {
 		slot.Conn = nil
-	}
-	anyHuman := false
-	for _, s := range t.Slots {
-		if !s.IsBot && s.Conn != nil {
-			anyHuman = true
-			break
+		if !slot.IsBot {
+			if p := t.State.FindPlayer(playerID); p != nil {
+				p.Connected = false
+				p.ControlledByBot = true
+				p.DisconnectedAt = time.Now().UnixMilli()
+				p.ReconnectGraceMs = gracePeriodMs
+				if p.BotDifficulty == "" {
+					p.BotDifficulty = game.BotRegular
+				}
+			}
 		}
 	}
 	t.mu.Unlock()
@@ -210,13 +246,14 @@ func (t *Table) RemoveConn(playerID string) {
 		PlayerID:      playerID,
 		GracePeriodMs: gracePeriodMs,
 	}))
-
-	if !anyHuman {
-		select {
-		case t.Inbox <- IncomingAction{Type: "all_humans_left"}:
-		default:
-		}
+	t.Broadcast(proto.NewSnapshot(t.State))
+	select {
+	case t.Inbox <- IncomingAction{Type: "connection_changed"}:
+	default:
 	}
+
+	// Keep the table alive after disconnects so temporary bot control can
+	// continue and humans can reconnect with the same playerId.
 }
 
 // Broadcast sends a message to all connected players.
@@ -262,6 +299,15 @@ func (t *Table) processAction(a IncomingAction) {
 	switch a.Type {
 	case "roll_start_order":
 		t.doRollStartOrder(pID)
+	case "connection_changed":
+		// State was already updated by AddConn/RemoveConn; let the table loop
+		// broadcast and reschedule timers/bot control consistently.
+		return
+	case "ping":
+		var p proto.PingPayload
+		if json.Unmarshal(a.Payload, &p) == nil {
+			t.sendTo(pID, proto.New("pong", p))
+		}
 	case "roll_dice":
 		t.doRollDice(pID)
 	case "buy_property":
@@ -490,7 +536,7 @@ func (t *Table) resolveLanding(pID string, diceTotal int) {
 			}))
 		}
 		// Bots accept cards automatically
-		if slot, ok := t.Slots[pID]; ok && slot.IsBot {
+		if t.isBotControlled(pID) {
 			t.doAcceptCard(pID)
 		}
 
@@ -656,8 +702,7 @@ func (t *Table) rollStartOrderBots() {
 
 		rolledAny := false
 		for _, playerID := range t.State.StartOrder.RequiredPlayerIDs {
-			slot, ok := t.Slots[playerID]
-			if !ok || !slot.IsBot || game.HasStartOrderRollThisRound(t.State, playerID) {
+			if !t.isBotControlled(playerID) || game.HasStartOrderRollThisRound(t.State, playerID) {
 				continue
 			}
 			roll, err := game.RollStartOrderRandom(t.State, playerID)
@@ -693,7 +738,7 @@ func (t *Table) maybeScheduleBotTurn() {
 			t.nextBotDelay = 0
 			return
 		}
-		if slot, ok := t.Slots[bidderID]; !ok || !slot.IsBot {
+		if !t.isBotControlled(bidderID) {
 			t.nextBotDelay = 0
 			return
 		}
@@ -708,7 +753,7 @@ func (t *Table) maybeScheduleBotTurn() {
 	}
 
 	p := t.State.ActivePlayer()
-	if p == nil || !p.IsBot || t.State.Winner() != nil {
+	if p == nil || !t.isBotControlled(p.ID) || t.State.Winner() != nil {
 		t.nextBotDelay = 0
 		return
 	}
@@ -723,7 +768,7 @@ func (t *Table) maybeScheduleBotTurn() {
 
 func (t *Table) delayActiveBotUntilMovementEnds(playerID string, pathLen int) {
 	p := t.State.ActivePlayer()
-	if p == nil || p.ID != playerID || !p.IsBot || pathLen <= 0 {
+	if p == nil || p.ID != playerID || !t.isBotControlled(playerID) || pathLen <= 0 {
 		return
 	}
 	delay := time.Duration(pathLen-1)*clientMoveStep + clientMoveReveal
@@ -760,7 +805,7 @@ func (t *Table) executeBotStep() {
 		if currentBidder == "" {
 			return
 		}
-		if slot, ok := t.Slots[currentBidder]; ok && slot.IsBot {
+		if t.isBotControlled(currentBidder) {
 			botAction := game.DecideBotAuctionAction(t.State, currentBidder)
 			log.Printf("[bot] %s auction action: %s inc=%d", currentBidder, botAction.Type, botAction.Increment)
 			var payload json.RawMessage
@@ -782,7 +827,7 @@ func (t *Table) executeBotStep() {
 
 	// Regular bot turn
 	p := t.State.ActivePlayer()
-	if p == nil || !p.IsBot {
+	if p == nil || !t.isBotControlled(p.ID) {
 		return
 	}
 
@@ -807,7 +852,10 @@ func (t *Table) executeBotStep() {
 		return
 	}
 
-	actions := game.DecideBotTurn(t.State)
+	var actions []game.BotAction
+	t.withBotIdentity(p.ID, func() {
+		actions = game.DecideBotTurn(t.State)
+	})
 	actionNames := make([]string, len(actions))
 	for i, a := range actions {
 		actionNames[i] = string(a.Type)
@@ -877,6 +925,92 @@ func (t *Table) currentAuctionBidderID() string {
 		return ""
 	}
 	return t.State.Auction.ActiveBidders[bidderIdx]
+}
+
+func (t *Table) isBotControlled(playerID string) bool {
+	slot, ok := t.Slots[playerID]
+	if !ok {
+		return false
+	}
+	if slot.IsBot {
+		return true
+	}
+	p := t.State.FindPlayer(playerID)
+	return p != nil && p.ControlledByBot
+}
+
+func (t *Table) withBotIdentity(playerID string, fn func()) {
+	p := t.State.FindPlayer(playerID)
+	if p == nil || p.IsBot {
+		fn()
+		return
+	}
+	originalIsBot := p.IsBot
+	originalDifficulty := p.BotDifficulty
+	p.IsBot = true
+	if p.BotDifficulty == "" {
+		p.BotDifficulty = game.BotRegular
+	}
+	defer func() {
+		p.IsBot = originalIsBot
+		p.BotDifficulty = originalDifficulty
+	}()
+	fn()
+}
+
+func (t *Table) resetTurnTimer() {
+	if t.turnTimer == nil {
+		return
+	}
+	if t.State.Phase != game.PhasePlaying || t.State.Winner() != nil {
+		t.State.TurnDeadlineAt = 0
+		t.State.TurnDurationMs = int(turnDuration / time.Millisecond)
+		t.turnTimer.Stop()
+		return
+	}
+	deadline := time.Now().Add(turnDuration)
+	t.State.TurnDurationMs = int(turnDuration / time.Millisecond)
+	t.State.TurnDeadlineAt = deadline.UnixMilli()
+	if !t.turnTimer.Stop() {
+		select {
+		case <-t.turnTimer.C:
+		default:
+		}
+	}
+	t.turnTimer.Reset(turnDuration)
+}
+
+func (t *Table) handleTurnTimeout() {
+	if t.State.Phase != game.PhasePlaying {
+		return
+	}
+	player := t.State.ActivePlayer()
+	if player == nil || t.State.IsBankrupt(player.ID) {
+		return
+	}
+	playerID := player.ID
+	t.Broadcast(proto.New("turn_timeout", proto.TurnTimeoutPayload{
+		PlayerID: playerID,
+	}))
+	if t.State.IsAuctionActive && t.State.Auction != nil {
+		if bidderID := t.currentAuctionBidderID(); bidderID != "" {
+			t.processAction(IncomingAction{Type: "pass_bid", PlayerID: bidderID})
+		}
+		return
+	}
+	if t.State.ActiveCard != nil {
+		t.processAction(IncomingAction{Type: "accept_card", PlayerID: playerID})
+		return
+	}
+	if t.awaitingBuyDecision {
+		t.processAction(IncomingAction{Type: "pass_buy", PlayerID: playerID})
+		return
+	}
+	if t.State.IsTurnComplete {
+		t.processAction(IncomingAction{Type: "next_turn", PlayerID: playerID})
+		return
+	}
+	t.processAction(IncomingAction{Type: "roll_dice", PlayerID: playerID})
 }
 
 func (t *Table) checkGameOver() {

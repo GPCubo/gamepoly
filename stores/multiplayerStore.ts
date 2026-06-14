@@ -14,6 +14,10 @@ export interface MPPlayerState {
   consecutiveDoubles: number
   isBot: boolean
   botDifficulty: 'regular' | 'difficult' | null
+  connected: boolean
+  controlledByBot: boolean
+  disconnectedAt?: number
+  reconnectGraceMs?: number
 }
 
 export interface MPPropertyDevelopment {
@@ -119,6 +123,8 @@ export interface MPGameState {
   canSkipBuy: boolean
   auctionOnly: boolean
   doublesGiveExtraTurn: boolean
+  turnDeadlineAt?: number
+  turnDurationMs?: number
   propertyOwners: Record<number, string>
   propertyDevelopments: Record<number, MPPropertyDevelopment>
   bankruptPlayers: string[]
@@ -153,7 +159,7 @@ export const useMultiplayerStore = defineStore('multiplayer', () => {
   const activePlayer = computed(() => state.value?.players[state.value.activePlayerIndex] ?? null)
   const myPlayer = computed(() => state.value?.players.find(p => p.id === myPlayerId.value) ?? null)
   const isMyTurn = computed(() => activePlayer.value?.id === myPlayerId.value)
-  const isCurrentPlayerBot = computed(() => activePlayer.value?.isBot ?? false)
+  const isCurrentPlayerBot = computed(() => activePlayer.value?.isBot || activePlayer.value?.controlledByBot || false)
   const isTurnComplete = computed(() => state.value?.isTurnComplete ?? false)
   const isDoubles = computed(() => state.value?.isDoubles ?? false)
   const diceValues = computed(() => state.value?.diceValues ?? [1, 1] as [number, number])

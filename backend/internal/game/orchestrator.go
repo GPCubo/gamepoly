@@ -115,6 +115,7 @@ func SetupGame(gs *GameState, slots []SlotConfig, opts GameOptions) {
 			Cash:          s.StartingCash,
 			IsBot:         s.IsBot,
 			BotDifficulty: s.BotDifficulty,
+			Connected:     s.IsBot,
 		}
 	}
 	gs.Players = players

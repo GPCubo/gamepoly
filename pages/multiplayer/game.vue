@@ -126,6 +126,8 @@
           'hud-active': p.id === mpStore.activePlayer?.id,
           'hud-bankrupt': mpStore.isBankrupt(p.id),
           'hud-me': p.id === mpStore.myPlayerId,
+          'hud-disconnected': !p.isBot && !p.connected,
+          'hud-bot-controlled': p.controlledByBot,
         }"
       >
         <span class="hud-icon">{{ tokenIcon(p.tokenModel, idx) }}</span>
@@ -143,6 +145,12 @@
             </span>
             <span v-if="p.id === mpStore.myPlayerId" class="hud-you-badge"
               >Tú</span
+            >
+            <span v-if="!p.isBot && !p.connected" class="hud-offline-badge"
+              >Offline</span
+            >
+            <span v-if="p.controlledByBot" class="hud-temp-bot-badge"
+              >Bot temp.</span
             >
           </span>
           <span class="hud-position"
@@ -275,6 +283,14 @@
           <span v-if="!socket.connected.value" class="offline-badge">
             <span class="material-symbols-outlined">wifi_off</span>
           </span>
+          <span
+            v-if="turnTimerLabel"
+            class="turn-timer-chip"
+            :class="{ critical: isTurnTimerCritical }"
+          >
+            <span class="material-symbols-outlined">timer</span>
+            {{ turnTimerLabel }}
+          </span>
         </div>
         <p>{{ mpStore.statusMessage }}</p>
       </div>
@@ -367,6 +383,11 @@
           Configuracion
         </button>
       </div>
+    </div>
+
+    <div v-if="mpStore.state" class="perf-widget">
+      <span>FPS {{ fps }}</span>
+      <span>Ping {{ pingLabel }}</span>
     </div>
 
     <!-- Buy decision (landing on unowned property) -->
@@ -968,6 +989,7 @@ type PlayerMovedPayload = {
 
 const mpStore = useMultiplayerStore();
 const socket = useGameSocket();
+const perfStats = usePerformanceStats();
 const route = useRoute();
 const { track } = useAnalytics();
 
@@ -998,6 +1020,7 @@ const activeHistoryTab = ref<"money" | "tiles" | "cards">("money");
 const minimapOpen = ref(false);
 const searchTerm = ref("");
 const visibleHistorySnackbars = ref<SnackbarItem[]>([]);
+const nowMs = ref(Date.now());
 const rollBtnRef = ref<HTMLElement | null>(null);
 const nextBtnRef = ref<HTMLElement | null>(null);
 const bailBtnRef = ref<HTMLElement | null>(null);
@@ -1018,6 +1041,7 @@ const exchangeSpectatorMode = ref(false);
 const exchangeSpectatorResult = ref<"accepted" | "rejected" | null>(null);
 let diceHideTimer: ReturnType<typeof setTimeout> | null = null;
 let boardLoadingTimer: ReturnType<typeof setInterval> | null = null;
+let clockTimer: ReturnType<typeof setInterval> | null = null;
 let loadedTokenSignature = "";
 let boardLoadRequestId = 0;
 let animationPlayerCount = 0;
@@ -1041,6 +1065,25 @@ const isMyDebtPending = computed(
     myPlayer.value !== null &&
     (myPlayer.value?.cash ?? 0) < 0 &&
     !mpStore.isBankrupt(mpStore.myPlayerId),
+);
+const turnRemainingMs = computed(() => {
+  const deadline = mpStore.state?.turnDeadlineAt ?? 0;
+  if (!deadline) return 0;
+  return Math.max(0, deadline - nowMs.value);
+});
+const turnTimerLabel = computed(() => {
+  if (!mpStore.state?.turnDeadlineAt) return "";
+  const totalSeconds = Math.ceil(turnRemainingMs.value / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+});
+const isTurnTimerCritical = computed(
+  () => turnRemainingMs.value > 0 && turnRemainingMs.value <= 10_000,
+);
+const fps = computed(() => perfStats.fps.value);
+const pingLabel = computed(() =>
+  socket.pingMs.value === null ? "-- ms" : `${socket.pingMs.value} ms`,
 );
 const boardLoadingMessages = [
   "Cargando tablero 🎲",
@@ -2452,6 +2495,10 @@ onMounted(() => {
     return;
   }
   track("multiplayer_game_started");
+  perfStats.start();
+  clockTimer = setInterval(() => {
+    nowMs.value = Date.now();
+  }, 250);
 
   boardLoadingTimer = setInterval(() => {
     boardLoadingIndex.value =
@@ -2558,7 +2605,9 @@ onMounted(() => {
 onUnmounted(() => {
   if (diceHideTimer) clearTimeout(diceHideTimer);
   if (boardLoadingTimer) clearInterval(boardLoadingTimer);
+  if (clockTimer) clearInterval(clockTimer);
   if (botThinkingTimer) clearTimeout(botThinkingTimer);
+  perfStats.stop();
   stopBoardAssetWatch?.();
   unsubscribeSocket?.();
   socket.disconnect();
@@ -2848,6 +2897,17 @@ watch(
 .hud-me {
   border-color: rgba(59, 130, 246, 0.4);
 }
+.hud-disconnected {
+  border-color: rgba(248, 113, 113, 0.42);
+  background: linear-gradient(
+    90deg,
+    rgba(127, 29, 29, 0.34),
+    rgba(10, 16, 25, 0.84)
+  );
+}
+.hud-bot-controlled {
+  box-shadow: inset 0 0 0 1px rgba(250, 204, 21, 0.24);
+}
 
 .hud-icon {
   width: 34px;
@@ -2887,7 +2947,9 @@ watch(
 }
 
 .hud-bot-badge,
-.hud-you-badge {
+.hud-you-badge,
+.hud-offline-badge,
+.hud-temp-bot-badge {
   display: inline-block;
   font-size: 9px;
   font-weight: 700;
@@ -2910,6 +2972,57 @@ watch(
   background: rgba(0, 245, 155, 0.15);
   color: #00e38f;
   border: 1px solid rgba(0, 245, 155, 0.25);
+}
+.hud-offline-badge {
+  background: rgba(248, 113, 113, 0.16);
+  color: #fecaca;
+  border: 1px solid rgba(248, 113, 113, 0.28);
+}
+.hud-temp-bot-badge {
+  background: rgba(250, 204, 21, 0.16);
+  color: #fde68a;
+  border: 1px solid rgba(250, 204, 21, 0.3);
+}
+
+.perf-widget {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 92;
+  display: flex;
+  gap: 6px;
+  padding: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  background: rgba(10, 16, 25, 0.72);
+  color: rgba(255, 255, 255, 0.74);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 800;
+  pointer-events: none;
+  backdrop-filter: blur(10px);
+}
+
+.turn-timer-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 7px;
+  border-radius: 8px;
+  background: rgba(59, 130, 246, 0.16);
+  color: #bfdbfe;
+  border: 1px solid rgba(59, 130, 246, 0.28);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  font-weight: 900;
+}
+.turn-timer-chip.critical {
+  background: rgba(248, 113, 113, 0.16);
+  color: #fecaca;
+  border-color: rgba(248, 113, 113, 0.34);
+}
+.turn-timer-chip .material-symbols-outlined {
+  font-size: 14px;
 }
 
 .overlay-container {
