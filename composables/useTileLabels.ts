@@ -159,7 +159,10 @@ function drawTitle(
   }
 }
 
-function createLabelCanvas(tile: BoardTile, displayName: string): HTMLCanvasElement {
+function createLabelCanvas(
+  tile: BoardTile,
+  displayName: string,
+): HTMLCanvasElement {
   const canvas = document.createElement("canvas");
   const w = GAME_CONFIG.LABEL_CANVAS_WIDTH;
   const h = GAME_CONFIG.LABEL_CANVAS_HEIGHT;
@@ -227,7 +230,7 @@ function createLabelCanvas(tile: BoardTile, displayName: string): HTMLCanvasElem
     const icon = specialIcon(tile);
 
     if (centerRect) {
-      // Impuesto / Suerte / Arca Comunal (rectangulo central): nombre arriba,
+      //  (rectangulo central): nombre arriba,
       // icono debajo (sobre el rectangulo).
       drawTitle(ctx, displayName, cx, topPad, h * 0.3, innerW, font);
       drawIcon(icon, 0.28, h * 0.62);
@@ -237,9 +240,25 @@ function createLabelCanvas(tile: BoardTile, displayName: string): HTMLCanvasElem
       const iconTop = topPad;
       drawIcon(icon, 0.3, iconTop + iconSize / 2);
       const nameTop = iconTop + iconSize + h * 0.04;
-      drawTitle(ctx, displayName, cx, nameTop, h - botPad - nameTop, innerW, font);
+      drawTitle(
+        ctx,
+        displayName,
+        cx,
+        nameTop,
+        h - botPad - nameTop,
+        innerW,
+        font,
+      );
     } else {
-      drawTitle(ctx, displayName, cx, topPad, h - topPad - botPad, innerW, font);
+      drawTitle(
+        ctx,
+        displayName,
+        cx,
+        topPad,
+        h - topPad - botPad,
+        innerW,
+        font,
+      );
     }
   }
 
