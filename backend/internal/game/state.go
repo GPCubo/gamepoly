@@ -120,8 +120,9 @@ type StartOrderState struct {
 }
 
 type GameState struct {
-	Phase         Phase  `json:"phase"`
-	TableID       string `json:"tableId"`
+	Phase     Phase  `json:"phase"`
+	TableID   string `json:"tableId"`
+	BoardSlug string `json:"boardSlug,omitempty"`
 
 	Players                     []*PlayerState `json:"players"`
 	ActivePlayerIndex           int            `json:"activePlayerIndex"`

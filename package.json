@@ -5,7 +5,10 @@
     "dev": "nuxt dev",
     "build": "nuxt build",
     "generate": "nuxt generate",
-    "preview": "nuxt preview"
+    "preview": "nuxt preview",
+    "sync": "node scripts/sync-all.mjs",
+    "sync:blender": "node scripts/sync-board-config.mjs",
+    "sync:db": "node scripts/sync-db.mjs"
   },
   "dependencies": {
     "@pinia/nuxt": "^0.9.0",
@@ -19,6 +22,7 @@
   },
   "devDependencies": {
     "@types/three": "^0.170.0",
+    "pg": "^8.13.0",
     "sass": "^1.85.0"
   }
 }
