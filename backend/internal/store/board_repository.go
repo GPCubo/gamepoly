@@ -7,7 +7,7 @@ import (
 
 // Board represents a playable board variant.
 type Board struct {
-	ID          string
+	ID          int64
 	Slug        string
 	Locale      string
 	DisplayName string
@@ -17,8 +17,8 @@ type Board struct {
 
 // BoardTile represents a single tile within a board.
 type BoardTile struct {
-	ID        string
-	BoardID   string
+	ID        int64
+	BoardID   int64
 	TileIndex int
 	TileType  string
 	TileGroup string
@@ -30,7 +30,7 @@ type BoardTile struct {
 
 // Token represents a selectable player piece.
 type Token struct {
-	ID        string
+	ID        int64
 	Slug      string
 	GLBPath   string
 	LabelKey  string
@@ -98,7 +98,7 @@ func (r *BoardRepository) GetBoardBySlug(ctx context.Context, slug string) (*Boa
 }
 
 // GetBoardTiles returns the 40 tiles for the given boardID, ordered by tile_index.
-func (r *BoardRepository) GetBoardTiles(ctx context.Context, boardID string) ([]BoardTile, error) {
+func (r *BoardRepository) GetBoardTiles(ctx context.Context, boardID int64) ([]BoardTile, error) {
 	if r == nil {
 		return nil, nil
 	}
