@@ -2,7 +2,7 @@
 id: SPEC-019
 title: Fase 3: eliminar boardTilesConfig.ts y boardtiles.go — frontend consume tiles desde API y backend elimina array hardcodeado
 created_at: 2026-06-14T00:00:00
-status: draft
+status: done
 ---
 
 # SPEC-019: Fase 3: eliminar boardTilesConfig.ts y boardtiles.go — frontend consume tiles desde API y backend elimina array hardcodeado
@@ -169,11 +169,11 @@ Mitigación: el juego solo se monta después de que `boardStore.ready === true`.
 
 ## Criterios de Aceptación
 
-- [ ] `GET /api/v1/boards/monopoly-es` responde con JSON que incluye 40 tiles y 32 cartas.
-- [ ] `go build ./...` compila sin errores.
-- [ ] `grep -r "boardTilesConfig" . --include="*.ts" --include="*.vue"` no devuelve resultados.
-- [ ] El archivo `config/boardTilesConfig.ts` no existe en el repositorio.
-- [ ] `boardtiles.go` no contiene el array `BoardTiles` (el archivo puede existir vacío o eliminado).
+- [x] `GET /api/v1/boards/monopoly-es` responde con JSON que incluye 40 tiles y 32 cartas.
+- [x] `go build ./...` compila sin errores.
+- [x] `grep -r "boardTilesConfig" . --include="*.ts" --include="*.vue"` no devuelve resultados.
+- [x] El archivo `config/boardTilesConfig.ts` no existe en el repositorio.
+- [x] `boardtiles.go` no contiene el array `BoardTiles` (el archivo puede existir vacío o eliminado).
 - [ ] Una partida solitario completa puede jugarse (renderizado, compras, rentas, cartas, construcción).
 - [ ] Los composables `useBoardGeometry` y `useTileLabels` funcionan correctamente (las casillas tienen labels y posiciones correctas).
 - [ ] `npx nuxi typecheck` o el type-check de build pasa sin errores nuevos.
