@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sort"
 	"sync"
 	"time"
 
@@ -992,6 +993,10 @@ func (t *Table) handleTurnTimeout() {
 	t.Broadcast(proto.New("turn_timeout", proto.TurnTimeoutPayload{
 		PlayerID: playerID,
 	}))
+	if player.Cash < 0 {
+		t.resolveTimedOutDebt(playerID)
+		return
+	}
 	if t.State.IsAuctionActive && t.State.Auction != nil {
 		if bidderID := t.currentAuctionBidderID(); bidderID != "" {
 			t.processAction(IncomingAction{Type: "pass_bid", PlayerID: bidderID})
@@ -1011,6 +1016,67 @@ func (t *Table) handleTurnTimeout() {
 		return
 	}
 	t.processAction(IncomingAction{Type: "roll_dice", PlayerID: playerID})
+}
+
+func (t *Table) resolveTimedOutDebt(playerID string) {
+	player := t.State.FindPlayer(playerID)
+	if player == nil || player.Cash >= 0 {
+		return
+	}
+
+	type mortgageCandidate struct {
+		tileIndex int
+		price     int
+	}
+	candidates := make([]mortgageCandidate, 0)
+	for idx, ownerID := range t.State.PropertyOwners {
+		if ownerID != playerID {
+			continue
+		}
+		tile := game.GetOwnableTilePublic(idx)
+		if tile == nil || tile.Price == nil {
+			continue
+		}
+		if err := game.CanMortgage(t.State, playerID, idx); err != nil {
+			continue
+		}
+		candidates = append(candidates, mortgageCandidate{
+			tileIndex: idx,
+			price:     *tile.Price,
+		})
+	}
+	sort.Slice(candidates, func(i, j int) bool {
+		if candidates[i].price == candidates[j].price {
+			return candidates[i].tileIndex < candidates[j].tileIndex
+		}
+		return candidates[i].price < candidates[j].price
+	})
+
+	for _, candidate := range candidates {
+		if player.Cash >= 0 {
+			break
+		}
+		game.MortgageProperty(t.State, playerID, candidate.tileIndex)
+		t.Broadcast(proto.New("property_mortgaged", proto.PropertyMortgagedPayload{
+			PlayerID:  playerID,
+			TileIndex: candidate.tileIndex,
+		}))
+	}
+
+	if player.Cash < 0 {
+		game.DeclareBankruptcy(t.State, playerID)
+		t.checkBankruptBroadcast(playerID)
+		if t.State.Winner() == nil {
+			game.FinishTurn(t.State)
+		}
+		return
+	}
+
+	if t.State.IsTurnComplete {
+		t.processAction(IncomingAction{Type: "next_turn", PlayerID: playerID})
+		return
+	}
+	t.State.StatusMessage = fmt.Sprintf("%s cubrio la deuda hipotecando automaticamente.", player.Name)
 }
 
 func (t *Table) checkGameOver() {

@@ -3131,7 +3131,9 @@ watch(
   display: flex;
   align-items: center;
   gap: 12px;
-  background: rgba(251, 113, 133, 0.12);
+  background-color: #bd2c42;
+
+  color: white;
   border: 1px solid rgba(251, 113, 133, 0.4);
   border-radius: 14px;
   padding: 12px 16px;
@@ -3140,7 +3142,6 @@ watch(
 
 .debt-warning-icon {
   font-size: 22px;
-  color: #fb7185;
   flex-shrink: 0;
   font-variation-settings:
     "FILL" 1,
@@ -3158,12 +3159,10 @@ watch(
 .debt-warning-copy strong {
   font-size: 13px;
   font-weight: 700;
-  color: #fb7185;
 }
 
 .debt-warning-copy span {
   font-size: 11px;
-  color: rgba(251, 113, 133, 0.75);
   line-height: 1.4;
 }
 
@@ -3172,7 +3171,6 @@ watch(
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  background: rgba(251, 113, 133, 0.15);
   border: 1px solid rgba(251, 113, 133, 0.35);
   border-radius: 10px;
   color: #fb7185;
