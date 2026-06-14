@@ -85,7 +85,7 @@ func main() {
 	mgr := table.NewManager(finishedGameRepo, boardReg)
 
 	// HTTP router
-	router := api.NewRouter(mgr, rs)
+	router := api.NewRouter(mgr, rs, boardReg)
 	if clientErrorRepo != nil {
 		router.SetClientErrorRepo(clientErrorRepo)
 	}

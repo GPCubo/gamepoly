@@ -59,17 +59,18 @@ func (rl *clientErrRateLimiter) Allow(key string, limit int, window time.Duratio
 type Router struct {
 	Manager         *table.Manager
 	Store           *store.RedisStore
+	BoardReg        *game.BoardRegistry
 	jwtKey          []byte
 	clientErrorRepo *store.ClientErrorRepository
 	clientErrRL     *clientErrRateLimiter
 }
 
-func NewRouter(mgr *table.Manager, rs *store.RedisStore) *Router {
+func NewRouter(mgr *table.Manager, rs *store.RedisStore, boardReg *game.BoardRegistry) *Router {
 	key := os.Getenv("JWT_SECRET")
 	if key == "" {
 		key = "dev-secret-change-in-production"
 	}
-	return &Router{Manager: mgr, Store: rs, jwtKey: []byte(key)}
+	return &Router{Manager: mgr, Store: rs, BoardReg: boardReg, jwtKey: []byte(key)}
 }
 
 // SetClientErrorRepo enables the client error reporting endpoint.
@@ -82,11 +83,49 @@ func (rt *Router) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("/api/v1/auth/guest", rt.handleGuestAuth)
 	mux.HandleFunc("/api/v1/tables", rt.handleTables)
 	mux.HandleFunc("/api/v1/tables/", rt.handleTable)
+	mux.HandleFunc("/api/v1/boards/", rt.handleBoards)
 	mux.HandleFunc("/api/v1/client-errors", rt.handleClientErrors)
 	mux.HandleFunc("/ws", rt.handleWS)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
+	})
+}
+
+// handleBoards serves GET /api/v1/boards/:slug
+// Returns the full board config (tiles + cards) from the in-memory registry.
+func (rt *Router) handleBoards(w http.ResponseWriter, r *http.Request) {
+	setCORS(w)
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	parts := splitPath(r.URL.Path) // ["api", "v1", "boards", ":slug"]
+	if len(parts) < 4 {
+		http.Error(w, "missing board slug", http.StatusBadRequest)
+		return
+	}
+	slug := parts[3]
+
+	bc := rt.BoardReg.Get(slug)
+	if bc == nil {
+		http.Error(w, "board not found", http.StatusNotFound)
+		return
+	}
+
+	writeJSON(w, map[string]any{
+		"slug":           bc.Slug,
+		"locale":         bc.Locale,
+		"displayName":    bc.DisplayName,
+		"glbPath":        bc.GLBPath,
+		"tiles":          bc.Tiles,
+		"chanceCards":    bc.ChanceCards,
+		"communityCards": bc.CommunityCards,
 	})
 }
 

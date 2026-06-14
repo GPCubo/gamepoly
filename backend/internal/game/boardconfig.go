@@ -126,11 +126,56 @@ var hardcodedCommunityCards = []config.GameCard{
 
 func cardInt(v int) *int { return &v }
 
-// DefaultBoardConfig returns a BoardConfig built from the hardcoded config arrays.
-// Used as fallback when DB is unavailable.
+// hardcodedBoardTiles is the canonical Spanish Monopoly board layout.
+// Used as fallback when DB is unavailable (mirrors boardtiles.go which is now types-only).
+var hardcodedBoardTiles = []config.BoardTile{
+	{Index: 0, Type: config.TileTypeCorner, Group: "go", Name: "Salida", Color: "#28b463"},
+	{Index: 1, Type: config.TileTypeProperty, Group: "brown", Name: "Ronda de Arrieta", Price: cardInt(60), Color: "#955436"},
+	{Index: 2, Type: config.TileTypeCard, Group: "community", Name: "Arca Comunal", Color: "#3aa6e0"},
+	{Index: 3, Type: config.TileTypeProperty, Group: "brown", Name: "Plaza de Lavapies", Price: cardInt(60), Color: "#955436"},
+	{Index: 4, Type: config.TileTypeTax, Group: "tax", Name: "Impuesto s/Renta", ShortName: "Impuesto", Color: "#5a5a5a"},
+	{Index: 5, Type: config.TileTypeRailroad, Group: "railroad", Name: "Estacion Norte", Price: cardInt(200), Color: "#2b2b2b"},
+	{Index: 6, Type: config.TileTypeProperty, Group: "lightBlue", Name: "Calle de la Montera", ShortName: "La Montera", Price: cardInt(100), Color: "#aae0fa"},
+	{Index: 7, Type: config.TileTypeCard, Group: "chance", Name: "Suerte", Color: "#f7941d"},
+	{Index: 8, Type: config.TileTypeProperty, Group: "lightBlue", Name: "Calle de Alcala", Price: cardInt(100), Color: "#aae0fa"},
+	{Index: 9, Type: config.TileTypeProperty, Group: "lightBlue", Name: "Gran Via", Price: cardInt(120), Color: "#aae0fa"},
+	{Index: 10, Type: config.TileTypeCorner, Group: "jail", Name: "Carcel", ShortName: "Carcel", Color: "#e67e22"},
+	{Index: 11, Type: config.TileTypeProperty, Group: "pink", Name: "Paseo del Prado", Price: cardInt(140), Color: "#d93a96"},
+	{Index: 12, Type: config.TileTypeUtility, Group: "utility", Name: "Cia. Electrica", ShortName: "Electrica", Price: cardInt(150), Color: "#9ed1a6"},
+	{Index: 13, Type: config.TileTypeProperty, Group: "pink", Name: "Calle de Serrano", Price: cardInt(140), Color: "#d93a96"},
+	{Index: 14, Type: config.TileTypeProperty, Group: "pink", Name: "Paseo de Recoletos", Price: cardInt(160), Color: "#d93a96"},
+	{Index: 15, Type: config.TileTypeRailroad, Group: "railroad", Name: "Estacion Este", Price: cardInt(200), Color: "#2b2b2b"},
+	{Index: 16, Type: config.TileTypeProperty, Group: "orange", Name: "Calle de Goya", Price: cardInt(180), Color: "#f7941d"},
+	{Index: 17, Type: config.TileTypeCard, Group: "community", Name: "Arca Comunal", Color: "#3aa6e0"},
+	{Index: 18, Type: config.TileTypeProperty, Group: "orange", Name: "Calle de Velazquez", Price: cardInt(180), Color: "#f7941d"},
+	{Index: 19, Type: config.TileTypeProperty, Group: "orange", Name: "P. de la Castellana", ShortName: "Castellana", Price: cardInt(200), Color: "#f7941d"},
+	{Index: 20, Type: config.TileTypeCorner, Group: "parking", Name: "Parking Gratuito", ShortName: "Parking", Color: "#c0392b"},
+	{Index: 21, Type: config.TileTypeProperty, Group: "red", Name: "Plaza de Espana", Price: cardInt(220), Color: "#ed1b24"},
+	{Index: 22, Type: config.TileTypeCard, Group: "chance", Name: "Suerte", Color: "#f7941d"},
+	{Index: 23, Type: config.TileTypeProperty, Group: "red", Name: "Calle de Fuencarral", ShortName: "Fuencarral", Price: cardInt(220), Color: "#ed1b24"},
+	{Index: 24, Type: config.TileTypeProperty, Group: "red", Name: "Paseo de la Reforma", ShortName: "Reforma", Price: cardInt(240), Color: "#ed1b24"},
+	{Index: 25, Type: config.TileTypeRailroad, Group: "railroad", Name: "Estacion Sur", Price: cardInt(200), Color: "#2b2b2b"},
+	{Index: 26, Type: config.TileTypeProperty, Group: "yellow", Name: "Av. de America", ShortName: "America", Price: cardInt(260), Color: "#fef200"},
+	{Index: 27, Type: config.TileTypeProperty, Group: "yellow", Name: "Calle Bravo Murillo", ShortName: "Bravo Murillo", Price: cardInt(260), Color: "#fef200"},
+	{Index: 28, Type: config.TileTypeUtility, Group: "utility", Name: "Cia. de Agua", ShortName: "Agua", Price: cardInt(150), Color: "#9ed1a6"},
+	{Index: 29, Type: config.TileTypeProperty, Group: "yellow", Name: "Calle Alberto Aguilera", ShortName: "Alberto Aguilera", Price: cardInt(280), Color: "#fef200"},
+	{Index: 30, Type: config.TileTypeCorner, Group: "gotojail", Name: "Ve a la Carcel", ShortName: "Ve Carcel", Color: "#922b21"},
+	{Index: 31, Type: config.TileTypeProperty, Group: "green", Name: "Paseo de Gracia", Price: cardInt(300), Color: "#1fb25a"},
+	{Index: 32, Type: config.TileTypeProperty, Group: "green", Name: "Rambla de Cataluna", Price: cardInt(300), Color: "#1fb25a"},
+	{Index: 33, Type: config.TileTypeCard, Group: "community", Name: "Arca Comunal", Color: "#3aa6e0"},
+	{Index: 34, Type: config.TileTypeProperty, Group: "green", Name: "Avenida Diagonal", Price: cardInt(320), Color: "#1fb25a"},
+	{Index: 35, Type: config.TileTypeRailroad, Group: "railroad", Name: "Estacion Oeste", Price: cardInt(200), Color: "#2b2b2b"},
+	{Index: 36, Type: config.TileTypeCard, Group: "chance", Name: "Suerte", Color: "#f7941d"},
+	{Index: 37, Type: config.TileTypeProperty, Group: "darkBlue", Name: "Paseo de la Habana", ShortName: "La Habana", Price: cardInt(350), Color: "#0072bb"},
+	{Index: 38, Type: config.TileTypeTax, Group: "tax", Name: "Impuesto de Lujo", ShortName: "Lujo", Color: "#5a5a5a"},
+	{Index: 39, Type: config.TileTypeProperty, Group: "darkBlue", Name: "Paseo del Arte", Price: cardInt(400), Color: "#0072bb"},
+}
+
+// DefaultBoardConfig returns a BoardConfig built from the hardcoded data.
+// Used when DB is unavailable (dev without DB, or server startup before sync:db).
 func DefaultBoardConfig() *BoardConfig {
-	tiles := make([]config.BoardTile, len(config.BoardTiles))
-	copy(tiles, config.BoardTiles)
+	tiles := make([]config.BoardTile, len(hardcodedBoardTiles))
+	copy(tiles, hardcodedBoardTiles)
 	bc := &BoardConfig{
 		Slug:           "monopoly-es",
 		Locale:         "es",
