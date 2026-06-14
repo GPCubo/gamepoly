@@ -258,9 +258,9 @@ Esto requiere actualizar el sync-db.mjs y ejecutar `sync:db` para migrar el slug
 - [x] `npm run sync:blender:en` (tablero inglés) termina sin errores.
 - [x] `GET /api/v1/boards/board-en` devuelve 40 tiles con nombres en inglés y 32 cartas con textos en inglés.
 - [x] `GET /api/v1/boards/board-es` devuelve 40 tiles con nombres en español (slug renombrado de `monopoly-es`).
-- [ ] Con la app en inglés, el tablero muestra "Fortune" en las casillas de azar y "City Fund" en las de comunidad.
-- [ ] Con la app en español, el tablero muestra "Suerte" y "Arca Comunal".
-- [ ] Al cambiar de idioma en runtime, el boardStore refetchea y las casillas se actualizan.
+- [x] Con la app en inglés, el tablero muestra "Fortune" en las casillas de azar y "City Fund" en las de comunidad.
+- [x] Con la app en español, el tablero muestra "Suerte" y "Arca Comunal".
+- [x] Al cambiar de idioma en runtime, el boardStore refetchea y las casillas se actualizan.
 - [x] Ninguna casilla de propiedad muestra una clave i18n como nombre (ej. `tile.9.name` no aparece en pantalla).
 - [x] Las cartas en inglés usan los nombres del tablero inglés en `{tileName}` (ej. "Advance to GO.").
 - [x] `npm run sync:db` es idempotente (puede correrse dos veces sin errores).
