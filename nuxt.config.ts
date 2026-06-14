@@ -27,11 +27,21 @@ export default defineNuxtConfig({
     "/setup": { ssr: false },
     "/game": { ssr: false },
     "/multiplayer/**": { ssr: false },
-    // English locale prefix — same pages, locale detected from URL
-    "/en": { ssr: false },
-    "/en/": { ssr: false },
-    "/en/setup": { ssr: false },
-    "/en/game": { ssr: false },
-    "/en/multiplayer/**": { ssr: false },
+    "/en/**": { ssr: false },
+  },
+  hooks: {
+    // Mirror every page route under /en/* so the Vue router recognises
+    // /en/game, /en/setup, etc. and renders the same component.
+    // Locale detection in useI18n reads the /en/ prefix from the URL.
+    "pages:extend"(pages) {
+      const enPages = pages
+        .filter((p) => !p.path.startsWith("/en"))
+        .map((p) => ({
+          ...p,
+          name: `en_${String(p.name ?? p.path)}`,
+          path: `/en${p.path}`,
+        }));
+      pages.push(...enPages);
+    },
   },
 });
