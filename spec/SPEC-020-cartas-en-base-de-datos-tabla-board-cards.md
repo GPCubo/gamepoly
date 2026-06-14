@@ -2,7 +2,7 @@
 id: SPEC-020
 title: Cartas en base de datos — tabla board_cards, sync script y eliminación de hardcoding en Go/TS
 created_at: 2026-06-14T00:00:00
-status: draft
+status: done
 ---
 
 # SPEC-020: Cartas en base de datos — tabla board_cards, sync script y eliminación de hardcoding en Go/TS
@@ -184,14 +184,14 @@ Después de este spec, `boardtiles.go` contiene:
 
 ## Criterios de Aceptación
 
-- [ ] Migración `004` crea tabla `board_cards` sin errores.
-- [ ] `npm run sync:db` popula 32 filas en `board_cards` (16 chance + 16 community) para `monopoly-es`.
-- [ ] Ejecutar el sync dos veces es idempotente.
-- [ ] El servidor arranca con log `[board] registered 'monopoly-es' (40 tiles, 32 cards)`.
-- [ ] `config.ChanceCards` y `config.CommunityCards` ya no existen en `boardtiles.go`.
-- [ ] `go build ./...` compila sin errores.
-- [ ] `go test ./...` pasa sin errores.
-- [ ] Las cartas que referencian tiles (ej. ch01 → tileIndex 0) resuelven el nombre correcto cuando cambia el nombre del tile en DB.
+- [x] Migración `004` crea tabla `board_cards` sin errores.
+- [x] `npm run sync:db` popula 32 filas en `board_cards` (16 chance + 16 community) para `monopoly-es`.
+- [x] Ejecutar el sync dos veces es idempotente.
+- [x] El servidor arranca con log `[board] registered 'monopoly-es' (40 tiles, 32 cards)`.
+- [x] `config.ChanceCards` y `config.CommunityCards` ya no existen en `boardtiles.go`.
+- [x] `go build ./...` compila sin errores.
+- [x] `go test ./...` pasa sin errores.
+- [x] Las cartas que referencian tiles (ej. ch01 → tileIndex 0) resuelven el nombre correcto cuando cambia el nombre del tile en DB.
 
 ## Notas
 
