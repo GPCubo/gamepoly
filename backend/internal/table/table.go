@@ -87,7 +87,7 @@ const (
 	pingPeriod        = 50 * time.Second
 	clientMoveStep    = 300 * time.Millisecond
 	clientMoveReveal  = 600 * time.Millisecond
-	turnDuration      = 60 * time.Second
+	turnDuration      = 30 * time.Second
 )
 
 // NewTable builds a Table from pre-built slots and starts the game.
@@ -152,6 +152,9 @@ func (t *Table) Run() {
 		case action := <-t.Inbox:
 			t.lastActivity = time.Now()
 			t.inactiveTimer.Reset(inactivityTimeout)
+			if action.Type != "heartbeat" && action.Type != "ping" {
+				t.clearAfkIfNeeded(action.PlayerID)
+			}
 			t.processAction(action)
 			if action.Type != "heartbeat" && action.Type != "ping" {
 				t.Broadcast(proto.NewSnapshot(t.State))
@@ -940,6 +943,22 @@ func (t *Table) isBotControlled(playerID string) bool {
 	return p != nil && p.ControlledByBot
 }
 
+// clearAfkIfNeeded restores manual control to a human player who was marked AFK
+// after their turn timer expired. Called whenever the player sends a real action.
+func (t *Table) clearAfkIfNeeded(playerID string) {
+	if playerID == "" {
+		return
+	}
+	slot, ok := t.Slots[playerID]
+	if !ok || slot.IsBot {
+		return
+	}
+	p := t.State.FindPlayer(playerID)
+	if p != nil && p.ControlledByBot && p.Connected {
+		p.ControlledByBot = false
+	}
+}
+
 func (t *Table) withBotIdentity(playerID string, fn func()) {
 	p := t.State.FindPlayer(playerID)
 	if p == nil || p.IsBot {
@@ -993,6 +1012,13 @@ func (t *Table) handleTurnTimeout() {
 	t.Broadcast(proto.New("turn_timeout", proto.TurnTimeoutPayload{
 		PlayerID: playerID,
 	}))
+	// Mark connected human as AFK — bot takes over until they send an action
+	if slot, ok := t.Slots[playerID]; ok && !slot.IsBot && !player.ControlledByBot {
+		player.ControlledByBot = true
+		if player.BotDifficulty == "" {
+			player.BotDifficulty = game.BotRegular
+		}
+	}
 	if player.Cash < 0 {
 		t.resolveTimedOutDebt(playerID)
 		return

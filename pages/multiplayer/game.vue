@@ -389,30 +389,35 @@
       <span>{{ t("common.ping") }} {{ pingLabel }}</span>
     </div>
 
-    <!-- Buy decision (landing on unowned property) -->
+    <!-- Property card: shown to ALL players when anyone lands on an ownable tile -->
     <TileCard
-      v-if="showBuyPrompt && mpStore.isMyTurn"
-      :tile="buyTileResolved"
+      v-if="showLandedCard && !mpStore.winner && !isAnimatingMyMove"
+      :tile="landedTileResolved"
       :active-player-id="mpStore.myPlayerId"
       :active-player-cash="myPlayer?.cash ?? 0"
-      :can-skip-buy="mpStore.state?.canSkipBuy ?? false"
-      :auction-only="mpStore.state?.auctionOnly ?? false"
-      :houses="0"
-      :has-hotel="false"
-      :is-mortgaged="false"
+      :owner-id="landedTileOwnerId"
+      :owner-name="landedTileOwnerName"
+      :owner-color="landedTileOwnerColor"
+      :rent-amount="landedTileRentAmount"
+      :can-skip-buy="showBuyPrompt && (mpStore.state?.canSkipBuy ?? false)"
+      :auction-only="showBuyPrompt ? (mpStore.state?.auctionOnly ?? false) : false"
+      :view-only="!showBuyPrompt"
+      :houses="landedDevelopment.houses"
+      :has-hotel="landedDevelopment.hotel"
+      :is-mortgaged="landedDevelopment.mortgaged"
       :can-build-house="false"
       :can-build-hotel="false"
       :can-sell-improvement="false"
       :can-mortgage="false"
       :can-unmortgage="false"
-      :house-cost="houseCost(buyTileIndex)"
-      :hotel-cost="hotelCost(buyTileIndex)"
-      :mortgage-value="mortgageValue(buyTileIndex)"
-      :unmortgage-cost="unmortgageCost(buyTileIndex)"
-      @close="() => passBuy()"
-      @buy="() => confirmBuy()"
-      @auction="() => passBuy()"
-      @skip="() => passBuy()"
+      :house-cost="houseCost(landedTileIndex)"
+      :hotel-cost="hotelCost(landedTileIndex)"
+      :mortgage-value="mortgageValue(landedTileIndex)"
+      :unmortgage-cost="unmortgageCost(landedTileIndex)"
+      @close="onCloseLandedCard()"
+      @buy="confirmBuy()"
+      @auction="passBuy()"
+      @skip="passBuy()"
     />
 
     <!-- Card overlay -->
@@ -944,6 +949,7 @@ import {
   hotelCostForPrice,
   mortgageValueForPrice,
   unmortgageCostForPrice,
+  rentForDevelopment,
 } from "~/config/economyConfig";
 import {
   BOARD_HOUSE_ASSET_GROUPS,
@@ -1001,6 +1007,8 @@ const playerId = route.query.playerId as string;
 const REVEAL_DELAY_MS = 350;
 const showBuyPrompt = ref(false);
 const buyTileIndex = ref(0);
+const showLandedCard = ref(false);
+const landedTileIndex = ref(0);
 const isAnimatingMyMove = ref(false);
 const diceVisible = ref(false);
 const tableroScene = shallowRef<Group | null>(null);
@@ -1493,9 +1501,16 @@ function runNextQueuedMovement() {
 
   const finishMovement = () => {
     if (moveId !== movementSeq) return;
+    const pos = ((payload.to % 40) + 40) % 40;
+    const tile = useBoardStore().tiles[pos];
+
+    // Show tile card to ALL players when any player lands on an ownable tile
+    if (isOwnableTile(tile)) {
+      landedTileIndex.value = tile.index;
+      showLandedCard.value = true;
+    }
+
     if (isMyPlayer) {
-      const pos = ((payload.to % 40) + 40) % 40;
-      const tile = useBoardStore().tiles[pos];
       if (
         isOwnableTile(tile) &&
         mpStore.propertyOwners[tile.index] === undefined &&
@@ -2482,6 +2497,49 @@ const buyTileResolved = computed(
     useBoardStore().tiles.find((t) => t.index === buyTileIndex.value) ?? useBoardStore().tiles[0],
 );
 
+const landedTileResolved = computed(
+  () => useBoardStore().tiles.find((t) => t.index === landedTileIndex.value) ?? useBoardStore().tiles[0],
+);
+
+const landedTileOwnerId = computed(() => mpStore.propertyOwners[landedTileIndex.value]);
+
+const landedTileOwnerIndex = computed(() => {
+  const ownerId = landedTileOwnerId.value;
+  if (ownerId === undefined) return -1;
+  return mpStore.players.findIndex((p) => p.id === ownerId);
+});
+
+const landedTileOwnerName = computed(() => {
+  const idx = landedTileOwnerIndex.value;
+  return idx >= 0 ? mpStore.players[idx]?.name : undefined;
+});
+
+const landedTileOwnerColor = computed(() => {
+  const idx = landedTileOwnerIndex.value;
+  if (idx < 0) return undefined;
+  return tokenConfig(mpStore.players[idx]?.tokenModel, idx)?.color;
+});
+
+const landedDevelopment = computed(() => developmentFor(landedTileIndex.value));
+
+const landedTileRentAmount = computed(() => {
+  const ownerId = landedTileOwnerId.value;
+  if (!ownerId) return undefined;
+  const tile = landedTileResolved.value;
+  const dev = landedDevelopment.value;
+  if (dev.mortgaged) return 0;
+  if (tile.type === "railroad") {
+    const owned = useBoardStore().tiles.filter(
+      (t) => t.type === "railroad" && mpStore.propertyOwners[t.index] === ownerId,
+    ).length;
+    return [25, 50, 100, 200][Math.max(0, Math.min(owned - 1, 3))];
+  }
+  if (tile.type === "property" && tile.price !== undefined) {
+    return rentForDevelopment(tile.price, dev.hotel ? 0 : dev.houses, dev.hotel);
+  }
+  return undefined;
+});
+
 const auctionTileName = computed(() => {
   if (!mpStore.auction) return "";
   const tile = useBoardStore().tiles.find((t) => t.index === mpStore.auction!.tileIndex);
@@ -2515,12 +2573,22 @@ function send(type: string, payload?: Record<string, unknown>) {
 function confirmBuy() {
   send("buy_property", { tileIndex: buyTileIndex.value });
   showBuyPrompt.value = false;
+  showLandedCard.value = false;
   track("property_bought");
 }
 
 function passBuy() {
   send("pass_buy");
   showBuyPrompt.value = false;
+  showLandedCard.value = false;
+}
+
+function onCloseLandedCard() {
+  if (showBuyPrompt.value) {
+    passBuy();
+  } else {
+    showLandedCard.value = false;
+  }
 }
 
 function pushSnackbar(item: SnackbarItem, durationMs = 5200) {
@@ -2641,6 +2709,7 @@ onMounted(() => {
       }
       case "auction_started": {
         showBuyPrompt.value = false;
+        showLandedCard.value = false;
         track("auction_started");
         break;
       }
@@ -2705,7 +2774,11 @@ watch(overlayKeyboardEnabled, (enabled) => {
 
 watch(
   () => mpStore.activePlayerIndex,
-  () => focusPrimaryAction(),
+  () => {
+    showLandedCard.value = false;
+    showBuyPrompt.value = false;
+    focusPrimaryAction();
+  },
 );
 
 watch(
@@ -2754,6 +2827,8 @@ watch(
       if (!ownerID && !mpStore.isAuctionActive && !mpStore.state?.auctionOnly) {
         buyTileIndex.value = pos;
         showBuyPrompt.value = true;
+        landedTileIndex.value = pos;
+        showLandedCard.value = true;
       }
     }
   },

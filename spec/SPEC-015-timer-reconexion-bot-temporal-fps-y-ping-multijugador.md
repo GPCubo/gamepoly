@@ -11,9 +11,10 @@ status: in-progress
 
 Implementar mejoras de resiliencia y visibilidad en el modo multijugador:
 
-- Timer de turno en partida multijugador.
+- Timer de turno de 30 segundos en partida multijugador.
 - Aviso visual en el listado/HUD de jugadores cuando un jugador humano esta desconectado.
 - Al desconectarse un jugador humano, un bot toma su puesto automaticamente hasta que el jugador vuelva.
+- Si un jugador humano no responde durante 30 segundos (AFK), un bot toma su puesto automaticamente. El jugador recupera el control en cuanto envie cualquier accion de juego.
 - Al reconectarse el jugador, recupera su puesto, ficha, dinero, propiedades y turno si corresponde.
 - Mostrar contador de FPS en el cliente.
 - Mostrar medicion de ping/latencia websocket en el cliente.
@@ -128,9 +129,11 @@ Riesgos tecnicos:
 - [x] El bot temporal puede tirar dados, aceptar cartas, pasar/comprar segun decision de bot y avanzar turno por el humano desconectado.
 - [x] Al reconectarse con el mismo `playerId`, el humano recupera su puesto sin perder ficha, dinero, propiedades, posicion ni historial.
 - [x] La UI muestra claramente cuando un puesto esta siendo jugado por bot temporal.
-- [x] Existe timer de turno visible para todos los jugadores.
+- [x] Existe timer de turno visible para todos los jugadores (duracion: 30 segundos).
 - [x] El timer se reinicia al cambiar de turno o al entrar en un nuevo estado de decision relevante.
 - [x] Cuando el timer expira, el backend ejecuta una accion segura y sincronizada, sin depender del cliente.
+- [x] Si el jugador activo es un humano conectado al momento de expirar el timer, queda marcado como AFK (`controlledByBot = true`) y el bot toma el control de sus turnos siguientes.
+- [x] El jugador recupera el control manual (AFK se limpia) en cuanto envia cualquier accion de juego real.
 - [x] El contador de FPS se muestra en `pages/multiplayer/game.vue`.
 - [x] El ping websocket se muestra en `pages/multiplayer/game.vue` y se actualiza periodicamente.
 - [x] Ping/FPS no tapan botones principales, dados, HUD de jugadores ni modales.
@@ -146,6 +149,6 @@ El timer debe ser autoritativo en backend. Un contador solo en frontend seria fa
 
 Para el MVP, FPS y ping pueden vivir en un widget compacto siempre visible. Si luego se quiere una UI mas limpia, se puede mover a un panel de diagnostico o hacerlo configurable.
 
-La duracion exacta del timer puede empezar con una constante backend razonable, por ejemplo 60 segundos, y dejarse preparada para configuracion de sala en una spec posterior.
+La duracion del timer es 30 segundos. Al expirar, si el jugador activo es un humano conectado (no desconectado ni bot real), se lo marca como AFK (`ControlledByBot = true`) y el bot ejecuta la accion inmediata. El flag AFK se limpia automaticamente cuando el jugador envia cualquier accion de juego real (no heartbeat/ping). La duracion puede dejarse preparada para configuracion de sala en una spec posterior.
 
 Implementacion parcial: queda pendiente ejecutar `go test ./...` en un entorno con Go instalado. En esta maquina los comandos `go` y `gofmt` no estan disponibles, por lo que la verificacion backend no pudo completarse localmente.

@@ -183,7 +183,7 @@
                 <span>{{ t("tile.mortgagedNoRent") }}</span>
               </div>
               <div v-else class="penalty-banner">
-                <span class="penalty-amount">−${{ rentAmount }}</span>
+                <span v-if="rentAmount !== undefined" class="penalty-amount">−${{ rentAmount }}</span>
                 <span class="penalty-label"
                   >{{ t("tile.rentPaidTo", { owner: ownerName ?? "" }) }}</span
                 >
@@ -199,39 +199,50 @@
               </button>
             </template>
             <template v-else>
-              <div class="action-stack">
-                <button
-                  v-if="!auctionOnly"
-                  ref="buyBtnRef"
-                  class="action-btn buy-btn"
-                  :class="{ 'disabled-btn': !canAfford }"
-                  :disabled="!canAfford"
-                  tabindex="0"
-                  @click="canAfford && emit('buy')"
-                >
-                  <span class="material-symbols-outlined filled">payments</span>
-                  <span>{{ canAfford ? t("tile.buy") : t("tile.noFunds") }}</span>
-                </button>
-                <button
-                  ref="auctionBtnRef"
-                  class="action-btn auction-btn"
-                  tabindex="0"
-                  @click="emit('auction')"
-                >
-                  <span class="material-symbols-outlined">gavel</span>
-                  <span>{{ t("tile.auction") }}</span>
-                </button>
-                <button
-                  v-if="canSkipBuy && !auctionOnly"
-                  ref="skipBtnRef"
-                  class="action-btn skip-btn"
-                  tabindex="0"
-                  @click="emit('skip')"
-                >
-                  <span class="material-symbols-outlined">skip_next</span>
-                  <span>{{ t("tile.skip") }}</span>
-                </button>
-              </div>
+              <template v-if="!viewOnly">
+                <div class="action-stack">
+                  <button
+                    v-if="!auctionOnly"
+                    ref="buyBtnRef"
+                    class="action-btn buy-btn"
+                    :class="{ 'disabled-btn': !canAfford }"
+                    :disabled="!canAfford"
+                    tabindex="0"
+                    @click="canAfford && emit('buy')"
+                  >
+                    <span class="material-symbols-outlined filled">payments</span>
+                    <span>{{ canAfford ? t("tile.buy") : t("tile.noFunds") }}</span>
+                  </button>
+                  <button
+                    ref="auctionBtnRef"
+                    class="action-btn auction-btn"
+                    tabindex="0"
+                    @click="emit('auction')"
+                  >
+                    <span class="material-symbols-outlined">gavel</span>
+                    <span>{{ t("tile.auction") }}</span>
+                  </button>
+                  <button
+                    v-if="canSkipBuy && !auctionOnly"
+                    ref="skipBtnRef"
+                    class="action-btn skip-btn"
+                    tabindex="0"
+                    @click="emit('skip')"
+                  >
+                    <span class="material-symbols-outlined">skip_next</span>
+                    <span>{{ t("tile.skip") }}</span>
+                  </button>
+                </div>
+              </template>
+              <button
+                v-else
+                class="action-btn next-action-btn"
+                tabindex="0"
+                @click="emit('close')"
+              >
+                <span class="material-symbols-outlined">arrow_forward</span>
+                <span>{{ t("common.next") }}</span>
+              </button>
             </template>
           </div>
         </template>
@@ -325,7 +336,7 @@
                 <span>{{ t("tile.mortgagedNoRent") }}</span>
               </div>
               <div v-else class="penalty-banner">
-                <span class="penalty-amount">−${{ rentAmount }}</span>
+                <span v-if="rentAmount !== undefined" class="penalty-amount">−${{ rentAmount }}</span>
                 <span class="penalty-label"
                   >{{ t("tile.rentPaidTo", { owner: ownerName ?? "" }) }}</span
                 >
@@ -341,39 +352,50 @@
               </button>
             </template>
             <template v-else>
-              <div class="action-stack">
-                <button
-                  v-if="!auctionOnly"
-                  ref="buyBtnRailRef"
-                  class="action-btn buy-btn"
-                  :class="{ 'disabled-btn': !canAfford }"
-                  :disabled="!canAfford"
-                  tabindex="0"
-                  @click="canAfford && emit('buy')"
-                >
-                  <span class="material-symbols-outlined filled">payments</span>
-                  <span>{{ canAfford ? t("tile.buy") : t("tile.noFunds") }}</span>
-                </button>
-                <button
-                  ref="auctionBtnRailRef"
-                  class="action-btn auction-btn"
-                  tabindex="0"
-                  @click="emit('auction')"
-                >
-                  <span class="material-symbols-outlined">gavel</span>
-                  <span>{{ t("tile.auction") }}</span>
-                </button>
-                <button
-                  v-if="canSkipBuy && !auctionOnly"
-                  ref="skipBtnRailRef"
-                  class="action-btn skip-btn"
-                  tabindex="0"
-                  @click="emit('skip')"
-                >
-                  <span class="material-symbols-outlined">skip_next</span>
-                  <span>{{ t("tile.skip") }}</span>
-                </button>
-              </div>
+              <template v-if="!viewOnly">
+                <div class="action-stack">
+                  <button
+                    v-if="!auctionOnly"
+                    ref="buyBtnRailRef"
+                    class="action-btn buy-btn"
+                    :class="{ 'disabled-btn': !canAfford }"
+                    :disabled="!canAfford"
+                    tabindex="0"
+                    @click="canAfford && emit('buy')"
+                  >
+                    <span class="material-symbols-outlined filled">payments</span>
+                    <span>{{ canAfford ? t("tile.buy") : t("tile.noFunds") }}</span>
+                  </button>
+                  <button
+                    ref="auctionBtnRailRef"
+                    class="action-btn auction-btn"
+                    tabindex="0"
+                    @click="emit('auction')"
+                  >
+                    <span class="material-symbols-outlined">gavel</span>
+                    <span>{{ t("tile.auction") }}</span>
+                  </button>
+                  <button
+                    v-if="canSkipBuy && !auctionOnly"
+                    ref="skipBtnRailRef"
+                    class="action-btn skip-btn"
+                    tabindex="0"
+                    @click="emit('skip')"
+                  >
+                    <span class="material-symbols-outlined">skip_next</span>
+                    <span>{{ t("tile.skip") }}</span>
+                  </button>
+                </div>
+              </template>
+              <button
+                v-else
+                class="action-btn next-action-btn"
+                tabindex="0"
+                @click="emit('close')"
+              >
+                <span class="material-symbols-outlined">arrow_forward</span>
+                <span>{{ t("common.next") }}</span>
+              </button>
             </template>
           </div>
         </template>
@@ -469,7 +491,7 @@
                 <span>{{ t("tile.mortgagedNoRent") }}</span>
               </div>
               <div v-else class="penalty-banner">
-                <span class="penalty-amount">−${{ rentAmount }}</span>
+                <span v-if="rentAmount !== undefined" class="penalty-amount">−${{ rentAmount }}</span>
                 <span class="penalty-label"
                   >{{ t("tile.rentPaidTo", { owner: ownerName ?? "" }) }}</span
                 >
@@ -485,39 +507,50 @@
               </button>
             </template>
             <template v-else>
-              <div class="action-stack">
-                <button
-                  v-if="!auctionOnly"
-                  ref="buyBtnUtilRef"
-                  class="action-btn buy-btn"
-                  :class="{ 'disabled-btn': !canAfford }"
-                  :disabled="!canAfford"
-                  tabindex="0"
-                  @click="canAfford && emit('buy')"
-                >
-                  <span class="material-symbols-outlined filled">payments</span>
-                  <span>{{ canAfford ? t("tile.buy") : t("tile.noFunds") }}</span>
-                </button>
-                <button
-                  ref="auctionBtnUtilRef"
-                  class="action-btn auction-btn"
-                  tabindex="0"
-                  @click="emit('auction')"
-                >
-                  <span class="material-symbols-outlined">gavel</span>
-                  <span>{{ t("tile.auction") }}</span>
-                </button>
-                <button
-                  v-if="canSkipBuy && !auctionOnly"
-                  ref="skipBtnUtilRef"
-                  class="action-btn skip-btn"
-                  tabindex="0"
-                  @click="emit('skip')"
-                >
-                  <span class="material-symbols-outlined">skip_next</span>
-                  <span>{{ t("tile.skip") }}</span>
-                </button>
-              </div>
+              <template v-if="!viewOnly">
+                <div class="action-stack">
+                  <button
+                    v-if="!auctionOnly"
+                    ref="buyBtnUtilRef"
+                    class="action-btn buy-btn"
+                    :class="{ 'disabled-btn': !canAfford }"
+                    :disabled="!canAfford"
+                    tabindex="0"
+                    @click="canAfford && emit('buy')"
+                  >
+                    <span class="material-symbols-outlined filled">payments</span>
+                    <span>{{ canAfford ? t("tile.buy") : t("tile.noFunds") }}</span>
+                  </button>
+                  <button
+                    ref="auctionBtnUtilRef"
+                    class="action-btn auction-btn"
+                    tabindex="0"
+                    @click="emit('auction')"
+                  >
+                    <span class="material-symbols-outlined">gavel</span>
+                    <span>{{ t("tile.auction") }}</span>
+                  </button>
+                  <button
+                    v-if="canSkipBuy && !auctionOnly"
+                    ref="skipBtnUtilRef"
+                    class="action-btn skip-btn"
+                    tabindex="0"
+                    @click="emit('skip')"
+                  >
+                    <span class="material-symbols-outlined">skip_next</span>
+                    <span>{{ t("tile.skip") }}</span>
+                  </button>
+                </div>
+              </template>
+              <button
+                v-else
+                class="action-btn next-action-btn"
+                tabindex="0"
+                @click="emit('close')"
+              >
+                <span class="material-symbols-outlined">arrow_forward</span>
+                <span>{{ t("common.next") }}</span>
+              </button>
             </template>
           </div>
         </template>
@@ -648,6 +681,7 @@ const props = defineProps<{
   activePlayerCash: number;
   canSkipBuy: boolean;
   auctionOnly: boolean;
+  viewOnly?: boolean;
   houses?: number;
   hasHotel?: boolean;
   isMortgaged?: boolean;
@@ -711,7 +745,7 @@ const isFreeOwnableTile = computed(
 );
 
 const canCloseDialog = computed(
-  () => !isFreeOwnableTile.value || (props.canSkipBuy && !props.auctionOnly),
+  () => !isFreeOwnableTile.value || (props.canSkipBuy && !props.auctionOnly) || !!props.viewOnly,
 );
 
 const canAfford = computed(
