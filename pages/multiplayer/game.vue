@@ -1472,6 +1472,9 @@ function flushPendingBotThinking() {
 }
 
 function enqueueMovement(payload: PlayerMovedPayload) {
+  // Dismiss the landed-tile card before the next movement starts
+  showLandedCard.value = false;
+  showBuyPrompt.value = false;
   movementQueue.push(payload);
   if (!movementAnimating.value) {
     runNextQueuedMovement();
