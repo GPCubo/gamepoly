@@ -317,70 +317,85 @@
         </button>
       </div>
       <div class="action-buttons">
-        <!-- Bot thinking -->
-        <div v-if="mpStore.isBotThinking" class="bot-thinking-indicator">
-          <span class="material-symbols-outlined bot-thinking-icon"
-            >smart_toy</span
-          >
-          <span>{{ mpStore.botActionMessage ? td(mpStore.botActionMessage) : t("game.botThinking") }}</span>
+        <!-- AFK notice: shown when this player has been marked AFK -->
+        <div v-if="isMyPlayerAfk" class="afk-notice" @click="returnFromAfk()">
+          <span class="material-symbols-outlined afk-icon">person_off</span>
+          <div class="afk-copy">
+            <strong>{{ t("game.afk.title") }}</strong>
+            <span>{{ t("game.afk.hint") }}</span>
+          </div>
+          <button class="action-btn afk-return-btn" @click.stop="returnFromAfk()">
+            <span class="material-symbols-outlined">play_arrow</span>
+            {{ t("game.afk.return") }}
+          </button>
         </div>
 
-        <template v-else-if="mpStore.isMyTurn && !mpStore.isTurnComplete">
-          <!-- Bail -->
-          <button
-            v-if="myPlayer?.inJail"
-            ref="bailBtnRef"
-            class="action-btn bail-btn"
-            :disabled="
-              isMovementLocked ||
-              (myPlayer?.cash ?? 0) < (mpStore.state?.jailBailCost ?? 50)
-            "
-            @click="send('pay_bail')"
-          >
-            <span class="material-symbols-outlined">lock_open</span>
-            {{ t("game.action.payBail") }} (${{ mpStore.state?.jailBailCost ?? 50 }})
-          </button>
-
-          <!-- Roll -->
-          <button
-            ref="rollBtnRef"
-            class="action-btn roll-btn"
-            :disabled="isMovementLocked"
-            @click="send('roll_dice')"
-          >
-            <span class="material-symbols-outlined">casino</span>
-            {{ t("game.action.rollDice") }}
-          </button>
-        </template>
-
-        <template v-else-if="mpStore.isMyTurn && mpStore.isTurnComplete">
-          <button
-            ref="nextBtnRef"
-            class="action-btn next-btn"
-            :disabled="isMovementLocked || isMyDebtPending"
-            @click="send('next_turn')"
-          >
-            <span class="material-symbols-outlined">navigate_next</span>
-            {{ t("common.next") }}
-          </button>
-        </template>
-
-        <template v-else-if="!mpStore.isMyTurn && !mpStore.isCurrentPlayerBot">
-          <div class="waiting-indicator">
-            <span class="material-symbols-outlined">hourglass_empty</span>
-            {{ t("game.waitingFor", { player: mpStore.activePlayer?.name ?? t("common.player") }) }}
+        <template v-else>
+          <!-- Bot thinking -->
+          <div v-if="mpStore.isBotThinking" class="bot-thinking-indicator">
+            <span class="material-symbols-outlined bot-thinking-icon"
+              >smart_toy</span
+            >
+            <span>{{ mpStore.botActionMessage ? td(mpStore.botActionMessage) : t("game.botThinking") }}</span>
           </div>
-        </template>
 
-        <button
-          ref="configBtnRef"
-          class="action-btn config-btn"
-          :class="{ 'config-active': sidebarOpen }"
-          @click="sidebarOpen = !sidebarOpen"
-        >
-          <span class="material-symbols-outlined">settings</span>
-          {{ t("common.configure") }}
-        </button>
+          <template v-else-if="mpStore.isMyTurn && !mpStore.isTurnComplete">
+            <!-- Bail -->
+            <button
+              v-if="myPlayer?.inJail"
+              ref="bailBtnRef"
+              class="action-btn bail-btn"
+              :disabled="
+                isMovementLocked ||
+                (myPlayer?.cash ?? 0) < (mpStore.state?.jailBailCost ?? 50)
+              "
+              @click="send('pay_bail')"
+            >
+              <span class="material-symbols-outlined">lock_open</span>
+              {{ t("game.action.payBail") }} (${{ mpStore.state?.jailBailCost ?? 50 }})
+            </button>
+
+            <!-- Roll -->
+            <button
+              ref="rollBtnRef"
+              class="action-btn roll-btn"
+              :disabled="isMovementLocked"
+              @click="send('roll_dice')"
+            >
+              <span class="material-symbols-outlined">casino</span>
+              {{ t("game.action.rollDice") }}
+            </button>
+          </template>
+
+          <template v-else-if="mpStore.isMyTurn && mpStore.isTurnComplete">
+            <button
+              ref="nextBtnRef"
+              class="action-btn next-btn"
+              :disabled="isMovementLocked || isMyDebtPending"
+              @click="send('next_turn')"
+            >
+              <span class="material-symbols-outlined">navigate_next</span>
+              {{ t("common.next") }}
+            </button>
+          </template>
+
+          <template v-else-if="!mpStore.isMyTurn && !mpStore.isCurrentPlayerBot">
+            <div class="waiting-indicator">
+              <span class="material-symbols-outlined">hourglass_empty</span>
+              {{ t("game.waitingFor", { player: mpStore.activePlayer?.name ?? t("common.player") }) }}
+            </div>
+          </template>
+
+          <button
+            ref="configBtnRef"
+            class="action-btn config-btn"
+            :class="{ 'config-active': sidebarOpen }"
+            @click="sidebarOpen = !sidebarOpen"
+          >
+            <span class="material-symbols-outlined">settings</span>
+            {{ t("common.configure") }}
+          </button>
+        </template>
       </div>
     </div>
 
@@ -1076,6 +1091,11 @@ const isMyDebtPending = computed(
     (myPlayer.value?.cash ?? 0) < 0 &&
     !mpStore.isBankrupt(mpStore.myPlayerId),
 );
+
+const isMyPlayerAfk = computed(() => {
+  const p = myPlayer.value;
+  return !!p && !p.isBot && !!p.controlledByBot && !!p.connected;
+});
 const turnRemainingMs = computed(() => {
   const deadline = mpStore.state?.turnDeadlineAt ?? 0;
   if (!deadline) return 0;
@@ -2570,6 +2590,10 @@ function send(type: string, payload?: Record<string, unknown>) {
   socket.send(type, payload);
 }
 
+function returnFromAfk() {
+  send("wake_up");
+}
+
 function confirmBuy() {
   send("buy_property", { tileIndex: buyTileIndex.value });
   showBuyPrompt.value = false;
@@ -2796,6 +2820,10 @@ watch(sidebarOpen, (open) => {
 });
 
 function onKeydown(e: KeyboardEvent) {
+  if (isMyPlayerAfk.value) {
+    returnFromAfk();
+    return;
+  }
   if (e.key === "Escape") {
     if (showHistoryDialog.value) showHistoryDialog.value = false;
     else if (sidebarOpen.value) sidebarOpen.value = false;
@@ -3384,6 +3412,55 @@ watch(
 .config-btn:hover {
   background: #334155;
   transform: translateY(-2px);
+}
+
+.afk-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: rgba(234, 179, 8, 0.12);
+  border: 1px solid rgba(234, 179, 8, 0.4);
+  border-radius: 12px;
+  cursor: pointer;
+  animation: afkPulse 2s ease-in-out infinite;
+  flex: 1;
+}
+.afk-icon {
+  font-size: 26px;
+  color: #fbbf24;
+  flex-shrink: 0;
+}
+.afk-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+.afk-copy strong {
+  color: #fbbf24;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+.afk-copy span {
+  color: #94a3b8;
+  font-size: 11px;
+  line-height: 1.3;
+}
+.afk-return-btn {
+  background: rgba(234, 179, 8, 0.2) !important;
+  border-color: rgba(234, 179, 8, 0.5) !important;
+  color: #fbbf24 !important;
+  flex-shrink: 0;
+}
+.afk-return-btn:hover {
+  background: rgba(234, 179, 8, 0.35) !important;
+}
+@keyframes afkPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.2); }
+  50% { box-shadow: 0 0 0 6px rgba(234, 179, 8, 0); }
 }
 
 .waiting-indicator,

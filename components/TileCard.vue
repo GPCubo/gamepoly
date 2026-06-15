@@ -101,7 +101,7 @@
                   >
                 </div>
               </div>
-              <div class="action-stack management-actions">
+              <div v-if="!viewOnly" class="action-stack management-actions">
                 <button
                   v-if="!hasHotel && (houses ?? 0) < 4"
                   ref="buildHouseBtnRef"
@@ -168,6 +168,7 @@
                 </button>
               </div>
               <button
+                v-if="!viewOnly"
                 ref="closeActionBtnRef"
                 class="action-btn next-action-btn"
                 tabindex="0"
@@ -189,6 +190,7 @@
                 >
               </div>
               <button
+                v-if="!viewOnly"
                 ref="closeActionBtnRef2"
                 class="action-btn next-action-btn"
                 tabindex="0"
@@ -199,50 +201,39 @@
               </button>
             </template>
             <template v-else>
-              <template v-if="!viewOnly">
-                <div class="action-stack">
-                  <button
-                    v-if="!auctionOnly"
-                    ref="buyBtnRef"
-                    class="action-btn buy-btn"
-                    :class="{ 'disabled-btn': !canAfford }"
-                    :disabled="!canAfford"
-                    tabindex="0"
-                    @click="canAfford && emit('buy')"
-                  >
-                    <span class="material-symbols-outlined filled">payments</span>
-                    <span>{{ canAfford ? t("tile.buy") : t("tile.noFunds") }}</span>
-                  </button>
-                  <button
-                    ref="auctionBtnRef"
-                    class="action-btn auction-btn"
-                    tabindex="0"
-                    @click="emit('auction')"
-                  >
-                    <span class="material-symbols-outlined">gavel</span>
-                    <span>{{ t("tile.auction") }}</span>
-                  </button>
-                  <button
-                    v-if="canSkipBuy && !auctionOnly"
-                    ref="skipBtnRef"
-                    class="action-btn skip-btn"
-                    tabindex="0"
-                    @click="emit('skip')"
-                  >
-                    <span class="material-symbols-outlined">skip_next</span>
-                    <span>{{ t("tile.skip") }}</span>
-                  </button>
-                </div>
-              </template>
-              <button
-                v-else
-                class="action-btn next-action-btn"
-                tabindex="0"
-                @click="emit('close')"
-              >
-                <span class="material-symbols-outlined">arrow_forward</span>
-                <span>{{ t("common.next") }}</span>
-              </button>
+              <div v-if="!viewOnly" class="action-stack">
+                <button
+                  v-if="!auctionOnly"
+                  ref="buyBtnRef"
+                  class="action-btn buy-btn"
+                  :class="{ 'disabled-btn': !canAfford }"
+                  :disabled="!canAfford"
+                  tabindex="0"
+                  @click="canAfford && emit('buy')"
+                >
+                  <span class="material-symbols-outlined filled">payments</span>
+                  <span>{{ canAfford ? t("tile.buy") : t("tile.noFunds") }}</span>
+                </button>
+                <button
+                  ref="auctionBtnRef"
+                  class="action-btn auction-btn"
+                  tabindex="0"
+                  @click="emit('auction')"
+                >
+                  <span class="material-symbols-outlined">gavel</span>
+                  <span>{{ t("tile.auction") }}</span>
+                </button>
+                <button
+                  v-if="canSkipBuy && !auctionOnly"
+                  ref="skipBtnRef"
+                  class="action-btn skip-btn"
+                  tabindex="0"
+                  @click="emit('skip')"
+                >
+                  <span class="material-symbols-outlined">skip_next</span>
+                  <span>{{ t("tile.skip") }}</span>
+                </button>
+              </div>
             </template>
           </div>
         </template>
@@ -294,7 +285,7 @@
                   >{{ t("tile.noRent") }}</span
                 >
               </div>
-              <div class="action-stack management-actions">
+              <div v-if="!viewOnly" class="action-stack management-actions">
                 <button
                   v-if="!isMortgaged"
                   ref="mortgageBtnRef"
@@ -321,6 +312,7 @@
                 </button>
               </div>
               <button
+                v-if="!viewOnly"
                 ref="closeActionBtnRef3"
                 class="action-btn next-action-btn"
                 tabindex="0"
@@ -342,6 +334,7 @@
                 >
               </div>
               <button
+                v-if="!viewOnly"
                 ref="closeActionBtnRef4"
                 class="action-btn next-action-btn"
                 tabindex="0"
@@ -352,50 +345,39 @@
               </button>
             </template>
             <template v-else>
-              <template v-if="!viewOnly">
-                <div class="action-stack">
-                  <button
-                    v-if="!auctionOnly"
-                    ref="buyBtnRailRef"
-                    class="action-btn buy-btn"
-                    :class="{ 'disabled-btn': !canAfford }"
-                    :disabled="!canAfford"
-                    tabindex="0"
-                    @click="canAfford && emit('buy')"
-                  >
-                    <span class="material-symbols-outlined filled">payments</span>
-                    <span>{{ canAfford ? t("tile.buy") : t("tile.noFunds") }}</span>
-                  </button>
-                  <button
-                    ref="auctionBtnRailRef"
-                    class="action-btn auction-btn"
-                    tabindex="0"
-                    @click="emit('auction')"
-                  >
-                    <span class="material-symbols-outlined">gavel</span>
-                    <span>{{ t("tile.auction") }}</span>
-                  </button>
-                  <button
-                    v-if="canSkipBuy && !auctionOnly"
-                    ref="skipBtnRailRef"
-                    class="action-btn skip-btn"
-                    tabindex="0"
-                    @click="emit('skip')"
-                  >
-                    <span class="material-symbols-outlined">skip_next</span>
-                    <span>{{ t("tile.skip") }}</span>
-                  </button>
-                </div>
-              </template>
-              <button
-                v-else
-                class="action-btn next-action-btn"
-                tabindex="0"
-                @click="emit('close')"
-              >
-                <span class="material-symbols-outlined">arrow_forward</span>
-                <span>{{ t("common.next") }}</span>
-              </button>
+              <div v-if="!viewOnly" class="action-stack">
+                <button
+                  v-if="!auctionOnly"
+                  ref="buyBtnRailRef"
+                  class="action-btn buy-btn"
+                  :class="{ 'disabled-btn': !canAfford }"
+                  :disabled="!canAfford"
+                  tabindex="0"
+                  @click="canAfford && emit('buy')"
+                >
+                  <span class="material-symbols-outlined filled">payments</span>
+                  <span>{{ canAfford ? t("tile.buy") : t("tile.noFunds") }}</span>
+                </button>
+                <button
+                  ref="auctionBtnRailRef"
+                  class="action-btn auction-btn"
+                  tabindex="0"
+                  @click="emit('auction')"
+                >
+                  <span class="material-symbols-outlined">gavel</span>
+                  <span>{{ t("tile.auction") }}</span>
+                </button>
+                <button
+                  v-if="canSkipBuy && !auctionOnly"
+                  ref="skipBtnRailRef"
+                  class="action-btn skip-btn"
+                  tabindex="0"
+                  @click="emit('skip')"
+                >
+                  <span class="material-symbols-outlined">skip_next</span>
+                  <span>{{ t("tile.skip") }}</span>
+                </button>
+              </div>
             </template>
           </div>
         </template>
@@ -449,7 +431,7 @@
                   >{{ t("tile.noRent") }}</span
                 >
               </div>
-              <div class="action-stack management-actions">
+              <div v-if="!viewOnly" class="action-stack management-actions">
                 <button
                   v-if="!isMortgaged"
                   ref="mortgageBtnRef"
@@ -476,6 +458,7 @@
                 </button>
               </div>
               <button
+                v-if="!viewOnly"
                 ref="closeActionBtnRef5"
                 class="action-btn next-action-btn"
                 tabindex="0"
@@ -497,6 +480,7 @@
                 >
               </div>
               <button
+                v-if="!viewOnly"
                 ref="closeActionBtnRef6"
                 class="action-btn next-action-btn"
                 tabindex="0"
@@ -507,50 +491,39 @@
               </button>
             </template>
             <template v-else>
-              <template v-if="!viewOnly">
-                <div class="action-stack">
-                  <button
-                    v-if="!auctionOnly"
-                    ref="buyBtnUtilRef"
-                    class="action-btn buy-btn"
-                    :class="{ 'disabled-btn': !canAfford }"
-                    :disabled="!canAfford"
-                    tabindex="0"
-                    @click="canAfford && emit('buy')"
-                  >
-                    <span class="material-symbols-outlined filled">payments</span>
-                    <span>{{ canAfford ? t("tile.buy") : t("tile.noFunds") }}</span>
-                  </button>
-                  <button
-                    ref="auctionBtnUtilRef"
-                    class="action-btn auction-btn"
-                    tabindex="0"
-                    @click="emit('auction')"
-                  >
-                    <span class="material-symbols-outlined">gavel</span>
-                    <span>{{ t("tile.auction") }}</span>
-                  </button>
-                  <button
-                    v-if="canSkipBuy && !auctionOnly"
-                    ref="skipBtnUtilRef"
-                    class="action-btn skip-btn"
-                    tabindex="0"
-                    @click="emit('skip')"
-                  >
-                    <span class="material-symbols-outlined">skip_next</span>
-                    <span>{{ t("tile.skip") }}</span>
-                  </button>
-                </div>
-              </template>
-              <button
-                v-else
-                class="action-btn next-action-btn"
-                tabindex="0"
-                @click="emit('close')"
-              >
-                <span class="material-symbols-outlined">arrow_forward</span>
-                <span>{{ t("common.next") }}</span>
-              </button>
+              <div v-if="!viewOnly" class="action-stack">
+                <button
+                  v-if="!auctionOnly"
+                  ref="buyBtnUtilRef"
+                  class="action-btn buy-btn"
+                  :class="{ 'disabled-btn': !canAfford }"
+                  :disabled="!canAfford"
+                  tabindex="0"
+                  @click="canAfford && emit('buy')"
+                >
+                  <span class="material-symbols-outlined filled">payments</span>
+                  <span>{{ canAfford ? t("tile.buy") : t("tile.noFunds") }}</span>
+                </button>
+                <button
+                  ref="auctionBtnUtilRef"
+                  class="action-btn auction-btn"
+                  tabindex="0"
+                  @click="emit('auction')"
+                >
+                  <span class="material-symbols-outlined">gavel</span>
+                  <span>{{ t("tile.auction") }}</span>
+                </button>
+                <button
+                  v-if="canSkipBuy && !auctionOnly"
+                  ref="skipBtnUtilRef"
+                  class="action-btn skip-btn"
+                  tabindex="0"
+                  @click="emit('skip')"
+                >
+                  <span class="material-symbols-outlined">skip_next</span>
+                  <span>{{ t("tile.skip") }}</span>
+                </button>
+              </div>
             </template>
           </div>
         </template>
