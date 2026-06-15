@@ -1499,7 +1499,8 @@ function runNextQueuedMovement() {
       if (
         isOwnableTile(tile) &&
         mpStore.propertyOwners[tile.index] === undefined &&
-        mpStore.isMyTurn
+        mpStore.isMyTurn &&
+        !mpStore.state?.auctionOnly
       ) {
         buyTileIndex.value = tile.index;
         showBuyPrompt.value = true;
@@ -2750,7 +2751,7 @@ watch(
       const tile = useBoardStore().tiles.find((t) => t.index === pos);
       if (!tile?.price) return;
       const ownerID = mpStore.propertyOwners[pos];
-      if (!ownerID && !mpStore.isAuctionActive) {
+      if (!ownerID && !mpStore.isAuctionActive && !mpStore.state?.auctionOnly) {
         buyTileIndex.value = pos;
         showBuyPrompt.value = true;
       }
