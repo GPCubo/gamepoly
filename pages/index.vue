@@ -3,25 +3,6 @@
     <div class="ambient-glow ambient-1" />
     <div class="ambient-glow ambient-2" />
     <div class="ambient-glow ambient-3" />
-    <Transition name="page-loader">
-      <div
-        v-if="heroModelsLoading"
-        class="page-loader"
-        :style="{ '--loader-color': currentHeroMessage.color }"
-      >
-        <div class="page-loader-panel">
-          <div class="google-loader" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-            <span />
-          </div>
-          <span class="loader-label">
-            {{ heroModelsError ? t("common.loadError") : t("common.loading") }}
-          </span>
-        </div>
-      </div>
-    </Transition>
 
     <AppHeader>
       <template #actions>
@@ -53,7 +34,7 @@
               :key="`${heroMessageIndex}-text`"
               :style="{ color: currentHeroMessage.color }"
             >
-            {{ t(currentHeroMessage.textKey) }}
+              {{ t(currentHeroMessage.textKey) }}
             </span>
           </span>
           <h1 class="hero-title reveal-title">GamePoly</h1>
@@ -75,79 +56,11 @@
           </div>
         </div>
 
-        <div
-          ref="heroStageRef"
-          class="hero-stage reveal-on-scroll"
-          @pointerdown="startHeroDrag"
-          @pointermove="updateHeroDrag"
-          @pointerup="endHeroDrag"
-          @pointerleave="endHeroDrag"
-          @pointercancel="endHeroDrag"
-        >
-          <div class="stage-grid" />
-          <div class="stage-orbit orbit-a" />
-          <div class="stage-orbit orbit-b" />
-          <ClientOnly>
-            <TresCanvas
-              class="hero-canvas"
-              clear-color="#11131c"
-              alpha
-              shadows
-              @loop="onHeroRenderTick"
-            >
-              <TresPerspectiveCamera
-                :position="[4.8, 5.1, 6.8]"
-                :fov="42"
-                :near="0.1"
-                :far="120"
-              />
-              <OrbitControls
-                :target="[0, 0, 0]"
-                :enable-damping="true"
-                :enable-zoom="false"
-                :enable-pan="false"
-                :enable-rotate="false"
-              />
-              <TresAmbientLight :intensity="1.8" />
-              <TresDirectionalLight
-                :position="[5, 8, 6]"
-                :intensity="3"
-                cast-shadow
-              />
-              <TresPointLight
-                :position="[-4, 3, 4]"
-                :intensity="1.2"
-                color="#00f59b"
-              />
-              <TresGroup :rotation="[heroRigPitch, heroRigYaw, heroRigRoll]">
-                <primitive
-                  v-if="heroBoardScene"
-                  :object="heroBoardScene"
-                  :position="[-0.2, -0.82, 0]"
-                  :rotation="[-0.34, 0.48, 0.08]"
-                  :scale="0.68"
-                />
-                <primitive
-                  v-if="heroHatScene"
-                  :object="heroHatScene"
-                  :position="[1.08, 0.98, 0.5]"
-                  :rotation="[0.08, -0.62, 0.18]"
-                  :scale="1.9"
-                />
-                <primitive
-                  v-if="heroDedalScene"
-                  :object="heroDedalScene"
-                  :position="[-1.04, 0.88, 0.18]"
-                  :rotation="[0.04, 0.55, -0.12]"
-                  :scale="1.82"
-                />
-              </TresGroup>
-            </TresCanvas>
-          </ClientOnly>
-          <div class="stage-caption">
-            <span class="material-symbols-outlined">view_in_ar</span>
-            {{ t("landing.hero.caption") }}
+        <div class="hero-stage-slot reveal-on-scroll">
+          <div v-if="!stageReady" class="hero-stage-skeleton" aria-hidden="true">
+            <div class="stage-grid-static" />
           </div>
+          <LazyHeroStage v-else />
         </div>
       </section>
 
@@ -206,15 +119,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref, shallowRef } from "vue";
-import { TresCanvas } from "@tresjs/core";
-import { OrbitControls } from "@tresjs/cientos";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
-import type { Group } from "three";
+import { computed, onMounted, onUnmounted, ref } from "vue";
 import { useI18n } from "~/composables/useI18n";
 import type { TranslationKey } from "~/locales";
 
-const heroBoardScene = shallowRef<Group | null>(null);
 const { t, locale } = useI18n();
 const { siteUrl } = useRuntimeConfig().public;
 
@@ -243,10 +151,7 @@ useSeoMeta({
 useHead({
   htmlAttrs: { lang: () => locale.value },
   link: [
-    {
-      rel: "canonical",
-      href: () => (locale.value === "en" ? `${siteUrl}/en` : siteUrl),
-    },
+    { rel: "canonical", href: () => (locale.value === "en" ? `${siteUrl}/en` : siteUrl) },
     { rel: "alternate", hreflang: "es", href: siteUrl },
     { rel: "alternate", hreflang: "en", href: `${siteUrl}/en` },
     { rel: "alternate", hreflang: "x-default", href: siteUrl },
@@ -269,216 +174,42 @@ useHead({
     },
   ],
 });
-const heroHatScene = shallowRef<Group | null>(null);
-const heroDedalScene = shallowRef<Group | null>(null);
-const heroStageRef = ref<HTMLElement | null>(null);
-const heroRigYaw = ref(0);
-const heroRigPitch = ref(0);
-const heroRigRoll = ref(0);
+
+const stageReady = ref(false);
 const heroMessageIndex = ref(0);
-const heroModelsLoading = ref(true);
-const heroModelsError = ref(false);
 const heroMessages = [
-  {
-    textKey: "landing.hero.message.0",
-    icon: "auto_awesome",
-    color: "#86efac",
-  },
-  {
-    textKey: "landing.hero.message.1",
-    icon: "gavel",
-    color: "#facc15",
-  },
-  {
-    textKey: "landing.hero.message.2",
-    icon: "smart_toy",
-    color: "#93c5fd",
-  },
-  {
-    textKey: "landing.hero.message.3",
-    icon: "style",
-    color: "#f0abfc",
-  },
-  {
-    textKey: "landing.hero.message.4",
-    icon: "wifi",
-    color: "#67e8f9",
-  },
-  {
-    textKey: "landing.hero.message.5",
-    icon: "monitoring",
-    color: "#fb7185",
-  },
+  { textKey: "landing.hero.message.0", icon: "auto_awesome", color: "#86efac" },
+  { textKey: "landing.hero.message.1", icon: "gavel", color: "#facc15" },
+  { textKey: "landing.hero.message.2", icon: "smart_toy", color: "#93c5fd" },
+  { textKey: "landing.hero.message.3", icon: "style", color: "#f0abfc" },
+  { textKey: "landing.hero.message.4", icon: "wifi", color: "#67e8f9" },
+  { textKey: "landing.hero.message.5", icon: "monitoring", color: "#fb7185" },
 ] satisfies Array<{ textKey: TranslationKey; icon: string; color: string }>;
+
 const currentHeroMessage = computed(
   () => heroMessages[heroMessageIndex.value % heroMessages.length],
 );
 
-let heroDragging = false;
-let heroDragStartX = 0;
-let heroDragStartY = 0;
-let heroDragStartYaw = 0;
-let heroDragStartPitch = 0;
-let heroYawVelocity = 0;
-let heroPitchVelocity = 0;
-let heroRollVelocity = 0;
 let heroMessageTimer: ReturnType<typeof setInterval> | null = null;
 
 onMounted(() => {
-  void loadHeroModels();
   heroMessageTimer = setInterval(() => {
     heroMessageIndex.value = (heroMessageIndex.value + 1) % heroMessages.length;
   }, 1800);
+
+  if ("requestIdleCallback" in window) {
+    requestIdleCallback(() => { stageReady.value = true; }, { timeout: 2000 });
+  } else {
+    setTimeout(() => { stageReady.value = true; }, 200);
+  }
 });
 
 onUnmounted(() => {
   if (heroMessageTimer) clearInterval(heroMessageTimer);
 });
 
-async function loadHeroModels() {
-  heroModelsLoading.value = true;
-  heroModelsError.value = false;
-
-  try {
-    const loader = new GLTFLoader();
-    const [board, hat, dedal] = await Promise.all([
-      loader.loadAsync("/models/tablero.glb"),
-      loader.loadAsync("/models/users/sombrero.glb"),
-      loader.loadAsync("/models/users/dedal.glb"),
-    ]);
-
-    for (const scene of [board.scene, hat.scene, dedal.scene]) {
-      scene.traverse((child) => {
-        child.castShadow = true;
-        child.receiveShadow = true;
-      });
-    }
-
-    heroBoardScene.value = board.scene;
-    heroHatScene.value = hat.scene;
-    heroDedalScene.value = dedal.scene;
-  } catch (error) {
-    console.error("No se pudieron cargar los modelos de la landing", error);
-    heroModelsError.value = true;
-  } finally {
-    window.setTimeout(
-      () => {
-        heroModelsLoading.value = false;
-      },
-      heroModelsError.value ? 1800 : 450,
-    );
-  }
-}
-
-function clamp(value: number, min: number, max: number) {
-  return Math.min(max, Math.max(min, value));
-}
-
-function startHeroDrag(event: PointerEvent) {
-  heroDragging = true;
-  heroDragStartX = event.clientX;
-  heroDragStartY = event.clientY;
-  heroDragStartYaw = heroRigYaw.value;
-  heroDragStartPitch = heroRigPitch.value;
-  heroYawVelocity = 0;
-  heroPitchVelocity = 0;
-  heroRollVelocity = 0;
-  heroStageRef.value?.setPointerCapture?.(event.pointerId);
-}
-
-function updateHeroDrag(event: PointerEvent) {
-  if (!heroDragging) return;
-  const nextYaw = clamp(
-    heroDragStartYaw + (event.clientX - heroDragStartX) * 0.009,
-    -Math.PI * 1.35,
-    Math.PI * 1.35,
-  );
-  const nextPitch = clamp(
-    heroDragStartPitch + (event.clientY - heroDragStartY) * 0.0055,
-    -0.78,
-    0.78,
-  );
-  const nextRoll = clamp(-nextYaw * 0.12, -0.38, 0.38);
-  heroYawVelocity = (nextYaw - heroRigYaw.value) * 18;
-  heroPitchVelocity = (nextPitch - heroRigPitch.value) * 18;
-  heroRollVelocity = (nextRoll - heroRigRoll.value) * 18;
-  heroRigYaw.value = nextYaw;
-  heroRigPitch.value = nextPitch;
-  heroRigRoll.value = nextRoll;
-}
-
-function endHeroDrag(event: PointerEvent) {
-  if (!heroDragging) return;
-  heroDragging = false;
-  heroStageRef.value?.releasePointerCapture?.(event.pointerId);
-}
-
-function onHeroRenderTick({
-  elapsed,
-  delta,
-}: {
-  elapsed: number;
-  delta: number;
-}) {
-  const dt = Math.min(delta || 0.016, 0.033);
-
-  if (!heroDragging) {
-    const stiffness = 3.2;
-    const damping = 0.82;
-    const dampingFactor = Math.exp(-damping * dt);
-
-    heroYawVelocity += -heroRigYaw.value * stiffness * dt;
-    heroYawVelocity *= dampingFactor;
-    heroRigYaw.value += heroYawVelocity * dt;
-
-    heroPitchVelocity += -heroRigPitch.value * stiffness * dt;
-    heroPitchVelocity *= dampingFactor;
-    heroRigPitch.value += heroPitchVelocity * dt;
-
-    heroRollVelocity += -heroRigRoll.value * 3.8 * dt;
-    heroRollVelocity *= Math.exp(-0.95 * dt);
-    heroRigRoll.value += heroRollVelocity * dt;
-
-    if (
-      Math.abs(heroRigYaw.value) < 0.001 &&
-      Math.abs(heroYawVelocity) < 0.001
-    ) {
-      heroRigYaw.value = 0;
-      heroYawVelocity = 0;
-    }
-    if (
-      Math.abs(heroRigPitch.value) < 0.001 &&
-      Math.abs(heroPitchVelocity) < 0.001
-    ) {
-      heroRigPitch.value = 0;
-      heroPitchVelocity = 0;
-    }
-  }
-
-  if (heroBoardScene.value) {
-    heroBoardScene.value.rotation.y = 0.48 + Math.sin(elapsed * 0.28) * 0.12;
-    heroBoardScene.value.position.y = -0.8 + Math.sin(elapsed * 0.9) * 0.04;
-  }
-
-  if (heroHatScene.value) {
-    heroHatScene.value.rotation.y = -0.62 + elapsed * 0.65;
-    heroHatScene.value.rotation.z = 0.18 + Math.sin(elapsed * 1.4) * 0.12;
-    heroHatScene.value.position.y = 0.84 + Math.sin(elapsed * 1.7) * 0.12;
-  }
-
-  if (heroDedalScene.value) {
-    heroDedalScene.value.rotation.y = 0.55 - elapsed * 0.55;
-    heroDedalScene.value.rotation.z = -0.12 + Math.sin(elapsed * 1.25) * 0.1;
-    heroDedalScene.value.position.y =
-      0.88 + Math.sin(elapsed * 1.55 + 1.1) * 0.11;
-  }
-}
-
 function scrollToSection(id: string) {
-  document.getElementById(id)?.scrollIntoView({
-    behavior: "smooth",
-    block: "start",
-  });
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 </script>
 
@@ -515,16 +246,8 @@ function scrollToSection(id: string) {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(
-      circle at 18% 22%,
-      rgba(0, 245, 155, 0.09),
-      transparent 25%
-    ),
-    radial-gradient(
-      circle at 76% 18%,
-      rgba(59, 130, 246, 0.09),
-      transparent 28%
-    ),
+    radial-gradient(circle at 18% 22%, rgba(0, 245, 155, 0.09), transparent 25%),
+    radial-gradient(circle at 76% 18%, rgba(59, 130, 246, 0.09), transparent 28%),
     radial-gradient(circle at 64% 78%, rgba(215, 3, 87, 0.08), transparent 27%);
   filter: blur(38px);
   opacity: 0.88;
@@ -740,175 +463,33 @@ main {
   background: rgba(0, 245, 155, 0.08);
 }
 
-.hero-stage {
+.hero-stage-slot {
   position: relative;
   min-height: clamp(360px, 52vw, 600px);
+}
+
+.hero-stage-skeleton {
+  position: absolute;
+  inset: 0;
   border-radius: 22px;
   overflow: hidden;
-  isolation: isolate;
-
-  cursor: grab;
-  touch-action: none;
   background:
-    radial-gradient(
-      circle at 58% 42%,
-      rgba(0, 245, 155, 0.13),
-      transparent 38%
-    ),
+    radial-gradient(circle at 58% 42%, rgba(0, 245, 155, 0.09), transparent 38%),
     rgba(8, 13, 22, 0.68);
   border: 1px solid rgba(148, 163, 184, 0.08);
 }
 
-.hero-stage:active {
-  cursor: grabbing;
-}
-
-.stage-grid {
+.stage-grid-static {
   position: absolute;
   inset: 6%;
-  border: 1px solid rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.08);
   border-radius: 22px;
   background:
-    linear-gradient(rgba(148, 163, 184, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.07) 1px, transparent 1px),
-    radial-gradient(
-      circle at 62% 42%,
-      rgba(0, 245, 155, 0.16),
-      transparent 44%
-    ),
+    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px),
     rgba(15, 23, 42, 0.22);
-  background-size:
-    34px 34px,
-    34px 34px,
-    auto,
-    auto;
+  background-size: 34px 34px, 34px 34px, auto;
   transform: perspective(900px) rotateX(58deg) rotateZ(-9deg);
-  animation: gridDrift 9s ease-in-out infinite alternate;
-}
-
-.stage-orbit {
-  position: absolute;
-  border: 1px solid rgba(0, 245, 155, 0.22);
-  border-radius: 50%;
-  transform: rotateX(62deg);
-  animation: orbitSpin 16s linear infinite;
-}
-
-.orbit-a {
-  inset: 15% 9%;
-}
-
-.orbit-b {
-  inset: 24% 20%;
-  border-color: rgba(255, 209, 101, 0.18);
-  animation-duration: 11s;
-  animation-direction: reverse;
-}
-
-.hero-canvas {
-  position: absolute;
-  inset: -8% -6% -4% -10%;
-  z-index: 2;
-  width: 116%;
-  height: 116%;
-}
-
-.page-loader {
-  position: fixed;
-  inset: 0;
-  z-index: 50;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  background: rgba(8, 12, 20, 0.88);
-  backdrop-filter: blur(10px);
-}
-
-.page-loader-panel {
-  display: inline-grid;
-  place-items: center;
-  gap: 18px;
-  color: rgba(248, 250, 252, 0.82);
-  text-align: center;
-}
-
-.google-loader {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  height: 28px;
-}
-
-.google-loader span {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  animation: googleDotBounce 0.9s ease-in-out infinite;
-}
-
-.google-loader span:nth-child(1) {
-  background: #00f59b;
-  animation-delay: 0s;
-}
-
-.google-loader span:nth-child(2) {
-  background: #67e8f9;
-  animation-delay: 0.1s;
-}
-
-.google-loader span:nth-child(3) {
-  background: #f0abfc;
-  animation-delay: 0.2s;
-}
-
-.google-loader span:nth-child(4) {
-  background: #fb7185;
-  animation-delay: 0.3s;
-}
-
-.loader-label {
-  color: rgba(226, 232, 240, 0.72);
-  font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: 13px;
-  font-weight: 700;
-}
-
-.page-loader-enter-active,
-.page-loader-leave-active {
-  transition:
-    opacity 0.68s ease,
-    filter 0.68s ease,
-    transform 0.68s cubic-bezier(0.18, 1, 0.22, 1);
-}
-
-.page-loader-enter-from {
-  opacity: 0;
-  filter: blur(16px);
-  transform: scale(1.04);
-}
-
-.page-loader-leave-to {
-  opacity: 0;
-  filter: blur(20px);
-  transform: scale(1.08);
-}
-
-.stage-caption {
-  position: absolute;
-  right: 18px;
-  bottom: 18px;
-  z-index: 3;
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 8px 11px;
-  border: 1px solid rgba(248, 250, 252, 0.13);
-  border-radius: 8px;
-  color: rgba(248, 250, 252, 0.78);
-  background: rgba(10, 16, 25, 0.72);
-  backdrop-filter: blur(10px);
-  font-size: 12px;
-  font-weight: 800;
 }
 
 .landing-strip,
@@ -972,9 +553,7 @@ main {
   border-radius: 10px;
   color: #003920;
   background: #00f59b;
-  font-variation-settings:
-    "FILL" 1,
-    "wght" 500;
+  font-variation-settings: "FILL" 1, "wght" 500;
 }
 
 .feature-chip strong {
@@ -1056,21 +635,9 @@ main {
   inset: -28%;
   z-index: 0;
   background:
-    radial-gradient(
-      circle at 20% 25%,
-      rgba(0, 245, 155, 0.18),
-      transparent 28%
-    ),
-    radial-gradient(
-      circle at 80% 20%,
-      rgba(147, 197, 253, 0.14),
-      transparent 24%
-    ),
-    radial-gradient(
-      circle at 50% 88%,
-      rgba(251, 113, 133, 0.12),
-      transparent 30%
-    );
+    radial-gradient(circle at 20% 25%, rgba(0, 245, 155, 0.18), transparent 28%),
+    radial-gradient(circle at 80% 20%, rgba(147, 197, 253, 0.14), transparent 24%),
+    radial-gradient(circle at 50% 88%, rgba(251, 113, 133, 0.12), transparent 30%);
   filter: blur(32px);
   opacity: 0.9;
   animation: ctaGlassFlow 13s ease-in-out infinite alternate;
@@ -1113,124 +680,46 @@ main {
 }
 
 @keyframes titlePop {
-  0% {
-    opacity: 0;
-    filter: blur(16px);
-    transform: translateY(38px) scale(0.86);
-  }
-  58% {
-    opacity: 1;
-    filter: blur(0);
-    transform: translateY(-6px) scale(1.035);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
+  0% { opacity: 0; filter: blur(16px); transform: translateY(38px) scale(0.86); }
+  58% { opacity: 1; filter: blur(0); transform: translateY(-6px) scale(1.035); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 @keyframes messageFlip {
-  from {
-    opacity: 0;
-    filter: blur(8px);
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    filter: blur(0);
-    transform: translateY(0);
-  }
+  from { opacity: 0; filter: blur(8px); transform: translateY(10px); }
+  to { opacity: 1; filter: blur(0); transform: translateY(0); }
 }
 
 @keyframes sparklePulse {
-  0%,
-  100% {
-    opacity: 0.72;
-    transform: rotate(0deg) scale(1);
-  }
-  50% {
-    opacity: 1;
-    transform: rotate(18deg) scale(1.14);
-  }
-}
-
-@keyframes googleDotBounce {
-  0%,
-  80%,
-  100% {
-    transform: translateY(0) scale(0.86);
-    opacity: 0.62;
-  }
-  40% {
-    transform: translateY(-8px) scale(1);
-    opacity: 1;
-  }
+  0%, 100% { opacity: 0.72; transform: rotate(0deg) scale(1); }
+  50% { opacity: 1; transform: rotate(18deg) scale(1.14); }
 }
 
 @keyframes pageGradientFlow {
-  0% {
-    transform: translate3d(-4%, -2%, 0) rotate(0deg) scale(1);
-  }
-  33% {
-    transform: translate3d(7%, 4%, 0) rotate(12deg) scale(1.08);
-  }
-  66% {
-    transform: translate3d(-2%, 8%, 0) rotate(-8deg) scale(1.03);
-  }
-  100% {
-    transform: translate3d(5%, -5%, 0) rotate(16deg) scale(1.1);
-  }
+  0% { transform: translate3d(-4%, -2%, 0) rotate(0deg) scale(1); }
+  33% { transform: translate3d(7%, 4%, 0) rotate(12deg) scale(1.08); }
+  66% { transform: translate3d(-2%, 8%, 0) rotate(-8deg) scale(1.03); }
+  100% { transform: translate3d(5%, -5%, 0) rotate(16deg) scale(1.1); }
 }
 
 @keyframes ambientRoamA {
-  from {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  to {
-    transform: translate3d(-62vw, 72vh, 0) scale(1.32);
-  }
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(-62vw, 72vh, 0) scale(1.32); }
 }
 
 @keyframes ambientRoamB {
-  from {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  to {
-    transform: translate3d(70vw, -58vh, 0) scale(1.22);
-  }
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(70vw, -58vh, 0) scale(1.22); }
 }
 
 @keyframes ambientRoamC {
-  from {
-    transform: translate3d(0, 0, 0) scale(1);
-  }
-  to {
-    transform: translate3d(-34vw, -28vh, 0) scale(1.42);
-  }
-}
-
-@keyframes gridDrift {
-  from {
-    transform: perspective(900px) rotateX(58deg) rotateZ(-9deg) translateY(0);
-  }
-  to {
-    transform: perspective(900px) rotateX(58deg) rotateZ(-5deg) translateY(14px);
-  }
-}
-
-@keyframes orbitSpin {
-  to {
-    transform: rotateX(62deg) rotateZ(360deg);
-  }
+  from { transform: translate3d(0, 0, 0) scale(1); }
+  to { transform: translate3d(-34vw, -28vh, 0) scale(1.42); }
 }
 
 @keyframes ctaGlassFlow {
-  from {
-    transform: translate3d(-5%, -3%, 0) rotate(0deg) scale(1);
-  }
-  to {
-    transform: translate3d(5%, 4%, 0) rotate(10deg) scale(1.08);
-  }
+  from { transform: translate3d(-5%, -3%, 0) rotate(0deg) scale(1); }
+  to { transform: translate3d(5%, 4%, 0) rotate(10deg) scale(1.08); }
 }
 
 @media (max-width: 980px) {
@@ -1239,95 +728,46 @@ main {
     min-height: auto;
   }
 
-  .hero-stage {
-    min-height: 420px;
-  }
+  .hero-stage-slot { min-height: 420px; }
 
-  .landing-strip {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .scroll-showcase {
-    grid-template-columns: 1fr;
-  }
+  .landing-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .scroll-showcase { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 600px) {
-  .header-nav button:not(.nav-primary) {
-    display: none;
-  }
+  .header-nav button:not(.nav-primary) { display: none; }
 
   main {
     gap: 22px;
     padding: 12px 12px calc(34px + env(safe-area-inset-bottom));
   }
 
-  .landing-hero {
-    gap: 12px;
-    padding: 26px 0 6px;
-  }
-
-  .hero-copy {
-    gap: 14px;
-  }
-
-  .hero-kicker {
-    font-size: 9px;
-    line-height: 1.35;
-  }
-
-  .hero-title {
-    font-size: clamp(48px, 17vw, 78px);
-  }
-
-  .hero-subtitle {
-    font-size: 16px;
-  }
+  .landing-hero { gap: 12px; padding: 26px 0 6px; }
+  .hero-copy { gap: 14px; }
+  .hero-kicker { font-size: 9px; line-height: 1.35; }
+  .hero-title { font-size: clamp(48px, 17vw, 78px); }
+  .hero-subtitle { font-size: 16px; }
 
   .hero-actions,
   .hero-primary,
-  .hero-secondary {
-    width: 100%;
-  }
+  .hero-secondary { width: 100%; }
 
-  .hero-stage {
-    width: 100%;
-    min-height: 320px;
-    right: 0;
-  }
-
-  .hero-canvas {
-    inset: -4% -24% -8% -26%;
-    width: 150%;
-    height: 116%;
-  }
-
-  .stage-caption {
-    right: 12px;
-    bottom: 12px;
-  }
+  .hero-stage-slot { width: 100%; min-height: 320px; }
 
   .landing-strip,
-  .scroll-showcase {
-    grid-template-columns: 1fr;
-  }
+  .scroll-showcase { grid-template-columns: 1fr; }
 
-  .feature-chip {
-    min-height: 116px;
-  }
+  .feature-chip { min-height: 116px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .stage-grid,
-  .stage-orbit,
-  .reveal-on-scroll,
   .landing-page::before,
   .ambient-glow,
   .hero-kicker-live span:last-child,
   .hero-kicker-live .material-symbols-outlined,
-  .google-loader span,
   .glass-readable::before,
-  .reveal-title {
+  .reveal-title,
+  .reveal-on-scroll {
     animation: none;
   }
 }
