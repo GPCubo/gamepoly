@@ -8,6 +8,14 @@
     @pointerleave="endHeroDrag"
     @pointercancel="endHeroDrag"
   >
+    <Transition name="models-reveal">
+      <div v-if="modelsLoading" class="models-skeleton" aria-hidden="true">
+        <div class="models-shimmer" />
+        <div class="models-orb models-orb-board" />
+        <div class="models-orb models-orb-hat" />
+        <div class="models-orb models-orb-dedal" />
+      </div>
+    </Transition>
     <div class="stage-grid" />
     <div class="stage-orbit orbit-a" />
     <div class="stage-orbit orbit-b" />
@@ -83,6 +91,7 @@ import { useI18n } from "~/composables/useI18n";
 
 const { t } = useI18n();
 
+const modelsLoading = ref(true);
 const heroBoardScene = shallowRef<Group | null>(null);
 const heroHatScene = shallowRef<Group | null>(null);
 const heroDedalScene = shallowRef<Group | null>(null);
@@ -137,6 +146,8 @@ async function loadHeroModels() {
     heroDedalScene.value = dedal.scene;
   } catch (error) {
     console.error("No se pudieron cargar los modelos de la landing", error);
+  } finally {
+    modelsLoading.value = false;
   }
 }
 
@@ -338,7 +349,80 @@ function onHeroRenderTick({ elapsed, delta }: { elapsed: number; delta: number }
   .stage-caption { right: 12px; bottom: 12px; }
 }
 
+.models-skeleton {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  border-radius: 22px;
+  pointer-events: none;
+}
+
+.models-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(0, 245, 155, 0.07) 50%,
+    rgba(103, 232, 249, 0.05) 55%,
+    transparent 70%
+  );
+  background-size: 250% 100%;
+  animation: modelsShimmer 2s ease-in-out infinite;
+}
+
+.models-orb {
+  position: absolute;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(148, 163, 184, 0.1), rgba(148, 163, 184, 0.03));
+  animation: orbPulse 2.2s ease-in-out infinite;
+}
+
+.models-orb-board {
+  width: 44%;
+  aspect-ratio: 1;
+  bottom: 8%;
+  left: 8%;
+  border-radius: 12px;
+  animation-delay: 0s;
+}
+
+.models-orb-hat {
+  width: 22%;
+  aspect-ratio: 1;
+  top: 14%;
+  right: 22%;
+  animation-delay: 0.3s;
+}
+
+.models-orb-dedal {
+  width: 18%;
+  aspect-ratio: 1;
+  top: 18%;
+  left: 20%;
+  animation-delay: 0.6s;
+}
+
+.models-reveal-leave-active {
+  transition: opacity 0.5s ease, filter 0.5s ease;
+}
+
+.models-reveal-leave-to {
+  opacity: 0;
+  filter: blur(8px);
+}
+
+@keyframes modelsShimmer {
+  0% { background-position: 150% center; }
+  100% { background-position: -50% center; }
+}
+
+@keyframes orbPulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.05); }
+}
+
 @media (prefers-reduced-motion: reduce) {
-  .stage-grid, .stage-orbit { animation: none; }
+  .stage-grid, .stage-orbit, .models-shimmer, .skeleton-shimmer { animation: none; }
 }
 </style>

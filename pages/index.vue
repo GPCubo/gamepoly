@@ -57,10 +57,15 @@
         </div>
 
         <div class="hero-stage-slot">
-          <div v-if="!stageReady" class="hero-stage-skeleton" aria-hidden="true">
-            <div class="stage-grid-static" />
-          </div>
-          <LazyHeroStage v-else />
+          <Transition name="stage-fade">
+            <div v-if="!stageReady" class="hero-stage-skeleton" aria-hidden="true">
+              <div class="skeleton-shimmer" />
+              <div class="stage-grid-static" />
+              <div class="skeleton-orb skeleton-orb-a" />
+              <div class="skeleton-orb skeleton-orb-b" />
+            </div>
+          </Transition>
+          <LazyHeroStage v-if="stageReady" />
         </div>
       </section>
 
@@ -470,23 +475,82 @@ main {
   inset: 0;
   border-radius: 22px;
   overflow: hidden;
-  background:
-    radial-gradient(circle at 58% 42%, rgba(0, 245, 155, 0.09), transparent 38%),
-    rgba(8, 13, 22, 0.68);
+  background: rgba(8, 13, 22, 0.68);
   border: 1px solid rgba(148, 163, 184, 0.08);
+}
+
+.skeleton-shimmer {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(0, 245, 155, 0.06) 50%,
+    rgba(103, 232, 249, 0.04) 55%,
+    transparent 70%
+  );
+  background-size: 250% 100%;
+  animation: skeletonShimmer 2s ease-in-out infinite;
 }
 
 .stage-grid-static {
   position: absolute;
   inset: 6%;
-  border: 1px solid rgba(148, 163, 184, 0.08);
+  border: 1px solid rgba(148, 163, 184, 0.07);
   border-radius: 22px;
   background:
-    linear-gradient(rgba(148, 163, 184, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(148, 163, 184, 0.05) 1px, transparent 1px),
-    rgba(15, 23, 42, 0.22);
+    linear-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px),
+    rgba(15, 23, 42, 0.18);
   background-size: 34px 34px, 34px 34px, auto;
   transform: perspective(900px) rotateX(58deg) rotateZ(-9deg);
+}
+
+.skeleton-orb {
+  position: absolute;
+  border-radius: 50%;
+  background: linear-gradient(
+    135deg,
+    rgba(148, 163, 184, 0.06),
+    rgba(148, 163, 184, 0.02)
+  );
+  animation: skeletonPulse 2s ease-in-out infinite;
+}
+
+.skeleton-orb-a {
+  width: 64px;
+  height: 64px;
+  top: 28%;
+  left: 38%;
+  animation-delay: 0s;
+}
+
+.skeleton-orb-b {
+  width: 48px;
+  height: 48px;
+  top: 42%;
+  left: 58%;
+  animation-delay: 0.4s;
+}
+
+.stage-fade-leave-active {
+  transition: opacity 0.4s ease, filter 0.4s ease;
+  pointer-events: none;
+}
+
+.stage-fade-leave-to {
+  opacity: 0;
+  filter: blur(6px);
+}
+
+@keyframes skeletonShimmer {
+  0% { background-position: 150% center; }
+  100% { background-position: -50% center; }
+}
+
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.8; transform: scale(1.08); }
 }
 
 .landing-strip,

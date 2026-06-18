@@ -36,7 +36,6 @@ export default defineNuxtConfig({
     },
   },
   routeRules: {
-    "/": { prerender: true },
     "/_nuxt/**": {
       headers: { "cache-control": "public, max-age=31536000, immutable" },
     },
