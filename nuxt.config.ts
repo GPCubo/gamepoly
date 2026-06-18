@@ -6,8 +6,12 @@ export default defineNuxtConfig({
   tres: {
     devtools: true,
   },
+  site: {
+    url: process.env.NUXT_PUBLIC_SITE_URL || "https://gamepoly.app",
+  },
   runtimeConfig: {
     public: {
+      siteUrl: process.env.NUXT_PUBLIC_SITE_URL || "https://gamepoly.app",
       showAllHouses: process.env.NUXT_PUBLIC_SHOW_ALL_HOUSES === "true",
       hideAllHouses: process.env.NUXT_PUBLIC_HIDE_ALL_HOUSES === "true",
       // Firebase Analytics
@@ -23,7 +27,7 @@ export default defineNuxtConfig({
     },
   },
   routeRules: {
-    "/": { ssr: false },
+    "/": { prerender: true },
     "/setup": { ssr: false },
     "/game": { ssr: false },
     "/multiplayer/**": { ssr: false },

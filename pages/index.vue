@@ -215,7 +215,60 @@ import { useI18n } from "~/composables/useI18n";
 import type { TranslationKey } from "~/locales";
 
 const heroBoardScene = shallowRef<Group | null>(null);
-const { t } = useI18n();
+const { t, locale } = useI18n();
+const { siteUrl } = useRuntimeConfig().public;
+
+useSeoMeta({
+  title: () =>
+    locale.value === "en"
+      ? "GamePoly – Online Monopoly with 3D Tokens & Bots"
+      : "GamePoly – Monopoly online con fichas 3D y bots",
+  description: () => t("landing.hero.subtitle"),
+  ogType: "website",
+  ogTitle: () =>
+    locale.value === "en"
+      ? "GamePoly – Online Monopoly with 3D Tokens & Bots"
+      : "GamePoly – Monopoly online con fichas 3D y bots",
+  ogDescription: () => t("landing.hero.subtitle"),
+  ogLocale: () => (locale.value === "en" ? "en_US" : "es_ES"),
+  ogUrl: () => (locale.value === "en" ? `${siteUrl}/en` : siteUrl),
+  twitterCard: "summary",
+  twitterTitle: () =>
+    locale.value === "en"
+      ? "GamePoly – Online Monopoly with 3D Tokens & Bots"
+      : "GamePoly – Monopoly online con fichas 3D y bots",
+  twitterDescription: () => t("landing.hero.subtitle"),
+});
+
+useHead({
+  htmlAttrs: { lang: () => locale.value },
+  link: [
+    {
+      rel: "canonical",
+      href: () => (locale.value === "en" ? `${siteUrl}/en` : siteUrl),
+    },
+    { rel: "alternate", hreflang: "es", href: siteUrl },
+    { rel: "alternate", hreflang: "en", href: `${siteUrl}/en` },
+    { rel: "alternate", hreflang: "x-default", href: siteUrl },
+  ],
+  script: [
+    {
+      key: "ld-json",
+      type: "application/ld+json",
+      innerHTML: JSON.stringify({
+        "@context": "https://schema.org",
+        "@type": "WebApplication",
+        name: "GamePoly",
+        applicationCategory: "GameApplication",
+        operatingSystem: "Web",
+        description:
+          "Juego de tablero online tipo Monopoly con fichas 3D, bots inteligentes, subastas, multijugador en tiempo real e historial de partidas.",
+        inLanguage: ["es", "en"],
+        offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
+      }),
+    },
+  ],
+});
 const heroHatScene = shallowRef<Group | null>(null);
 const heroDedalScene = shallowRef<Group | null>(null);
 const heroStageRef = ref<HTMLElement | null>(null);
