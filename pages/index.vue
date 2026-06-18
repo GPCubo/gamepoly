@@ -18,7 +18,7 @@
 
     <main>
       <section class="landing-hero">
-        <div class="hero-copy reveal-on-scroll">
+        <div class="hero-copy">
           <span
             class="hero-kicker hero-kicker-live"
             :style="{ '--kicker-color': currentHeroMessage.color }"
@@ -56,7 +56,7 @@
           </div>
         </div>
 
-        <div class="hero-stage-slot reveal-on-scroll">
+        <div class="hero-stage-slot">
           <div v-if="!stageReady" class="hero-stage-skeleton" aria-hidden="true">
             <div class="stage-grid-static" />
           </div>
@@ -214,9 +214,6 @@ function scrollToSection(id: string) {
 </script>
 
 <style scoped>
-@import url("https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Hanken+Grotesk:wght@400;500;600&display=swap");
-@import url("https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1");
-
 .material-symbols-outlined {
   font-variation-settings:
     "FILL" 0,

@@ -6,8 +6,25 @@ export default defineNuxtConfig({
   tres: {
     devtools: true,
   },
-  site: {
-    url: process.env.NUXT_PUBLIC_SITE_URL || "https://gamepoly.app",
+  app: {
+    head: {
+      link: [
+        { rel: "preconnect", href: "https://fonts.googleapis.com" },
+        {
+          rel: "preconnect",
+          href: "https://fonts.gstatic.com",
+          crossorigin: "",
+        },
+        {
+          rel: "stylesheet",
+          href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Hanken+Grotesk:wght@400;500;600&display=swap",
+        },
+        {
+          rel: "stylesheet",
+          href: "https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap",
+        },
+      ],
+    },
   },
   runtimeConfig: {
     public: {
@@ -19,15 +36,22 @@ export default defineNuxtConfig({
       firebaseApiKey: process.env.NUXT_PUBLIC_FIREBASE_API_KEY || "",
       firebaseAuthDomain: process.env.NUXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
       firebaseProjectId: process.env.NUXT_PUBLIC_FIREBASE_PROJECT_ID || "",
-      firebaseStorageBucket: process.env.NUXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
-      firebaseMessagingSenderId: process.env.NUXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
+      firebaseStorageBucket:
+        process.env.NUXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
+      firebaseMessagingSenderId:
+        process.env.NUXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
       firebaseAppId: process.env.NUXT_PUBLIC_FIREBASE_APP_ID || "",
-      firebaseMeasurementId: process.env.NUXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "",
-      analyticsEnvironment: process.env.NUXT_PUBLIC_ANALYTICS_ENVIRONMENT || "production",
+      firebaseMeasurementId:
+        process.env.NUXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "",
+      analyticsEnvironment:
+        process.env.NUXT_PUBLIC_ANALYTICS_ENVIRONMENT || "production",
     },
   },
   routeRules: {
     "/": { prerender: true },
+    "/_nuxt/**": {
+      headers: { "cache-control": "public, max-age=31536000, immutable" },
+    },
     "/setup": { ssr: false },
     "/game": { ssr: false },
     "/multiplayer/**": { ssr: false },

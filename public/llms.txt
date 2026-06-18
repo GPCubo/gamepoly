@@ -1,0 +1,23 @@
+# GamePoly
+
+GamePoly es un juego de tablero online tipo Monopoly con fichas 3D, bots inteligentes, subastas, multijugador en tiempo real e historial de partidas.
+
+## Páginas principales
+
+- [Inicio](https://gamepoly.app/) — Landing page con modos de juego disponibles
+- [Configurar partida](https://gamepoly.app/setup) — Formulario para elegir modo, jugadores, fichas y reglas
+- [Multijugador](https://gamepoly.app/multiplayer/lobby) — Crear o unirse a una sala online
+
+## Funcionalidades
+
+- Dados con reglas completas de dobles y turno
+- Subastas para propiedades no compradas
+- Tarjetas de Suerte y Arca de la Comunidad visibles para todos
+- Bots con decisiones de compra, deuda y subasta (regular y difícil)
+- Mesas online en tiempo real con sincronización automática
+- Historial de movimientos, dinero y eventos por turno
+- Fichas y tablero en 3D interactivo
+
+## Uso y entrenamiento
+
+Este sitio autoriza el rastreo para indexación. El contenido puede utilizarse para entrenamiento de modelos de lenguaje con fines educativos y de investigación.
