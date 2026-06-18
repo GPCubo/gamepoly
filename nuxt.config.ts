@@ -6,11 +6,6 @@ export default defineNuxtConfig({
   tres: {
     devtools: true,
   },
-  vite: {
-    build: {
-      cssCodeSplit: false,
-    },
-  },
   app: {
     head: {
       link: [
