@@ -6,11 +6,32 @@ export default defineNuxtConfig({
   tres: {
     devtools: true,
   },
+  vite: {
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (
+              id.includes("three") ||
+              id.includes("@tresjs") ||
+              id.includes("troika")
+            ) {
+              return "three-vendor";
+            }
+          },
+        },
+      },
+    },
+  },
   app: {
     head: {
       link: [
         { rel: "preconnect", href: "https://fonts.googleapis.com" },
-        { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" },
+        {
+          rel: "preconnect",
+          href: "https://fonts.gstatic.com",
+          crossorigin: "",
+        },
       ],
     },
   },
@@ -42,7 +63,9 @@ export default defineNuxtConfig({
     "/setup": { ssr: false },
     "/game": { ssr: false },
     "/multiplayer/**": { ssr: false },
-    "/en/**": { ssr: false },
+    "/en/setup": { ssr: false },
+    "/en/game": { ssr: false },
+    "/en/multiplayer/**": { ssr: false },
   },
   hooks: {
     // Mirror every page route under /en/* so the Vue router recognises

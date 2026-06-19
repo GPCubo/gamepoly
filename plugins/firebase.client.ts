@@ -1,9 +1,6 @@
 // Firebase Analytics — client-only plugin (never runs on the server).
 // The .client.ts suffix guarantees Nuxt will only execute this in the browser.
 
-import { initializeApp, getApps } from "firebase/app"
-import { getAnalytics, isSupported, logEvent } from "firebase/analytics"
-import { setAnalyticsInstance } from "~/composables/useAnalytics"
 import { initClientErrors, useClientErrors } from "~/composables/useClientErrors"
 import { getApiBaseUrl } from "~/utils/env"
 
@@ -39,10 +36,17 @@ export default defineNuxtPlugin(async (nuxtApp) => {
     captureError(e.reason, "unhandled_rejection")
   })
 
-  // 4. Initialise Firebase Analytics (skipped when not configured).
+  // 4. Initialise Firebase Analytics — dynamic import so el SDK no entra en el bundle crítico.
   if (!(config.public.firebaseEnabled as boolean) || !(config.public.firebaseApiKey as string)) {
     return
   }
+
+  const [{ initializeApp, getApps }, { getAnalytics, isSupported, logEvent }, { setAnalyticsInstance }] =
+    await Promise.all([
+      import("firebase/app"),
+      import("firebase/analytics"),
+      import("~/composables/useAnalytics"),
+    ])
 
   const supported = await isSupported()
   if (!supported) return
