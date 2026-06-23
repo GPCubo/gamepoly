@@ -33,7 +33,7 @@ export default defineNuxtConfig({
           as: "font",
           type: "font/woff2",
           crossorigin: "anonymous",
-          href: "/fonts/material-symbols-outlined.woff2",
+          href: "/fonts/material-symbols-outlined.woff2?v=3",
         },
         { rel: "preconnect", href: "https://fonts.googleapis.com" },
         {
