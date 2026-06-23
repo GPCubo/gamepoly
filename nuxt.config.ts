@@ -26,15 +26,22 @@ export default defineNuxtConfig({
   app: {
     head: {
       link: [
+        // Preload: browser descarga la fuente de iconos en el primer request,
+        // antes de parsear CSS, eliminando el flash de texto en iconos.
+        {
+          rel: "preload",
+          as: "font",
+          type: "font/woff2",
+          crossorigin: "anonymous",
+          href: "/fonts/material-symbols-outlined.woff2",
+        },
         { rel: "preconnect", href: "https://fonts.googleapis.com" },
         {
           rel: "preconnect",
           href: "https://fonts.gstatic.com",
           crossorigin: "",
         },
-        // Fuentes de texto: en el HTML SSR para que el navegador las
-        // descargue durante el parseo inicial (antes se inyectaban tras
-        // hidratar el JS, retrasando el render).
+        // Fuentes de texto desde Google Fonts (SSR para parseo inmediato)
         {
           rel: "stylesheet",
           href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Hanken+Grotesk:wght@400;500;600&display=swap",
