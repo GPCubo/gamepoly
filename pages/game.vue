@@ -195,6 +195,7 @@ import {
 import { TresCanvas } from "@tresjs/core";
 import { OrbitControls } from "@tresjs/cientos";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { createGltfLoader } from "~/composables/useGltfLoader";
 import { useGameStore } from "~/stores/gameStore";
 import { useBoardGeometry } from "~/composables/useBoardGeometry";
 import { usePieceAnimation } from "~/composables/usePieceAnimation";
@@ -924,7 +925,7 @@ function onRenderTick({ delta }: { delta: number }) {
 
 onMounted(async () => {
   try {
-    const loader = new GLTFLoader();
+    const loader = createGltfLoader();
     store.setStatusMessage(t("game.status.loadingAssets"));
 
     // Ensure the board for the current locale is loaded before loading 3D assets.

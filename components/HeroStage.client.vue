@@ -85,8 +85,8 @@
 import { onMounted, onUnmounted, ref, shallowRef } from "vue";
 import { TresCanvas } from "@tresjs/core";
 import { OrbitControls } from "@tresjs/cientos";
-import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import type { Group } from "three";
+import { createGltfLoader } from "~/composables/useGltfLoader";
 import { useI18n } from "~/composables/useI18n";
 
 const { t } = useI18n();
@@ -127,7 +127,7 @@ onUnmounted(() => {
 
 async function loadHeroModels() {
   try {
-    const loader = new GLTFLoader();
+    const loader = createGltfLoader();
     const [board, hat, dedal] = await Promise.all([
       loader.loadAsync("/models/tablero.glb"),
       loader.loadAsync("/models/users/sombrero.glb"),

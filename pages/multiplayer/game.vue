@@ -940,6 +940,7 @@ import {
 import { TresCanvas } from "@tresjs/core";
 import { OrbitControls } from "@tresjs/cientos";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
+import { createGltfLoader } from "~/composables/useGltfLoader";
 import {
   Group as ThreeGroup,
   InstancedMesh,
@@ -2486,7 +2487,7 @@ async function loadBoardAssets() {
       await boardStore.fetchBoard(expectedSlug);
     }
 
-    const loader = new GLTFLoader();
+    const loader = createGltfLoader();
     const [boardResult, tokenResults, houseModels] = await Promise.all([
       tableroScene.value
         ? Promise.resolve({ scene: tableroScene.value })
