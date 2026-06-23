@@ -59,22 +59,6 @@
             </button>
           </div>
         </div>
-
-        <div class="hero-stage-slot">
-          <Transition name="stage-fade">
-            <div
-              v-if="!stageReady"
-              class="hero-stage-skeleton"
-              aria-hidden="true"
-            >
-              <div class="skeleton-shimmer" />
-              <div class="stage-grid-static" />
-              <div class="skeleton-orb skeleton-orb-a" />
-              <div class="skeleton-orb skeleton-orb-b" />
-            </div>
-          </Transition>
-          <LazyHeroStage v-if="stageReady" />
-        </div>
       </section>
 
       <section id="features" class="landing-strip">
