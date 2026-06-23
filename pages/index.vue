@@ -7,8 +7,12 @@
     <AppHeader>
       <template #actions>
         <nav class="header-nav" :aria-label="t('landing.nav.experience')">
-          <button @click="scrollToSection('features')">{{ t("landing.nav.modes") }}</button>
-          <button @click="scrollToSection('showcase')">{{ t("landing.nav.experience") }}</button>
+          <button @click="scrollToSection('features')">
+            {{ t("landing.nav.modes") }}
+          </button>
+          <button @click="scrollToSection('showcase')">
+            {{ t("landing.nav.experience") }}
+          </button>
           <button class="nav-primary" @click="navigateTo('/setup')">
             {{ t("landing.nav.play") }}
           </button>
@@ -58,7 +62,11 @@
 
         <div class="hero-stage-slot">
           <Transition name="stage-fade">
-            <div v-if="!stageReady" class="hero-stage-skeleton" aria-hidden="true">
+            <div
+              v-if="!stageReady"
+              class="hero-stage-skeleton"
+              aria-hidden="true"
+            >
               <div class="skeleton-shimmer" />
               <div class="stage-grid-static" />
               <div class="skeleton-orb skeleton-orb-a" />
@@ -156,7 +164,10 @@ useSeoMeta({
 useHead({
   htmlAttrs: { lang: () => locale.value },
   link: [
-    { rel: "canonical", href: () => (locale.value === "en" ? `${siteUrl}/en` : siteUrl) },
+    {
+      rel: "canonical",
+      href: () => (locale.value === "en" ? `${siteUrl}/en` : siteUrl),
+    },
     { rel: "alternate", hreflang: "es", href: siteUrl },
     { rel: "alternate", hreflang: "en", href: `${siteUrl}/en` },
     { rel: "alternate", hreflang: "x-default", href: siteUrl },
@@ -183,7 +194,7 @@ useHead({
 const stageReady = ref(false);
 const heroMessageIndex = ref(0);
 const heroMessages = [
-  { textKey: "landing.hero.message.0", icon: "auto_awesome", color: "#86efac" },
+  { textKey: "landing.hero.message.0", icon: "cloud_sync", color: "#86efac" },
   { textKey: "landing.hero.message.1", icon: "gavel", color: "#facc15" },
   { textKey: "landing.hero.message.2", icon: "smart_toy", color: "#93c5fd" },
   { textKey: "landing.hero.message.3", icon: "style", color: "#f0abfc" },
@@ -203,9 +214,16 @@ onMounted(() => {
   }, 1800);
 
   if ("requestIdleCallback" in window) {
-    requestIdleCallback(() => { stageReady.value = true; }, { timeout: 2000 });
+    requestIdleCallback(
+      () => {
+        stageReady.value = true;
+      },
+      { timeout: 2000 },
+    );
   } else {
-    setTimeout(() => { stageReady.value = true; }, 200);
+    setTimeout(() => {
+      stageReady.value = true;
+    }, 200);
   }
 });
 
@@ -214,7 +232,9 @@ onUnmounted(() => {
 });
 
 function scrollToSection(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  document
+    .getElementById(id)
+    ?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 </script>
 
@@ -248,8 +268,16 @@ function scrollToSection(id: string) {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(circle at 18% 22%, rgba(0, 245, 155, 0.09), transparent 25%),
-    radial-gradient(circle at 76% 18%, rgba(59, 130, 246, 0.09), transparent 28%),
+    radial-gradient(
+      circle at 18% 22%,
+      rgba(0, 245, 155, 0.09),
+      transparent 25%
+    ),
+    radial-gradient(
+      circle at 76% 18%,
+      rgba(59, 130, 246, 0.09),
+      transparent 28%
+    ),
     radial-gradient(circle at 64% 78%, rgba(215, 3, 87, 0.08), transparent 27%);
   filter: blur(38px);
   opacity: 0.88;
@@ -502,7 +530,10 @@ main {
     linear-gradient(rgba(148, 163, 184, 0.04) 1px, transparent 1px),
     linear-gradient(90deg, rgba(148, 163, 184, 0.04) 1px, transparent 1px),
     rgba(15, 23, 42, 0.18);
-  background-size: 34px 34px, 34px 34px, auto;
+  background-size:
+    34px 34px,
+    34px 34px,
+    auto;
   transform: perspective(900px) rotateX(58deg) rotateZ(-9deg);
 }
 
@@ -534,7 +565,9 @@ main {
 }
 
 .stage-fade-leave-active {
-  transition: opacity 0.4s ease, filter 0.4s ease;
+  transition:
+    opacity 0.4s ease,
+    filter 0.4s ease;
   pointer-events: none;
 }
 
@@ -544,13 +577,24 @@ main {
 }
 
 @keyframes skeletonShimmer {
-  0% { background-position: 150% center; }
-  100% { background-position: -50% center; }
+  0% {
+    background-position: 150% center;
+  }
+  100% {
+    background-position: -50% center;
+  }
 }
 
 @keyframes skeletonPulse {
-  0%, 100% { opacity: 0.4; transform: scale(1); }
-  50% { opacity: 0.8; transform: scale(1.08); }
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.8;
+    transform: scale(1.08);
+  }
 }
 
 .landing-strip,
@@ -614,7 +658,9 @@ main {
   border-radius: 10px;
   color: #003920;
   background: #00f59b;
-  font-variation-settings: "FILL" 1, "wght" 500;
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 500;
 }
 
 .feature-chip strong {
@@ -696,9 +742,21 @@ main {
   inset: -28%;
   z-index: 0;
   background:
-    radial-gradient(circle at 20% 25%, rgba(0, 245, 155, 0.18), transparent 28%),
-    radial-gradient(circle at 80% 20%, rgba(147, 197, 253, 0.14), transparent 24%),
-    radial-gradient(circle at 50% 88%, rgba(251, 113, 133, 0.12), transparent 30%);
+    radial-gradient(
+      circle at 20% 25%,
+      rgba(0, 245, 155, 0.18),
+      transparent 28%
+    ),
+    radial-gradient(
+      circle at 80% 20%,
+      rgba(147, 197, 253, 0.14),
+      transparent 24%
+    ),
+    radial-gradient(
+      circle at 50% 88%,
+      rgba(251, 113, 133, 0.12),
+      transparent 30%
+    );
   filter: blur(32px);
   opacity: 0.9;
   animation: ctaGlassFlow 13s ease-in-out infinite alternate;
@@ -741,46 +799,96 @@ main {
 }
 
 @keyframes titlePop {
-  0% { opacity: 0; filter: blur(16px); transform: translateY(38px) scale(0.86); }
-  58% { opacity: 1; filter: blur(0); transform: translateY(-6px) scale(1.035); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
+  0% {
+    opacity: 0;
+    filter: blur(16px);
+    transform: translateY(38px) scale(0.86);
+  }
+  58% {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(-6px) scale(1.035);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 @keyframes messageFlip {
-  from { opacity: 0; filter: blur(8px); transform: translateY(10px); }
-  to { opacity: 1; filter: blur(0); transform: translateY(0); }
+  from {
+    opacity: 0;
+    filter: blur(8px);
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: translateY(0);
+  }
 }
 
 @keyframes sparklePulse {
-  0%, 100% { opacity: 0.72; transform: rotate(0deg) scale(1); }
-  50% { opacity: 1; transform: rotate(18deg) scale(1.14); }
+  0%,
+  100% {
+    opacity: 0.72;
+    transform: rotate(0deg) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: rotate(18deg) scale(1.14);
+  }
 }
 
 @keyframes pageGradientFlow {
-  0% { transform: translate3d(-4%, -2%, 0) rotate(0deg) scale(1); }
-  33% { transform: translate3d(7%, 4%, 0) rotate(12deg) scale(1.08); }
-  66% { transform: translate3d(-2%, 8%, 0) rotate(-8deg) scale(1.03); }
-  100% { transform: translate3d(5%, -5%, 0) rotate(16deg) scale(1.1); }
+  0% {
+    transform: translate3d(-4%, -2%, 0) rotate(0deg) scale(1);
+  }
+  33% {
+    transform: translate3d(7%, 4%, 0) rotate(12deg) scale(1.08);
+  }
+  66% {
+    transform: translate3d(-2%, 8%, 0) rotate(-8deg) scale(1.03);
+  }
+  100% {
+    transform: translate3d(5%, -5%, 0) rotate(16deg) scale(1.1);
+  }
 }
 
 @keyframes ambientRoamA {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to { transform: translate3d(-62vw, 72vh, 0) scale(1.32); }
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-62vw, 72vh, 0) scale(1.32);
+  }
 }
 
 @keyframes ambientRoamB {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to { transform: translate3d(70vw, -58vh, 0) scale(1.22); }
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(70vw, -58vh, 0) scale(1.22);
+  }
 }
 
 @keyframes ambientRoamC {
-  from { transform: translate3d(0, 0, 0) scale(1); }
-  to { transform: translate3d(-34vw, -28vh, 0) scale(1.42); }
+  from {
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+  to {
+    transform: translate3d(-34vw, -28vh, 0) scale(1.42);
+  }
 }
 
 @keyframes ctaGlassFlow {
-  from { transform: translate3d(-5%, -3%, 0) rotate(0deg) scale(1); }
-  to { transform: translate3d(5%, 4%, 0) rotate(10deg) scale(1.08); }
+  from {
+    transform: translate3d(-5%, -3%, 0) rotate(0deg) scale(1);
+  }
+  to {
+    transform: translate3d(5%, 4%, 0) rotate(10deg) scale(1.08);
+  }
 }
 
 @media (max-width: 980px) {
@@ -789,36 +897,65 @@ main {
     min-height: auto;
   }
 
-  .hero-stage-slot { min-height: 420px; }
+  .hero-stage-slot {
+    min-height: 420px;
+  }
 
-  .landing-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .scroll-showcase { grid-template-columns: 1fr; }
+  .landing-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .scroll-showcase {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 600px) {
-  .header-nav button:not(.nav-primary) { display: none; }
+  .header-nav button:not(.nav-primary) {
+    display: none;
+  }
 
   main {
     gap: 22px;
     padding: 12px 12px calc(34px + env(safe-area-inset-bottom));
   }
 
-  .landing-hero { gap: 12px; padding: 26px 0 6px; }
-  .hero-copy { gap: 14px; }
-  .hero-kicker { font-size: 9px; line-height: 1.35; }
-  .hero-title { font-size: clamp(48px, 17vw, 78px); }
-  .hero-subtitle { font-size: 16px; }
+  .landing-hero {
+    gap: 12px;
+    padding: 26px 0 6px;
+  }
+  .hero-copy {
+    gap: 14px;
+  }
+  .hero-kicker {
+    font-size: 9px;
+    line-height: 1.35;
+  }
+  .hero-title {
+    font-size: clamp(48px, 17vw, 78px);
+  }
+  .hero-subtitle {
+    font-size: 16px;
+  }
 
   .hero-actions,
   .hero-primary,
-  .hero-secondary { width: 100%; }
+  .hero-secondary {
+    width: 100%;
+  }
 
-  .hero-stage-slot { width: 100%; min-height: 320px; }
+  .hero-stage-slot {
+    width: 100%;
+    min-height: 320px;
+  }
 
   .landing-strip,
-  .scroll-showcase { grid-template-columns: 1fr; }
+  .scroll-showcase {
+    grid-template-columns: 1fr;
+  }
 
-  .feature-chip { min-height: 116px; }
+  .feature-chip {
+    min-height: 116px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

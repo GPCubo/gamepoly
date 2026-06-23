@@ -1,6 +1,8 @@
 <template>
   <label class="language-switcher" :title="t('language.label')">
-    <span class="material-symbols-outlined" aria-hidden="true">translate</span>
+    <span class="material-symbols-outlined" aria-hidden="true"
+      >language_chinese_dayi</span
+    >
     <select
       :value="locale"
       :aria-label="t('language.label')"
