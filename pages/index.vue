@@ -307,14 +307,7 @@ function initParticles() {
 const pageRef = ref<HTMLElement | null>(null);
 
 function scrollToSection(id: string) {
-  const el = document.getElementById(id);
-  const container = pageRef.value;
-  if (!el || !container) return;
-  // getBoundingClientRect gives positions relative to the viewport;
-  // subtracting container's top and adding scrollTop gives the correct
-  // target within the scroll container (regardless of offsetParent chain).
-  const top = el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
-  container.scrollTo({ top, behavior: "smooth" });
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 // ── Reveal on scroll ────────────────────────────────────────────────────────
@@ -344,7 +337,7 @@ onMounted(() => {
   // mida LCP sin snap activo (si está en SSR, headless Chrome lo dispara
   // durante medición, salta a sección 2 y descarta los LCP candidates).
   if (pageRef.value) {
-    pageRef.value.style.scrollSnapType = "y proximity";
+    pageRef.value.style.scrollSnapType = "y mandatory";
   }
 
   heroMessageTimer = setInterval(() => {
