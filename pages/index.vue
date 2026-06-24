@@ -362,7 +362,7 @@ onUnmounted(() => {
   height: 100dvh;
   overflow-y: scroll;
   overflow-x: hidden;
-  scroll-snap-type: y mandatory;
+  scroll-snap-type: y proximity;
   scroll-behavior: smooth;
   background: #0b1118;
   color: #e1e1ef;
@@ -454,7 +454,6 @@ main {
 .scroll-section {
   min-height: 100dvh;
   scroll-snap-align: start;
-  scroll-snap-stop: always;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -470,7 +469,7 @@ main {
 /* ── HERO ───────────────────────────────────────────────────────────────── */
 .landing-hero {
   padding: 0 clamp(18px, 5vw, 96px);
-  overflow: hidden;
+  overflow: clip;
 }
 
 .particle-canvas {
