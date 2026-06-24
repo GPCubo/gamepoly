@@ -198,7 +198,7 @@ useSeoMeta({
 });
 
 useHead({
-  htmlAttrs: { lang: () => locale.value },
+  htmlAttrs: { lang: () => locale.value, style: "scroll-snap-type: y proximity; scroll-behavior: smooth;" },
   link: [
     { rel: "canonical", href: () => (locale.value === "en" ? `${siteUrl}/en` : siteUrl) },
     { rel: "alternate", hreflang: "es", href: siteUrl },
@@ -307,11 +307,7 @@ function initParticles() {
 const pageRef = ref<HTMLElement | null>(null);
 
 function scrollToSection(id: string) {
-  const container = pageRef.value;
-  const el = document.getElementById(id);
-  if (!el || !container) return;
-  // Smooth-scroll within the snap container
-  container.scrollTo({ top: el.offsetTop, behavior: "smooth" });
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 // ── Reveal on scroll ────────────────────────────────────────────────────────
@@ -329,7 +325,7 @@ function initRevealObserver() {
         }
       }
     },
-    { root: pageRef.value, threshold: 0.08, rootMargin: "0px 0px -30px 0px" },
+    { root: null, threshold: 0.08, rootMargin: "0px 0px -30px 0px" },
   );
   document.querySelectorAll(".reveal-on-scroll").forEach((el) => {
     revealObserver!.observe(el);
@@ -359,11 +355,7 @@ onUnmounted(() => {
 
 /* ── Page shell ─────────────────────────────────────────────────────────── */
 .landing-page {
-  height: 100dvh;
-  overflow-y: scroll;
-  overflow-x: hidden;
-  scroll-snap-type: y proximity;
-  scroll-behavior: smooth;
+  overflow-x: clip;
   background: #0b1118;
   color: #e1e1ef;
   font-family: "Hanken Grotesk", sans-serif;
