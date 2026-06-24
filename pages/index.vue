@@ -310,6 +310,36 @@ function scrollToSection(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
+// Wheel handler: intercepts mouse wheel to produce smooth full-page transitions.
+// Without this, the browser snap animation is nearly instant and feels abrupt.
+let wheelLocked = false;
+
+function onContainerWheel(e: WheelEvent) {
+  if (wheelLocked) { e.preventDefault(); return; }
+  const container = pageRef.value;
+  if (!container) return;
+  e.preventDefault();
+  wheelLocked = true;
+
+  const sections = Array.from(container.querySelectorAll<HTMLElement>(".scroll-section"));
+
+  // Find current section: last whose start is at or before current scrollTop
+  let currentIdx = 0;
+  for (let i = 0; i < sections.length; i++) {
+    const sectionTop = sections[i].getBoundingClientRect().top
+      - container.getBoundingClientRect().top
+      + container.scrollTop;
+    if (sectionTop <= container.scrollTop + 1) currentIdx = i;
+  }
+
+  const targetIdx = e.deltaY > 0
+    ? Math.min(currentIdx + 1, sections.length - 1)
+    : Math.max(currentIdx - 1, 0);
+
+  sections[targetIdx].scrollIntoView({ behavior: "smooth", block: "start" });
+  setTimeout(() => { wheelLocked = false; }, 900);
+}
+
 // ── Reveal on scroll ────────────────────────────────────────────────────────
 let revealObserver: IntersectionObserver | null = null;
 
@@ -338,6 +368,7 @@ onMounted(() => {
   // durante medición, salta a sección 2 y descarta los LCP candidates).
   if (pageRef.value) {
     pageRef.value.style.scrollSnapType = "y mandatory";
+    pageRef.value.addEventListener("wheel", onContainerWheel, { passive: false });
   }
 
   heroMessageTimer = setInterval(() => {
@@ -348,7 +379,10 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  if (pageRef.value) pageRef.value.style.scrollSnapType = "";
+  if (pageRef.value) {
+    pageRef.value.style.scrollSnapType = "";
+    pageRef.value.removeEventListener("wheel", onContainerWheel);
+  }
   if (heroMessageTimer) clearInterval(heroMessageTimer);
   if (animationId !== null) cancelAnimationFrame(animationId);
   revealObserver?.disconnect();
