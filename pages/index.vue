@@ -308,9 +308,13 @@ const pageRef = ref<HTMLElement | null>(null);
 
 function scrollToSection(id: string) {
   const el = document.getElementById(id);
-  if (el && pageRef.value) {
-    pageRef.value.scrollTo({ top: el.offsetTop, behavior: "smooth" });
-  }
+  const container = pageRef.value;
+  if (!el || !container) return;
+  // getBoundingClientRect gives positions relative to the viewport;
+  // subtracting container's top and adding scrollTop gives the correct
+  // target within the scroll container (regardless of offsetParent chain).
+  const top = el.getBoundingClientRect().top - container.getBoundingClientRect().top + container.scrollTop;
+  container.scrollTo({ top, behavior: "smooth" });
 }
 
 // ── Reveal on scroll ────────────────────────────────────────────────────────
