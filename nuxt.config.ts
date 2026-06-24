@@ -3,6 +3,9 @@ export default defineNuxtConfig({
   devtools: { enabled: true },
   css: ["~/assets/global.css"],
   modules: ["@tresjs/nuxt", "@pinia/nuxt"],
+  experimental: {
+    inlineSSRStyles: true,
+  },
   tres: {
     devtools: true,
   },
