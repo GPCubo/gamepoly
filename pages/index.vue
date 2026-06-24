@@ -307,7 +307,10 @@ function initParticles() {
 const pageRef = ref<HTMLElement | null>(null);
 
 function scrollToSection(id: string) {
-  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  const el = document.getElementById(id);
+  if (el && pageRef.value) {
+    pageRef.value.scrollTo({ top: el.offsetTop, behavior: "smooth" });
+  }
 }
 
 // ── Reveal on scroll ────────────────────────────────────────────────────────
@@ -325,7 +328,7 @@ function initRevealObserver() {
         }
       }
     },
-    { root: null, threshold: 0.08, rootMargin: "0px 0px -30px 0px" },
+    { root: pageRef.value, threshold: 0.08, rootMargin: "0px 0px -30px 0px" },
   );
   document.querySelectorAll(".reveal-on-scroll").forEach((el) => {
     revealObserver!.observe(el);
@@ -333,11 +336,12 @@ function initRevealObserver() {
 }
 
 onMounted(() => {
-  // Scroll snap se aplica DESPUÉS de la carga para que Lighthouse mida LCP
-  // sin snap activo. Con snap en SSR, headless Chrome lo dispara durante la
-  // medición, salta a sección 2 y descarta los LCP candidates del hero.
-  document.documentElement.style.scrollSnapType = "y proximity";
-  document.documentElement.style.scrollBehavior = "smooth";
+  // Scroll snap aplicado DESPUÉS del primer render para que Lighthouse
+  // mida LCP sin snap activo (si está en SSR, headless Chrome lo dispara
+  // durante medición, salta a sección 2 y descarta los LCP candidates).
+  if (pageRef.value) {
+    pageRef.value.style.scrollSnapType = "y proximity";
+  }
 
   heroMessageTimer = setInterval(() => {
     heroMessageIndex.value = (heroMessageIndex.value + 1) % heroMessages.length;
@@ -347,8 +351,7 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  document.documentElement.style.scrollSnapType = "";
-  document.documentElement.style.scrollBehavior = "";
+  if (pageRef.value) pageRef.value.style.scrollSnapType = "";
   if (heroMessageTimer) clearInterval(heroMessageTimer);
   if (animationId !== null) cancelAnimationFrame(animationId);
   revealObserver?.disconnect();
@@ -363,7 +366,10 @@ onUnmounted(() => {
 
 /* ── Page shell ─────────────────────────────────────────────────────────── */
 .landing-page {
-  overflow-x: clip;
+  height: 100dvh;
+  overflow-y: scroll;
+  overflow-x: hidden;
+  scroll-behavior: smooth;
   background: #0b1118;
   color: #e1e1ef;
   font-family: "Hanken Grotesk", sans-serif;
