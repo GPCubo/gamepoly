@@ -198,7 +198,7 @@ useSeoMeta({
 });
 
 useHead({
-  htmlAttrs: { lang: () => locale.value, style: "scroll-snap-type: y proximity; scroll-behavior: smooth;" },
+  htmlAttrs: { lang: () => locale.value },
   link: [
     { rel: "canonical", href: () => (locale.value === "en" ? `${siteUrl}/en` : siteUrl) },
     { rel: "alternate", hreflang: "es", href: siteUrl },
@@ -333,6 +333,12 @@ function initRevealObserver() {
 }
 
 onMounted(() => {
+  // Scroll snap se aplica DESPUÉS de la carga para que Lighthouse mida LCP
+  // sin snap activo. Con snap en SSR, headless Chrome lo dispara durante la
+  // medición, salta a sección 2 y descarta los LCP candidates del hero.
+  document.documentElement.style.scrollSnapType = "y proximity";
+  document.documentElement.style.scrollBehavior = "smooth";
+
   heroMessageTimer = setInterval(() => {
     heroMessageIndex.value = (heroMessageIndex.value + 1) % heroMessages.length;
   }, 1800);
@@ -341,6 +347,8 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
+  document.documentElement.style.scrollSnapType = "";
+  document.documentElement.style.scrollBehavior = "";
   if (heroMessageTimer) clearInterval(heroMessageTimer);
   if (animationId !== null) cancelAnimationFrame(animationId);
   revealObserver?.disconnect();
