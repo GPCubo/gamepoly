@@ -377,7 +377,8 @@ onUnmounted(() => {
   pointer-events: none;
   z-index: 0;
   mix-blend-mode: screen;
-  will-change: transform;
+  will-change: transform, filter;
+  transform: translateZ(0);
 }
 
 .ambient-1 {
@@ -530,7 +531,7 @@ main {
   font-weight: 900;
   line-height: 0.92;
   text-shadow: 0 28px 52px rgba(0, 0, 0, 0.5);
-  animation: heroFloat 6s ease-in-out infinite, titlePop 1.1s cubic-bezier(0.18, 1, 0.22, 1) both;
+  animation: heroFloat 6s ease-in-out infinite;
 }
 
 .hero-subtitle {

@@ -33,7 +33,7 @@ export default defineNuxtConfig({
           as: "font",
           type: "font/woff2",
           crossorigin: "anonymous",
-          href: "/fonts/material-symbols-outlined.woff2?v=3",
+          href: "/fonts/material-symbols-outlined.woff2?v=5",
         },
         { rel: "preconnect", href: "https://fonts.googleapis.com" },
         {
@@ -41,10 +41,12 @@ export default defineNuxtConfig({
           href: "https://fonts.gstatic.com",
           crossorigin: "",
         },
-        // Fuentes de texto desde Google Fonts (SSR para parseo inmediato)
+        // Fuentes de texto: preload no-blocking → no retrasa el FCP
         {
-          rel: "stylesheet",
+          rel: "preload",
+          as: "style",
           href: "https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Hanken+Grotesk:wght@400;500;600&display=swap",
+          onload: "this.rel='stylesheet'",
         },
         // Material Symbols self-hosted: public/fonts/material-symbols-outlined.woff2
         // @font-face declarado en assets/global.css
