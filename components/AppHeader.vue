@@ -8,7 +8,15 @@
       >
         <span class="material-symbols-outlined">arrow_back</span>
       </button>
-      <span class="material-symbols-outlined game-header-logo">casino</span>
+      <svg class="game-header-logo" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+        <circle cx="24" cy="24" r="24" fill="#00f59b" />
+        <rect x="14" y="14" width="20" height="20" rx="4.5" stroke="#0b1118" stroke-width="2.25" stroke-linejoin="round" />
+        <circle cx="20" cy="20" r="1.9" fill="#0b1118" />
+        <circle cx="28" cy="20" r="1.9" fill="#0b1118" />
+        <circle cx="24" cy="24" r="1.9" fill="#0b1118" />
+        <circle cx="20" cy="28" r="1.9" fill="#0b1118" />
+        <circle cx="28" cy="28" r="1.9" fill="#0b1118" />
+      </svg>
       <span class="game-header-brand">{{ brand }}</span>
       <span v-if="badge" class="game-header-badge">{{ badge }}</span>
     </div>
@@ -78,11 +86,9 @@ withDefaults(
 }
 
 .game-header-logo {
-  color: #00f59b;
-  font-size: 28px;
-  font-variation-settings:
-    "FILL" 1,
-    "wght" 400;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
 }
 
 .game-header-brand {
@@ -154,7 +160,8 @@ withDefaults(
   }
 
   .game-header-logo {
-    font-size: 24px;
+    width: 24px;
+    height: 24px;
   }
 
   .game-header-badge {

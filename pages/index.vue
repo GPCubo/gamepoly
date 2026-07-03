@@ -7,12 +7,15 @@
 
     <AppHeader>
       <template #actions>
-        <nav class="header-nav" :aria-label="t('landing.nav.experience')">
-          <button @click="scrollToSection('features')">
+        <nav class="header-nav" :aria-label="t('landing.nav.ariaLabel')">
+          <button @click="scrollToSection('modos')">
             {{ t("landing.nav.modes") }}
           </button>
-          <button @click="scrollToSection('cta')">
+          <button @click="scrollToSection('experiencia')">
             {{ t("landing.nav.experience") }}
+          </button>
+          <button @click="scrollToSection('showcase')">
+            {{ t("landing.nav.live") }}
           </button>
           <button class="nav-primary" @click="navigateTo('/setup')">
             {{ t("landing.nav.play") }}
@@ -23,39 +26,87 @@
 
     <main>
       <!-- ── HERO ──────────────────────────────────────── -->
-      <section class="scroll-section landing-hero" id="hero">
+      <section class="landing-section landing-hero" id="hero">
         <canvas ref="canvasRef" class="particle-canvas" />
 
-        <div class="hero-copy">
-          <span
-            class="hero-kicker hero-kicker-live"
-            :style="{ '--kicker-color': currentHeroMessage.color }"
-          >
+        <div class="hero-grid">
+          <div class="hero-copy">
             <span
-              :key="`${heroMessageIndex}-icon`"
-              class="material-symbols-outlined"
-              :style="{ color: currentHeroMessage.color }"
+              class="hero-kicker hero-kicker-live"
+              :style="{ '--kicker-color': currentHeroMessage.color }"
             >
-              {{ currentHeroMessage.icon }}
+              <span
+                :key="`${heroMessageIndex}-icon`"
+                class="material-symbols-outlined"
+                :style="{ color: currentHeroMessage.color }"
+              >
+                {{ currentHeroMessage.icon }}
+              </span>
+              <span :key="`${heroMessageIndex}-text`" :style="{ color: currentHeroMessage.color }">
+                {{ t(currentHeroMessage.textKey) }}
+              </span>
             </span>
-            <span :key="`${heroMessageIndex}-text`" :style="{ color: currentHeroMessage.color }">
-              {{ t(currentHeroMessage.textKey) }}
-            </span>
-          </span>
 
-          <h1 class="hero-title">GamePoly</h1>
+            <h1 class="hero-title">
+              {{ t("landing.hero.title.prefix") }}
+              <span class="hero-title-accent">{{ t("landing.hero.title.highlight") }}</span>
+            </h1>
 
-          <p class="hero-subtitle">{{ t("landing.hero.subtitle") }}</p>
+            <p class="hero-subtitle">{{ t("landing.hero.subtitle") }}</p>
 
-          <div class="hero-actions">
-            <button class="hero-primary" @click="navigateTo('/setup')">
-              <span class="material-symbols-outlined">play_arrow</span>
-              {{ t("landing.hero.single") }}
-            </button>
-            <button class="hero-secondary" @click="navigateTo('/multiplayer/lobby?mode=create')">
-              <span class="material-symbols-outlined">wifi</span>
-              {{ t("landing.hero.friends") }}
-            </button>
+            <div class="hero-actions">
+              <button class="hero-primary" @click="navigateTo('/setup')">
+                <span class="material-symbols-outlined">play_arrow</span>
+                {{ t("landing.hero.single") }}
+              </button>
+              <button class="hero-secondary" @click="navigateTo('/multiplayer/lobby?mode=create')">
+                <span class="material-symbols-outlined">wifi</span>
+                {{ t("landing.hero.friends") }}
+              </button>
+            </div>
+
+            <dl class="hero-stats">
+              <div v-for="stat in heroStats" :key="stat.label" class="hero-stat">
+                <dt>{{ stat.value }}</dt>
+                <dd>{{ stat.label }}</dd>
+              </div>
+            </dl>
+          </div>
+
+          <div class="hero-visual">
+            <div class="hero-visual-glow" aria-hidden="true" />
+
+            <div class="hero-dice-float">
+              <DiceTray :size="60" />
+              <span class="hero-dice-caption">{{ t("landing.hero.diceCaption") }}</span>
+            </div>
+
+            <div class="hero-frame">
+              <div class="hero-frame-bar">
+                <span class="hero-frame-dot dot-red" />
+                <span class="hero-frame-dot dot-yellow" />
+                <span class="hero-frame-dot dot-green" />
+                <span class="hero-frame-url">gamepoly.app/partida</span>
+              </div>
+              <div class="hero-frame-image">
+                <img
+                  src="/images/game-board.webp"
+                  alt="Partida de GamePoly con tablero 3D isometrico, fichas y propiedades"
+                  loading="eager"
+                  width="1600"
+                  height="825"
+                />
+              </div>
+            </div>
+
+            <div class="hero-chip hero-chip-auction">
+              <span class="material-symbols-outlined">gavel</span>
+              {{ t("landing.hero.chip.auction") }}
+            </div>
+            <div class="hero-chip hero-chip-bot">
+              <span class="material-symbols-outlined">smart_toy</span>
+              {{ t("landing.hero.chip.bot") }}
+            </div>
           </div>
         </div>
 
@@ -65,11 +116,11 @@
       </section>
 
       <!-- ── FEATURES (modos + características) ────────── -->
-      <section class="scroll-section landing-features" id="features">
+      <section class="landing-section landing-features" id="features">
         <div class="section-inner">
 
           <!-- Sub-sección: Modos -->
-          <div class="subsection-header reveal-on-scroll">
+          <div id="modos" class="subsection-header reveal-on-scroll">
             <span class="section-badge">
               <span class="material-symbols-outlined">sports_esports</span>
               {{ t("landing.nav.modes") }}
@@ -110,7 +161,7 @@
           <div class="section-divider" />
 
           <!-- Sub-sección: Características -->
-          <div class="subsection-header reveal-on-scroll">
+          <div id="experiencia" class="subsection-header reveal-on-scroll">
             <span class="section-badge">
               <span class="material-symbols-outlined">auto_awesome</span>
               {{ t("landing.nav.experience") }}
@@ -142,8 +193,52 @@
         </div>
       </section>
 
+      <!-- ── AUCTION SHOWCASE ──────────────────────────── -->
+      <section class="landing-section landing-auction" id="showcase">
+        <div class="section-inner auction-inner">
+          <div class="auction-visual reveal-on-scroll">
+            <div class="auction-visual-glow" aria-hidden="true" />
+            <div class="auction-frame">
+              <img
+                src="/images/game-auction.webp"
+                alt="Panel de subasta de GamePoly mostrando la puja actual, el turno y los participantes"
+                loading="lazy"
+                width="530"
+                height="597"
+              />
+            </div>
+          </div>
+
+          <div class="auction-copy">
+            <span class="section-badge reveal-on-scroll">
+              <span class="material-symbols-outlined">gavel</span>
+              {{ t("landing.auction.kicker") }}
+            </span>
+            <h2 class="reveal-on-scroll" style="--delay: 60ms">{{ t("landing.auction.title") }}</h2>
+            <p class="reveal-on-scroll" style="--delay: 120ms">{{ t("landing.auction.text") }}</p>
+
+            <ul class="auction-points">
+              <li
+                v-for="(point, index) in auctionPoints"
+                :key="point.icon"
+                class="reveal-on-scroll"
+                :style="{ '--delay': `${180 + index * 80}ms` }"
+              >
+                <span class="card-icon">
+                  <span class="material-symbols-outlined">{{ point.icon }}</span>
+                </span>
+                <div>
+                  <strong>{{ t(point.titleKey) }}</strong>
+                  <p>{{ t(point.textKey) }}</p>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
       <!-- ── CTA ───────────────────────────────────────── -->
-      <section class="scroll-section landing-cta-section" id="cta">
+      <section class="landing-section landing-cta-section" id="cta">
         <div class="section-inner">
           <div class="cta-card reveal-on-scroll">
             <div class="cta-glow" />
@@ -240,6 +335,20 @@ const currentHeroMessage = computed(
 );
 let heroMessageTimer: ReturnType<typeof setInterval> | null = null;
 
+// ── Hero stats ───────────────────────────────────────────────────────────────
+const heroStats = computed(() => [
+  { value: "40", label: t("landing.hero.stats.tiles") },
+  { value: "3D", label: t("landing.hero.stats.tokens") },
+  { value: "2-6", label: t("landing.hero.stats.players") },
+]);
+
+// ── Auction showcase points ──────────────────────────────────────────────────
+const auctionPoints: Array<{ icon: string; titleKey: TranslationKey; textKey: TranslationKey }> = [
+  { icon: "payments", titleKey: "landing.auction.point.bid.title", textKey: "landing.auction.point.bid.text" },
+  { icon: "timer", titleKey: "landing.auction.point.turns.title", textKey: "landing.auction.point.turns.text" },
+  { icon: "account_balance_wallet", titleKey: "landing.auction.point.balance.title", textKey: "landing.auction.point.balance.text" },
+];
+
 // ── Canvas particles ────────────────────────────────────────────────────────
 const canvasRef = ref<HTMLCanvasElement | null>(null);
 let animationId: number | null = null;
@@ -310,42 +419,12 @@ function scrollToSection(id: string) {
   document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
-// Wheel handler: intercepts mouse wheel to produce smooth full-page transitions.
-// Without this, the browser snap animation is nearly instant and feels abrupt.
-let wheelLocked = false;
-
-function onContainerWheel(e: WheelEvent) {
-  if (wheelLocked) { e.preventDefault(); return; }
-  const container = pageRef.value;
-  if (!container) return;
-  e.preventDefault();
-  wheelLocked = true;
-
-  const sections = Array.from(container.querySelectorAll<HTMLElement>(".scroll-section"));
-
-  // Find current section: last whose start is at or before current scrollTop
-  let currentIdx = 0;
-  for (let i = 0; i < sections.length; i++) {
-    const sectionTop = sections[i].getBoundingClientRect().top
-      - container.getBoundingClientRect().top
-      + container.scrollTop;
-    if (sectionTop <= container.scrollTop + 1) currentIdx = i;
-  }
-
-  const targetIdx = e.deltaY > 0
-    ? Math.min(currentIdx + 1, sections.length - 1)
-    : Math.max(currentIdx - 1, 0);
-
-  sections[targetIdx].scrollIntoView({ behavior: "smooth", block: "start" });
-  setTimeout(() => { wheelLocked = false; }, 900);
-}
-
 // ── Reveal on scroll ────────────────────────────────────────────────────────
 let revealObserver: IntersectionObserver | null = null;
 
 function initRevealObserver() {
   // Use the landing-page element as the scroll root so IntersectionObserver
-  // fires inside the snap container (not the window).
+  // fires inside the internal scroll container (not the window).
   revealObserver = new IntersectionObserver(
     (entries) => {
       for (const entry of entries) {
@@ -363,14 +442,6 @@ function initRevealObserver() {
 }
 
 onMounted(() => {
-  // Scroll snap aplicado DESPUÉS del primer render para que Lighthouse
-  // mida LCP sin snap activo (si está en SSR, headless Chrome lo dispara
-  // durante medición, salta a sección 2 y descarta los LCP candidates).
-  if (pageRef.value) {
-    pageRef.value.style.scrollSnapType = "y mandatory";
-    pageRef.value.addEventListener("wheel", onContainerWheel, { passive: false });
-  }
-
   heroMessageTimer = setInterval(() => {
     heroMessageIndex.value = (heroMessageIndex.value + 1) % heroMessages.length;
   }, 1800);
@@ -379,10 +450,6 @@ onMounted(() => {
 });
 
 onUnmounted(() => {
-  if (pageRef.value) {
-    pageRef.value.style.scrollSnapType = "";
-    pageRef.value.removeEventListener("wheel", onContainerWheel);
-  }
   if (heroMessageTimer) clearInterval(heroMessageTimer);
   if (animationId !== null) cancelAnimationFrame(animationId);
   revealObserver?.disconnect();
@@ -482,29 +549,28 @@ onUnmounted(() => {
   box-shadow: 0 0 20px rgba(0, 255, 157, 0.4);
 }
 
-/* ── Scroll sections ────────────────────────────────────────────────────── */
+/* ── Sections ───────────────────────────────────────────────────────────── */
 main {
   position: relative;
   z-index: 1;
 }
 
-.scroll-section {
-  min-height: 100dvh;
-  scroll-snap-align: start;
+.landing-section {
+  position: relative;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  position: relative;
 }
 
 .section-inner {
   width: min(1200px, 100%);
   margin: 0 auto;
-  padding: clamp(72px, 9vh, 110px) clamp(18px, 5vw, 64px) clamp(36px, 5vh, 64px);
+  padding: clamp(56px, 8vh, 96px) clamp(18px, 5vw, 64px);
 }
 
 /* ── HERO ───────────────────────────────────────────────────────────────── */
 .landing-hero {
+  min-height: 100dvh;
   padding: 0 clamp(18px, 5vw, 96px);
   overflow: clip;
 }
@@ -518,15 +584,26 @@ main {
   z-index: 0;
 }
 
-.hero-copy {
+.hero-grid {
   position: relative;
   z-index: 2;
+  display: grid;
+  grid-template-columns: 1.05fr 1fr;
+  align-items: center;
+  gap: clamp(32px, 5vw, 72px);
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding-top: clamp(96px, 12vh, 140px);
+  padding-bottom: 64px;
+}
+
+.hero-copy {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
   gap: 20px;
   max-width: 640px;
-  padding-top: 80px;
 }
 
 .hero-kicker {
@@ -563,11 +640,15 @@ main {
   margin: 0;
   color: #f8fafc;
   font-family: "Plus Jakarta Sans", sans-serif;
-  font-size: clamp(72px, 10vw, 120px);
+  font-size: clamp(40px, 5.4vw, 68px);
   font-weight: 900;
-  line-height: 0.92;
+  line-height: 1.02;
   text-shadow: 0 28px 52px rgba(0, 0, 0, 0.5);
   animation: heroFloat 6s ease-in-out infinite;
+}
+
+.hero-title-accent {
+  color: #00ff9d;
 }
 
 .hero-subtitle {
@@ -627,6 +708,152 @@ main {
   background: rgba(0, 255, 157, 0.06);
 }
 
+/* Hero stats */
+.hero-stats {
+  display: flex;
+  gap: 32px;
+  margin: 12px 0 0;
+}
+
+.hero-stat dt {
+  color: #f8fafc;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: clamp(22px, 2.6vw, 30px);
+  font-weight: 800;
+}
+
+.hero-stat dd {
+  margin: 4px 0 0;
+  color: rgba(226, 232, 240, 0.56);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Hero visual: browser frame + dice + chips */
+.hero-visual {
+  position: relative;
+}
+
+.hero-visual-glow {
+  position: absolute;
+  inset: -16px;
+  border-radius: 28px;
+  background: rgba(0, 255, 157, 0.08);
+  filter: blur(48px);
+  pointer-events: none;
+  z-index: -1;
+}
+
+.hero-dice-float {
+  position: absolute;
+  top: -34px;
+  right: -12px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.hero-dice-caption {
+  pointer-events: none;
+  padding: 3px 10px;
+  border: 1px solid rgba(0, 255, 157, 0.3);
+  border-radius: 999px;
+  background: rgba(22, 31, 39, 0.9);
+  backdrop-filter: blur(6px);
+  color: #00ff9d;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+}
+
+.hero-frame {
+  position: relative;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid #2a353f;
+  background: #161f27;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45);
+}
+
+.hero-frame-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(42, 53, 63, 0.7);
+  background: rgba(11, 17, 24, 0.6);
+}
+
+.hero-frame-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.dot-red { background: rgba(251, 113, 133, 0.7); }
+.dot-yellow { background: rgba(250, 204, 21, 0.7); }
+.dot-green { background: rgba(0, 255, 157, 0.7); }
+
+.hero-frame-url {
+  margin-left: 8px;
+  color: rgba(226, 232, 240, 0.5);
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+}
+
+.hero-frame-image {
+  position: relative;
+  aspect-ratio: 16 / 11;
+  overflow: hidden;
+}
+
+.hero-frame-image img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 50% 65%;
+  transform: scale(1.18);
+}
+
+.hero-chip {
+  position: absolute;
+  display: none;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 13px;
+  border: 1px solid #2a353f;
+  border-radius: 12px;
+  background: rgba(22, 31, 39, 0.95);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 16px 32px rgba(0, 0, 0, 0.35);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.hero-chip .material-symbols-outlined {
+  font-size: 17px;
+  color: #00ff9d;
+}
+
+.hero-chip-auction {
+  top: 42px;
+  left: -18px;
+}
+
+.hero-chip-bot {
+  bottom: 44px;
+  right: -14px;
+}
+
 /* Scroll hint */
 .scroll-hint {
   position: absolute;
@@ -659,6 +886,7 @@ main {
 /* ── Badges & sub-headers ───────────────────────────────────────────────── */
 .subsection-header {
   margin-bottom: 1.25rem;
+  scroll-margin-top: 90px;
 }
 
 .section-badge {
@@ -689,13 +917,7 @@ main {
 
 /* ── FEATURES section ───────────────────────────────────────────────────── */
 .landing-features {
-  /* Allow content taller than viewport to scroll within the snap section */
-  justify-content: flex-start;
-}
-
-.landing-features .section-inner {
-  padding-top: clamp(80px, 10vh, 120px);
-  padding-bottom: clamp(36px, 5vh, 64px);
+  scroll-margin-top: 90px;
 }
 
 /* Modos grid */
@@ -733,6 +955,7 @@ main {
   background: rgba(0, 255, 157, 0.1);
   border: 1px solid rgba(0, 255, 157, 0.14);
   color: #00ff9d;
+  flex-shrink: 0;
 }
 
 .card-icon .material-symbols-outlined {
@@ -797,7 +1020,111 @@ main {
   line-height: 1.55;
 }
 
+/* ── AUCTION SHOWCASE ───────────────────────────────────────────────────── */
+.landing-auction {
+  border-top: 1px solid rgba(42, 53, 63, 0.5);
+}
+
+.auction-inner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: clamp(32px, 6vw, 72px);
+}
+
+.auction-visual {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.auction-visual-glow {
+  position: absolute;
+  inset: 6%;
+  border-radius: 32px;
+  background: rgba(0, 255, 157, 0.08);
+  filter: blur(48px);
+  z-index: 0;
+}
+
+.auction-frame {
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: 20px;
+  border: 1px solid #2a353f;
+  background: #0b1118;
+  box-shadow: 0 30px 60px rgba(0, 0, 0, 0.45);
+  max-width: 380px;
+  width: 100%;
+}
+
+.auction-frame img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.auction-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.auction-copy h2 {
+  margin: 0;
+  color: #f8fafc;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: clamp(26px, 3.6vw, 40px);
+  font-weight: 800;
+  line-height: 1.15;
+}
+
+.auction-copy > p {
+  margin: 0;
+  max-width: 480px;
+  color: rgba(226, 232, 240, 0.65);
+  font-size: clamp(15px, 1.5vw, 17px);
+  line-height: 1.6;
+}
+
+.auction-points {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  width: 100%;
+}
+
+.auction-points li {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.auction-points strong {
+  display: block;
+  color: #f8fafc;
+  font-family: "Plus Jakarta Sans", sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.auction-points p {
+  margin: 2px 0 0;
+  color: rgba(226, 232, 240, 0.56);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 /* ── CTA ────────────────────────────────────────────────────────────────── */
+.landing-cta-section {
+  border-top: 1px solid rgba(42, 53, 63, 0.5);
+}
+
 .cta-card {
   position: relative;
   overflow: hidden;
@@ -873,12 +1200,6 @@ main {
   50% { transform: translateY(-14px); }
 }
 
-@keyframes titlePop {
-  0% { opacity: 0; filter: blur(16px); transform: translateY(38px) scale(0.86); }
-  58% { opacity: 1; filter: blur(0); transform: translateY(-6px) scale(1.03); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-
 @keyframes messageFlip {
   from { opacity: 0; filter: blur(8px); transform: translateY(10px); }
   to { opacity: 1; filter: blur(0); transform: translateY(0); }
@@ -915,19 +1236,42 @@ main {
 }
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
+@media (min-width: 721px) {
+  .hero-chip { display: flex; }
+}
+
 @media (max-width: 1024px) {
   .modos-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hero-grid { grid-template-columns: 1fr; }
+  .hero-visual { max-width: 560px; margin: 0 auto; }
+  .auction-inner { grid-template-columns: 1fr; }
+  .auction-visual { order: -1; }
 }
 
 @media (max-width: 720px) {
   .modos-grid,
   .showcase-grid { grid-template-columns: 1fr; }
 
-  .hero-copy { padding-top: 72px; }
+  .landing-hero { min-height: auto; padding-bottom: 48px; }
+
+  .hero-grid { padding-top: 88px; }
 
   .hero-actions,
   .hero-primary,
   .hero-secondary { width: 100%; }
+
+  .hero-stats { gap: 24px; }
+
+  .hero-visual { margin: 0 -16px; max-width: none; }
+
+  .hero-dice-float {
+    top: -14px;
+    right: 6px;
+    transform: scale(0.68);
+    transform-origin: top right;
+  }
+
+  .auction-copy { align-items: stretch; }
 }
 
 @media (max-width: 600px) {
